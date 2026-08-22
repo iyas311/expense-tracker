@@ -128,7 +128,7 @@ export function ApiKeyModal({ isOpen, onClose }) {
           {/* Change Security PIN */}
           <div style={{ marginBottom: '24px' }}>
             <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '600', marginBottom: '6px' }}>
-              Change Security Passcode (Current: {passcode})
+              Change Security Passcode
             </label>
             <input
               type="text"

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useExpense } from '../context/ExpenseContext';
-import { Lock, ShieldCheck, KeyRound, Sparkles } from 'lucide-react';
+import { Lock, ShieldCheck } from 'lucide-react';
 
 export function PasscodeModal() {
-  const { isLoggedIn, login, passcode } = useExpense();
+  const { isLoggedIn, login } = useExpense();
   const [pinInput, setPinInput] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -14,7 +14,7 @@ export function PasscodeModal() {
     e.preventDefault();
     const success = login(pinInput, rememberMe);
     if (!success) {
-      setErrorMsg('Incorrect Passcode. Default PIN is 1234');
+      setErrorMsg('Incorrect Security Passcode');
       setPinInput('');
     }
   };
@@ -51,7 +51,7 @@ export function PasscodeModal() {
 
         <h2 className="font-heading" style={{ fontSize: '1.6rem', marginBottom: '6px' }}>Private Vault Lock</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '24px' }}>
-          Enter your 4-digit security PIN to access your personal expense tracker.
+          Enter your security PIN to access your personal expense tracker.
         </p>
 
         <form onSubmit={handleSubmit}>
@@ -149,10 +149,6 @@ export function PasscodeModal() {
             <ShieldCheck size={20} /> Unlock Expense Tracker
           </button>
         </form>
-
-        <p style={{ marginTop: '16px', fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-          Default PIN is <strong style={{ color: 'var(--accent-cyan)' }}>1234</strong>. You can change this anytime in settings.
-        </p>
       </div>
     </div>
   );

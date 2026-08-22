@@ -24,7 +24,7 @@ const DEFAULT_SUBSCRIPTIONS = [];
 
 export function ExpenseProvider({ children }) {
   // Passcode Auth State
-  const [passcode, setPasscode] = useState(() => localStorage.getItem('et_passcode') || '1234');
+  const [passcode, setPasscode] = useState(() => localStorage.getItem('et_passcode') || '3311');
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     const saved = localStorage.getItem('et_is_logged_in');
     return saved === 'true';
