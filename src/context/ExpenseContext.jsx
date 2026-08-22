@@ -13,26 +13,14 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const DEFAULT_ACCOUNTS = [
-  { id: 'acc-1', name: 'Main Bank Account', type: 'bank', balance: 3450.00, color: '#6366f1', icon: 'Landmark' },
-  { id: 'acc-2', name: 'Rewards Credit Card', type: 'card', balance: -420.50, color: '#f43f5e', icon: 'CreditCard' },
-  { id: 'acc-3', name: 'Cash Wallet', type: 'cash', balance: 180.00, color: '#10b981', icon: 'Wallet' },
-  { id: 'acc-4', name: 'Emergency Savings', type: 'savings', balance: 5000.00, color: '#06b6d4', icon: 'PiggyBank' }
+  { id: 'acc-1', name: 'Main Bank Account', type: 'bank', balance: 0.00, color: '#6366f1', icon: 'Landmark' },
+  { id: 'acc-2', name: 'Rewards Credit Card', type: 'card', balance: 0.00, color: '#f43f5e', icon: 'CreditCard' },
+  { id: 'acc-3', name: 'Cash Wallet', type: 'cash', balance: 0.00, color: '#10b981', icon: 'Wallet' },
+  { id: 'acc-4', name: 'Emergency Savings', type: 'savings', balance: 0.00, color: '#06b6d4', icon: 'PiggyBank' }
 ];
 
-const DEFAULT_SAMPLE_TRANSACTIONS = [
-  { id: 'tx-1', date: '2026-08-22', description: 'Monthly Salary Credit', amount: 4500.00, type: 'income', categoryId: 'cat-7', accountId: 'acc-1', notes: 'Direct deposit' },
-  { id: 'tx-2', date: '2026-08-21', description: 'Whole Foods Market', amount: 124.50, type: 'expense', categoryId: 'cat-2', accountId: 'acc-2', notes: 'Weekly organic groceries' },
-  { id: 'tx-3', date: '2026-08-20', description: 'Electric & Power Bill', amount: 85.20, type: 'expense', categoryId: 'cat-4', accountId: 'acc-1', notes: 'Utility payment' },
-  { id: 'tx-4', date: '2026-08-19', description: 'Starbucks Coffee & Snacks', amount: 18.40, type: 'expense', categoryId: 'cat-1', accountId: 'acc-3', notes: 'Coffee with friends' },
-  { id: 'tx-5', date: '2026-08-18', description: 'Uber Ride to Downtown', amount: 24.00, type: 'expense', categoryId: 'cat-3', accountId: 'acc-2', notes: 'Cab fare' },
-  { id: 'tx-6', date: '2026-08-17', description: 'Netflix Subscription', amount: 15.99, type: 'expense', categoryId: 'cat-5', accountId: 'acc-2', notes: 'Monthly HD plan' }
-];
-
-const DEFAULT_SUBSCRIPTIONS = [
-  { id: 'sub-1', name: 'Netflix Premium', amount: 15.99, categoryId: 'cat-5', accountId: 'acc-2', billingCycle: 'monthly', nextDueDate: '2026-09-17' },
-  { id: 'sub-2', name: 'Gigabit Internet', amount: 79.99, categoryId: 'cat-4', accountId: 'acc-1', billingCycle: 'monthly', nextDueDate: '2026-09-01' },
-  { id: 'sub-3', name: 'Gym Membership', amount: 45.00, categoryId: 'cat-6', accountId: 'acc-2', billingCycle: 'monthly', nextDueDate: '2026-09-05' }
-];
+const DEFAULT_SAMPLE_TRANSACTIONS = [];
+const DEFAULT_SUBSCRIPTIONS = [];
 
 export function ExpenseProvider({ children }) {
   // Passcode Auth State
@@ -83,7 +71,7 @@ export function ExpenseProvider({ children }) {
           }
         }
       } catch (err) {
-        console.log('Running in local/offline mode.');
+        console.log('Running in local mode.');
       }
     }
     loadCloudDbData();
@@ -172,7 +160,6 @@ export function ExpenseProvider({ children }) {
       });
     });
 
-    // Cloud DB Sync
     try {
       fetch('/api/data', {
         method: 'POST',
@@ -196,7 +183,6 @@ export function ExpenseProvider({ children }) {
       return acc;
     }));
 
-    // Cloud DB Sync
     try {
       fetch('/api/data', {
         method: 'POST',
