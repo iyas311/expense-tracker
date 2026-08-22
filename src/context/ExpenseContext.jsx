@@ -68,7 +68,7 @@ export function ExpenseProvider({ children }) {
     setIsSyncing(true);
     try {
       const res = await fetch(`/api/data?t=${Date.now()}`, {
-        headers: { 'Cache-Control': 'no-cache' }
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
       if (res.ok) {
         const cloudData = await res.json();
@@ -77,6 +77,11 @@ export function ExpenseProvider({ children }) {
           if (cloudData.accounts?.length > 0) setAccounts(cloudData.accounts);
           if (Array.isArray(cloudData.transactions)) setTransactions(cloudData.transactions);
           if (Array.isArray(cloudData.subscriptions)) setSubscriptions(cloudData.subscriptions);
+          // Load passcode from DB if available
+          if (cloudData.settings?.passcode) {
+            setPasscode(cloudData.settings.passcode);
+            localStorage.setItem('et_passcode', cloudData.settings.passcode);
+          }
         }
       }
     } catch (err) {
@@ -145,8 +150,16 @@ export function ExpenseProvider({ children }) {
     localStorage.removeItem('et_is_logged_in');
   };
 
-  const updatePasscode = (newPass) => {
+  const updatePasscode = async (newPass) => {
     setPasscode(newPass);
+    localStorage.setItem('et_passcode', newPass);
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updatePasscode', payload: { passcode: newPass } })
+      });
+    } catch (e) {}
   };
 
   // Transaction Actions
