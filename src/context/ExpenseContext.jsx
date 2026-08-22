@@ -271,6 +271,20 @@ export function ExpenseProvider({ children }) {
     setSubscriptions(prev => [...prev, newSub]);
   };
 
+  // Clear All Data
+  const clearAllData = async () => {
+    setTransactions([]);
+    setAccounts(prev => prev.map(a => ({ ...a, balance: 0 })));
+    localStorage.removeItem('et_transactions');
+    try {
+      fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clearAllData' })
+      }).catch(() => {});
+    } catch (e) {}
+  };
+
   // Export CSV Data
   const exportData = () => {
     const headers = ['Date', 'Type', 'Description', 'Amount', 'Category', 'Account', 'Notes'];
@@ -363,7 +377,8 @@ export function ExpenseProvider({ children }) {
       updateCategoryBudget,
       addAccount,
       addSubscription,
-      exportData
+      exportData,
+      clearAllData
     }}>
       {children}
     </ExpenseContext.Provider>

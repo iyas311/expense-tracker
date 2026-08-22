@@ -3,7 +3,7 @@ import { useExpense } from '../context/ExpenseContext';
 import { Sparkles, Key, ExternalLink, Check, X, ShieldAlert, Cpu } from 'lucide-react';
 
 export function ApiKeyModal({ isOpen, onClose }) {
-  const { apiKey, setApiKey, groqApiKey, setGroqApiKey, currency, setCurrency, passcode, updatePasscode } = useExpense();
+  const { apiKey, setApiKey, groqApiKey, setGroqApiKey, currency, setCurrency, passcode, updatePasscode, clearAllData } = useExpense();
   const [keyInput, setKeyInput] = useState(apiKey);
   const [groqInput, setGroqInput] = useState(groqApiKey);
   const [currInput, setCurrInput] = useState(currency);
@@ -138,6 +138,27 @@ export function ApiKeyModal({ isOpen, onClose }) {
               placeholder="Enter new 4+ digit PIN"
               maxLength={8}
             />
+          </div>
+
+          {/* Reset App / Clear History */}
+          <div style={{ marginBottom: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '600', marginBottom: '6px', color: '#f43f5e' }}>
+              Database & Data Reset
+            </label>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                if (window.confirm('Are you sure you want to clear all test transactions and reset balances to $0.00?')) {
+                  clearAllData();
+                  alert('All test transactions have been cleared!');
+                  onClose();
+                }
+              }}
+              style={{ width: '100%', color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', padding: '10px' }}
+            >
+              <ShieldAlert size={16} /> Clear All Transactions & Reset Balances
+            </button>
           </div>
 
           {savedSuccess && (

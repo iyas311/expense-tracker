@@ -184,6 +184,12 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
 
+      if (action === 'clearAllData') {
+        await sql`TRUNCATE TABLE transactions;`;
+        await sql`UPDATE accounts SET balance = 0;`;
+        return res.status(200).json({ success: true });
+      }
+
       return res.status(400).json({ error: 'Unknown action' });
     }
 
