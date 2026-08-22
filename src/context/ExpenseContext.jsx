@@ -3,12 +3,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const ExpenseContext = createContext();
 
 const DEFAULT_CATEGORIES = [
-  { id: 'cat-1', name: 'Food & Dining', type: 'expense', budgetCap: 400, isAutoBudget: false, color: '#f43f5e', icon: 'Utensils' },
-  { id: 'cat-2', name: 'Groceries', type: 'expense', budgetCap: 500, isAutoBudget: false, color: '#10b981', icon: 'ShoppingCart' },
-  { id: 'cat-3', name: 'Transport & Fuel', type: 'expense', budgetCap: 200, isAutoBudget: false, color: '#06b6d4', icon: 'Car' },
-  { id: 'cat-4', name: 'Bills & Utilities', type: 'expense', budgetCap: 350, isAutoBudget: false, color: '#f59e0b', icon: 'Zap' },
-  { id: 'cat-5', name: 'Entertainment', type: 'expense', budgetCap: 150, isAutoBudget: false, color: '#8b5cf6', icon: 'Film' },
-  { id: 'cat-6', name: 'Shopping', type: 'expense', budgetCap: 250, isAutoBudget: false, color: '#ec4899', icon: 'ShoppingBag' },
+  { id: 'cat-1', name: 'Food & Dining', type: 'expense', budgetCap: 0, isAutoBudget: false, color: '#f43f5e', icon: 'Utensils' },
+  { id: 'cat-2', name: 'Groceries', type: 'expense', budgetCap: 0, isAutoBudget: false, color: '#10b981', icon: 'ShoppingCart' },
+  { id: 'cat-3', name: 'Transport & Fuel', type: 'expense', budgetCap: 0, isAutoBudget: false, color: '#06b6d4', icon: 'Car' },
+  { id: 'cat-4', name: 'Bills & Utilities', type: 'expense', budgetCap: 0, isAutoBudget: false, color: '#f59e0b', icon: 'Zap' },
+  { id: 'cat-5', name: 'Entertainment', type: 'expense', budgetCap: 0, isAutoBudget: false, color: '#8b5cf6', icon: 'Film' },
+  { id: 'cat-6', name: 'Shopping', type: 'expense', budgetCap: 0, isAutoBudget: false, color: '#ec4899', icon: 'ShoppingBag' },
   { id: 'cat-7', name: 'Salary & Income', type: 'income', budgetCap: 0, isAutoBudget: false, color: '#10b981', icon: 'DollarSign' }
 ];
 
