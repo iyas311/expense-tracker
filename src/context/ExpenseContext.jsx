@@ -43,7 +43,7 @@ export function ExpenseProvider({ children }) {
   });
 
   // API Key State
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('et_gemini_api_key') || '');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('et_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || '');
   const [currency, setCurrency] = useState(() => localStorage.getItem('et_currency') || '$');
 
   // App Data State
