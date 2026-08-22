@@ -9,11 +9,12 @@ import {
   LayoutDashboard,
   Receipt,
   PieChart,
-  Repeat
+  Repeat,
+  RefreshCw
 } from 'lucide-react';
 
 export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) {
-  const { logout, currency, netWorth, totalIncome, totalExpenses, exportData } = useExpense();
+  const { logout, currency, netWorth, totalIncome, totalExpenses, exportData, isSyncing, refreshCloudData } = useExpense();
 
   return (
     <>
@@ -90,6 +91,16 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
             >
               <Bot size={18} />
               <span className="hide-mobile">AI Assistant</span>
+            </button>
+
+            {/* Refresh / Sync Cloud DB */}
+            <button
+              onClick={refreshCloudData}
+              className="btn-secondary"
+              title="Sync Fresh Cloud DB Data"
+              style={{ padding: '9px', borderRadius: '12px' }}
+            >
+              <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} color={isSyncing ? '#06b6d4' : 'currentColor'} />
             </button>
 
             {/* Export Data */}

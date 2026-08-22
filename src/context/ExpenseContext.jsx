@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const ExpenseContext = createContext();
 
@@ -39,6 +39,9 @@ export function ExpenseProvider({ children }) {
   const [timeRange, setTimeRange] = useState('this_month');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
+  // Sync state
+  const [isSyncing, setIsSyncing] = useState(false);
+
   // App Data State
   const [transactions, setTransactions] = useState(() => {
     const saved = localStorage.getItem('et_transactions');
@@ -60,26 +63,37 @@ export function ExpenseProvider({ children }) {
     return saved ? JSON.parse(saved) : DEFAULT_SUBSCRIPTIONS;
   });
 
-  // Fetch Vercel Postgres DB data on mount if available
-  useEffect(() => {
-    async function loadCloudDbData() {
-      try {
-        const res = await fetch('/api/data');
-        if (res.ok) {
-          const cloudData = await res.json();
-          if (!cloudData.offline) {
-            if (cloudData.categories?.length > 0) setCategories(cloudData.categories);
-            if (cloudData.accounts?.length > 0) setAccounts(cloudData.accounts);
-            if (cloudData.transactions) setTransactions(cloudData.transactions);
-            if (cloudData.subscriptions) setSubscriptions(cloudData.subscriptions);
-          }
+  // Fetch Vercel Postgres DB data with cache buster
+  const refreshCloudData = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch(`/api/data?t=${Date.now()}`, {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      if (res.ok) {
+        const cloudData = await res.json();
+        if (!cloudData.offline) {
+          if (cloudData.categories?.length > 0) setCategories(cloudData.categories);
+          if (cloudData.accounts?.length > 0) setAccounts(cloudData.accounts);
+          if (Array.isArray(cloudData.transactions)) setTransactions(cloudData.transactions);
+          if (Array.isArray(cloudData.subscriptions)) setSubscriptions(cloudData.subscriptions);
         }
-      } catch (err) {
-        console.log('Running in local mode.');
       }
+    } catch (err) {
+      console.log('Running in local mode.');
+    } finally {
+      setIsSyncing(false);
     }
-    loadCloudDbData();
   }, []);
+
+  // Fetch on mount & set 15-second background auto-polling sync
+  useEffect(() => {
+    refreshCloudData();
+    const syncInterval = setInterval(() => {
+      refreshCloudData();
+    }, 15000);
+    return () => clearInterval(syncInterval);
+  }, [refreshCloudData]);
 
   // Sync to LocalStorage
   useEffect(() => {
@@ -165,11 +179,12 @@ export function ExpenseProvider({ children }) {
     });
 
     try {
-      fetch('/api/data', {
+      await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'addTransaction', payload: formatted })
-      }).catch(() => {});
+      });
+      refreshCloudData();
     } catch (e) {}
   };
 
@@ -188,11 +203,12 @@ export function ExpenseProvider({ children }) {
     }));
 
     try {
-      fetch('/api/data', {
+      await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'deleteTransaction', payload: { id } })
-      }).catch(() => {});
+      });
+      refreshCloudData();
     } catch (e) {}
   };
 
@@ -210,11 +226,12 @@ export function ExpenseProvider({ children }) {
     setCategories(prev => [...prev, newCat]);
 
     try {
-      fetch('/api/data', {
+      await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'addCategory', payload: newCat })
-      }).catch(() => {});
+      });
+      refreshCloudData();
     } catch (e) {}
   };
 
@@ -227,11 +244,12 @@ export function ExpenseProvider({ children }) {
     }));
 
     try {
-      fetch('/api/data', {
+      await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'updateBudget', payload: { id: catId, budgetCap, isAutoBudget } })
-      }).catch(() => {});
+      });
+      refreshCloudData();
     } catch (e) {}
   };
 
@@ -249,11 +267,12 @@ export function ExpenseProvider({ children }) {
     setAccounts(prev => [...prev, newAcc]);
 
     try {
-      fetch('/api/data', {
+      await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'addAccount', payload: newAcc })
-      }).catch(() => {});
+      });
+      refreshCloudData();
     } catch (e) {}
   };
 
@@ -277,11 +296,12 @@ export function ExpenseProvider({ children }) {
     setAccounts(prev => prev.map(a => ({ ...a, balance: 0 })));
     localStorage.removeItem('et_transactions');
     try {
-      fetch('/api/data', {
+      await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'clearAllData' })
-      }).catch(() => {});
+      });
+      refreshCloudData();
     } catch (e) {}
   };
 
@@ -357,6 +377,8 @@ export function ExpenseProvider({ children }) {
       setTimeRange,
       selectedMonth,
       setSelectedMonth,
+      isSyncing,
+      refreshCloudData,
       transactions,
       filteredTransactions,
       categories,
