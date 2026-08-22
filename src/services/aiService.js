@@ -38,7 +38,7 @@ Return ONLY a raw JSON object with NO markdown formatting, NO code blocks.
 Fields required:
 - amount: number
 - type: string ("expense" or "income")
-- description: string
+- description: string (clean merchant or item name ONLY, e.g. "Pepsi" or "Burger". Do NOT include words like "rs", "spent", "for", "costed")
 - category: string (match best from: [${categoryNames}] or invent a logical one)
 - account: string (match best from: [${accountNames}] or default "Bank Account")
 - date: YYYY-MM-DD (default to current date: ${new Date().toISOString().split('T')[0]} if unspecified)
@@ -70,7 +70,16 @@ User text: "${textInput}"`;
       const accountNames = accounts.map(a => a.name).join(', ');
       const prompt = `You are a financial transaction extractor. Analyze the user's text and extract transaction details.
 Return ONLY a raw JSON object with NO markdown formatting, NO code blocks.
+Fields required:
+- amount: number
+- type: string ("expense" or "income")
+- description: string (clean item or merchant name ONLY, e.g. "Pepsi" or "Burger")
+- category: string
+- account: string
+- date: string (YYYY-MM-DD)
+
 User text: "${textInput}"`;
+
       const groqResult = await callGroqApi(prompt, groqApiKey);
       if (groqResult) {
         const parsed = JSON.parse(groqResult);
@@ -87,7 +96,6 @@ User text: "${textInput}"`;
  * Receipt OCR Image Parser
  */
 export async function parseReceiptImage(base64Image, categories = [], accounts = [], apiKey = '') {
-  // 1. Try Serverless Proxy
   try {
     const res = await fetch('/api/ai', {
       method: 'POST',
@@ -109,7 +117,6 @@ export async function parseReceiptImage(base64Image, categories = [], accounts =
     }
   } catch (e) {}
 
-  // 2. Direct browser Gemini Vision call
   if (!apiKey) {
     throw new Error('Please enter your free Gemini API key in settings or set GEMINI_API_KEY in Vercel environment variables.');
   }
@@ -167,7 +174,6 @@ JSON format:
  * Conversational AI Assistant
  */
 export async function askAiAssistant(question, contextData, apiKey = '', groqApiKey = '') {
-  // 1. Try Serverless Proxy
   try {
     const res = await fetch('/api/ai', {
       method: 'POST',
@@ -180,7 +186,6 @@ export async function askAiAssistant(question, contextData, apiKey = '', groqApi
     }
   } catch (e) {}
 
-  // 2. Browser Gemini
   if (apiKey && apiKey.trim()) {
     try {
       const prompt = `You are a friendly personal finance assistant in an expense tracker app.
@@ -208,7 +213,6 @@ Provide a helpful, encouraging, and concise response in 2-4 sentences.`;
     } catch (err) {}
   }
 
-  // 3. Browser Groq
   if (groqApiKey && groqApiKey.trim()) {
     try {
       const prompt = `You are a friendly personal finance assistant in an expense tracker app.
@@ -256,10 +260,17 @@ function formatParsedTransaction(parsed, categories, accounts) {
   let matchedAccount = accounts.find(a => a.name.toLowerCase().includes((parsed.account || '').toLowerCase()));
   if (!matchedAccount) matchedAccount = accounts[0];
 
+  // Clean description string to ensure no residual currency labels like "rs", "usd", etc.
+  let cleanDescription = (parsed.description || 'Quick Transaction')
+    .replace(/\b(?:rs|inr|usd|bucks|dollars|rupees|spent|paid|for|costed|cost)\b/gi, '')
+    .trim();
+
+  if (!cleanDescription) cleanDescription = 'Purchase Item';
+
   return {
     amount: parseFloat(parsed.amount) || 0,
     type: parsed.type?.toLowerCase() === 'income' ? 'income' : 'expense',
-    description: parsed.description || 'Quick Transaction',
+    description: cleanDescription.charAt(0).toUpperCase() + cleanDescription.slice(1),
     categoryId: matchedCategory ? matchedCategory.id : 'cat-1',
     accountId: matchedAccount ? matchedAccount.id : 'acc-1',
     date: parsed.date || new Date().toISOString().split('T')[0]
@@ -271,10 +282,11 @@ function formatParsedTransaction(parsed, categories, accounts) {
  */
 function fallbackLocalParser(input, categories, accounts) {
   const text = input.toLowerCase();
+
   const amountMatch = text.match(/(?:[\$₹€£]\s*)?(\d+(?:\.\d{1,2})?)/);
   const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
 
-  const isIncome = text.includes('salary') || text.includes('income') || text.includes('received') || text.includes('earned') || text.includes('got paid');
+  const isIncome = /\b(?:salary|income|received|earned|got paid)\b/i.test(text);
   const type = isIncome ? 'income' : 'expense';
 
   let categoryId = categories[0]?.id || 'cat-1';
@@ -285,11 +297,11 @@ function fallbackLocalParser(input, categories, accounts) {
     }
   }
   if (categoryId === categories[0]?.id) {
-    if (text.includes('food') || text.includes('dinner') || text.includes('lunch') || text.includes('coffee') || text.includes('pizza') || text.includes('restaurant')) categoryId = 'cat-1';
-    else if (text.includes('grocer') || text.includes('walmart') || text.includes('supermarket')) categoryId = 'cat-2';
-    else if (text.includes('uber') || text.includes('gas') || text.includes('fuel') || text.includes('flight') || text.includes('cab')) categoryId = 'cat-3';
-    else if (text.includes('bill') || text.includes('electricity') || text.includes('water') || text.includes('wifi')) categoryId = 'cat-4';
-    else if (text.includes('movie') || text.includes('netflix') || text.includes('game')) categoryId = 'cat-5';
+    if (/\b(?:food|dinner|lunch|coffee|pizza|restaurant|pepsi|burger|coke|drink|snack|eat|ate)\b/i.test(text)) categoryId = 'cat-1';
+    else if (/\b(?:grocer|walmart|supermarket|vegetable|fruit)\b/i.test(text)) categoryId = 'cat-2';
+    else if (/\b(?:uber|gas|fuel|flight|cab|ride|auto|taxi|train|bus)\b/i.test(text)) categoryId = 'cat-3';
+    else if (/\b(?:bill|electricity|water|wifi|recharge|internet|power)\b/i.test(text)) categoryId = 'cat-4';
+    else if (/\b(?:movie|netflix|game|cinema|show)\b/i.test(text)) categoryId = 'cat-5';
   }
 
   let accountId = accounts[0]?.id || 'acc-1';
@@ -301,9 +313,11 @@ function fallbackLocalParser(input, categories, accounts) {
   }
 
   let description = input
-    .replace(/(?:spent|paid|received|earned|for|via|with|on|at|using)\s*/gi, ' ')
-    .replace(/(?:[\$₹€£]\s*)?\d+(?:\.\d{1,2})?/g, '')
+    .replace(/(?:[\$₹€£]\s*)?\d+(?:\.\d{1,2})?/g, ' ')
+    .replace(/\b(?:spent|paid|received|earned|costed|cost|for|via|with|on|at|using|me|rs|inr|usd|bucks|dollars|rupees|a|an|the)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
+
   if (!description) description = isIncome ? 'Income Source' : 'Expense Item';
 
   return {

@@ -21,7 +21,7 @@ Return ONLY a raw JSON object with NO markdown formatting, NO code blocks.
 Fields required:
 - amount: number
 - type: string ("expense" or "income")
-- description: string
+- description: string (clean item or merchant name ONLY, e.g. "Pepsi" or "Burger". Do NOT include words like "rs", "inr", "spent", "for", "costed")
 - category: string (match best from: [${categoryNames}] or invent a logical one)
 - account: string (match best from: [${accountNames}] or default "Bank Account")
 - date: YYYY-MM-DD (default to current date: ${new Date().toISOString().split('T')[0]} if unspecified)
