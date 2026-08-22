@@ -68,6 +68,27 @@ export function ExpenseProvider({ children }) {
     return saved ? JSON.parse(saved) : DEFAULT_SUBSCRIPTIONS;
   });
 
+  // Fetch Vercel Postgres DB data on mount if available
+  useEffect(() => {
+    async function loadCloudDbData() {
+      try {
+        const res = await fetch('/api/data');
+        if (res.ok) {
+          const cloudData = await res.json();
+          if (!cloudData.offline) {
+            if (cloudData.categories?.length > 0) setCategories(cloudData.categories);
+            if (cloudData.accounts?.length > 0) setAccounts(cloudData.accounts);
+            if (cloudData.transactions) setTransactions(cloudData.transactions);
+            if (cloudData.subscriptions) setSubscriptions(cloudData.subscriptions);
+          }
+        }
+      } catch (err) {
+        console.log('Running in local/offline mode.');
+      }
+    }
+    loadCloudDbData();
+  }, []);
+
   // Sync to LocalStorage
   useEffect(() => {
     localStorage.setItem('et_passcode', passcode);
@@ -127,7 +148,7 @@ export function ExpenseProvider({ children }) {
   };
 
   // Transaction Actions
-  const addTransaction = (newTx) => {
+  const addTransaction = async (newTx) => {
     const formatted = {
       id: `tx-${Date.now()}`,
       date: newTx.date || new Date().toISOString().split('T')[0],
@@ -141,7 +162,6 @@ export function ExpenseProvider({ children }) {
 
     setTransactions(prev => [formatted, ...prev]);
 
-    // Update account balance
     setAccounts(prevAccounts => {
       return prevAccounts.map(acc => {
         if (acc.id === formatted.accountId) {
@@ -151,15 +171,23 @@ export function ExpenseProvider({ children }) {
         return acc;
       });
     });
+
+    // Cloud DB Sync
+    try {
+      fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'addTransaction', payload: formatted })
+      }).catch(() => {});
+    } catch (e) {}
   };
 
-  const deleteTransaction = (id) => {
+  const deleteTransaction = async (id) => {
     const target = transactions.find(t => t.id === id);
     if (!target) return;
 
     setTransactions(prev => prev.filter(t => t.id !== id));
 
-    // Revert account balance
     setAccounts(prev => prev.map(acc => {
       if (acc.id === target.accountId) {
         const delta = target.type === 'income' ? -target.amount : target.amount;
@@ -167,10 +195,19 @@ export function ExpenseProvider({ children }) {
       }
       return acc;
     }));
+
+    // Cloud DB Sync
+    try {
+      fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deleteTransaction', payload: { id } })
+      }).catch(() => {});
+    } catch (e) {}
   };
 
   // Category Actions
-  const addCategory = (categoryData) => {
+  const addCategory = async (categoryData) => {
     const newCat = {
       id: `cat-${Date.now()}`,
       name: categoryData.name,
@@ -181,19 +218,35 @@ export function ExpenseProvider({ children }) {
       icon: categoryData.icon || 'Tag'
     };
     setCategories(prev => [...prev, newCat]);
+
+    try {
+      fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'addCategory', payload: newCat })
+      }).catch(() => {});
+    } catch (e) {}
   };
 
-  const updateCategoryBudget = (catId, budgetCap, isAutoBudget = false) => {
+  const updateCategoryBudget = async (catId, budgetCap, isAutoBudget = false) => {
     setCategories(prev => prev.map(c => {
       if (c.id === catId) {
         return { ...c, budgetCap: parseFloat(budgetCap) || 0, isAutoBudget };
       }
       return c;
     }));
+
+    try {
+      fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateBudget', payload: { id: catId, budgetCap, isAutoBudget } })
+      }).catch(() => {});
+    } catch (e) {}
   };
 
   // Account Actions
-  const addAccount = (accData) => {
+  const addAccount = async (accData) => {
     const newAcc = {
       id: `acc-${Date.now()}`,
       name: accData.name,
@@ -203,6 +256,14 @@ export function ExpenseProvider({ children }) {
       icon: accData.icon || 'Landmark'
     };
     setAccounts(prev => [...prev, newAcc]);
+
+    try {
+      fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'addAccount', payload: newAcc })
+      }).catch(() => {});
+    } catch (e) {}
   };
 
   // Subscription Actions
