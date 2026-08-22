@@ -6,6 +6,19 @@ function getSql() {
   return neon(dbUrl);
 }
 
+async function runMigrations(sql) {
+  // Add credit_limit column to accounts if it doesn't exist (migration)
+  try {
+    await sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS credit_limit NUMERIC(12,2) DEFAULT 0;`;
+  } catch (e) {
+    // Column may already exist, ignore
+  }
+  // Add app_settings table if it doesn't exist (migration)
+  try {
+    await sql`CREATE TABLE IF NOT EXISTS app_settings (key VARCHAR(64) PRIMARY KEY, value TEXT NOT NULL);`;
+  } catch (e) {}
+}
+
 async function ensureTablesExist(sql) {
   await sql`
     CREATE TABLE IF NOT EXISTS categories (
@@ -104,6 +117,7 @@ export default async function handler(req, res) {
     const sql = getSql();
 
     if (req.method === 'GET') {
+      await runMigrations(sql);
       await ensureTablesExist(sql);
 
       const rawCategories = await sql`SELECT id, name, type, budget_cap as "budgetCap", is_auto_budget as "isAutoBudget", color, icon FROM categories ORDER BY name ASC;`;
@@ -124,6 +138,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      await runMigrations(sql);
       await ensureTablesExist(sql);
       const { action, payload } = req.body;
 
