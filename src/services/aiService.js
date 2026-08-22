@@ -1,23 +1,21 @@
 /**
  * AI Service for Antigravity AI Expense Tracker
- * Supports Google Gemini API (gemini-2.0-flash / gemini-1.5-flash) and regex fallback
+ * Supports Google Gemini API (gemini-1.5-flash / gemini-2.0-flash), Groq API (llama-3.3-70b-versatile), and smart regex fallback
  */
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 /**
  * Parses natural language input into a structured expense transaction object
  */
-export async function parseNaturalLanguageTransaction(textInput, categories = [], accounts = [], apiKey = '') {
+export async function parseNaturalLanguageTransaction(textInput, categories = [], accounts = [], apiKey = '', groqApiKey = '') {
   if (!textInput || !textInput.trim()) return null;
 
-  // Try API call if API key provided
-  if (apiKey && apiKey.trim()) {
-    try {
-      const categoryNames = categories.map(c => c.name).join(', ');
-      const accountNames = accounts.map(a => a.name).join(', ');
+  const categoryNames = categories.map(c => c.name).join(', ');
+  const accountNames = accounts.map(a => a.name).join(', ');
 
-      const prompt = `You are a financial transaction extractor. Analyze the user's text and extract transaction details.
+  const prompt = `You are a financial transaction extractor. Analyze the user's text and extract transaction details.
 Return ONLY a raw JSON object with NO markdown formatting, NO code blocks.
 Fields required:
 - amount: number (e.g. 45.50)
@@ -29,6 +27,9 @@ Fields required:
 
 User text: "${textInput}"`;
 
+  // 1. Try Gemini API if key provided
+  if (apiKey && apiKey.trim()) {
+    try {
       const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,11 +48,24 @@ User text: "${textInput}"`;
         }
       }
     } catch (err) {
-      console.warn('Gemini API call failed, using local smart parser fallback:', err);
+      console.warn('Gemini API call failed, attempting Groq fallback...', err);
     }
   }
 
-  // Smart local regex fallback
+  // 2. Try Groq API Fallback if Groq key provided
+  if (groqApiKey && groqApiKey.trim()) {
+    try {
+      const groqResult = await callGroqApi(prompt, groqApiKey);
+      if (groqResult) {
+        const parsed = JSON.parse(groqResult);
+        return formatParsedTransaction(parsed, categories, accounts);
+      }
+    } catch (err) {
+      console.warn('Groq API call failed:', err);
+    }
+  }
+
+  // 3. Smart local regex fallback
   return fallbackLocalParser(textInput, categories, accounts);
 }
 
@@ -123,15 +137,10 @@ JSON format:
 }
 
 /**
- * Conversational AI Assistant
+ * Conversational AI Assistant (Gemini with Groq Fallback)
  */
-export async function askAiAssistant(question, contextData, apiKey = '') {
-  if (!apiKey) {
-    return "Please set your free Gemini API Key in the top bar to chat with your financial AI assistant!";
-  }
-
-  try {
-    const prompt = `You are a friendly personal finance assistant in an expense tracker app.
+export async function askAiAssistant(question, contextData, apiKey = '', groqApiKey = '') {
+  const prompt = `You are a friendly personal finance assistant in an expense tracker app.
 Context summary of user's financial state:
 - Total Net Worth: ${contextData.netWorth}
 - Total Monthly Income: ${contextData.totalIncome}
@@ -143,21 +152,60 @@ Context summary of user's financial state:
 User question: "${question}"
 Provide a helpful, encouraging, and concise response in 2-4 sentences. Use bullet points or numbers if listing items.`;
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-    });
+  // 1. Try Gemini
+  if (apiKey && apiKey.trim()) {
+    try {
+      const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
 
-    if (response.ok) {
-      const data = await response.json();
-      return data?.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response. Please try asking again.";
+      if (response.ok) {
+        const data = await response.json();
+        return data?.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response.";
+      }
+    } catch (err) {
+      console.warn('Gemini Assistant error, trying Groq fallback...', err);
     }
-  } catch (err) {
-    console.error('AI assistant error:', err);
   }
 
-  return "Sorry, I ran into an issue connecting to Gemini. Please check your API key.";
+  // 2. Try Groq
+  if (groqApiKey && groqApiKey.trim()) {
+    try {
+      const groqResult = await callGroqApi(prompt, groqApiKey);
+      if (groqResult) return groqResult;
+    } catch (err) {
+      console.warn('Groq Assistant error:', err);
+    }
+  }
+
+  return "Please set your free Gemini API Key or Groq API Key in settings to chat with your AI assistant!";
+}
+
+/**
+ * Groq API Integration Helper
+ */
+async function callGroqApi(prompt, groqApiKey) {
+  const response = await fetch(GROQ_API_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${groqApiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.2
+    })
+  });
+
+  if (response.ok) {
+    const data = await response.json();
+    const text = data?.choices?.[0]?.message?.content;
+    return text ? text.replace(/```json/g, '').replace(/```/g, '').trim() : null;
+  }
+  return null;
 }
 
 /**
@@ -186,15 +234,12 @@ function formatParsedTransaction(parsed, categories, accounts) {
 function fallbackLocalParser(input, categories, accounts) {
   const text = input.toLowerCase();
   
-  // Extract number/amount
   const amountMatch = text.match(/(?:[\$₹€£]\s*)?(\d+(?:\.\d{1,2})?)/);
   const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
 
-  // Determine type
   const isIncome = text.includes('salary') || text.includes('income') || text.includes('received') || text.includes('earned') || text.includes('got paid');
   const type = isIncome ? 'income' : 'expense';
 
-  // Category matching
   let categoryId = categories[0]?.id || 'cat-1';
   for (const cat of categories) {
     if (text.includes(cat.name.toLowerCase())) {
@@ -203,14 +248,13 @@ function fallbackLocalParser(input, categories, accounts) {
     }
   }
   if (categoryId === categories[0]?.id) {
-    if (text.includes('food') || text.includes('dinner') || text.includes('lunch') || text.includes('coffee') || text.includes('pizza') || text.includes('restaurant')) categoryId = 'cat-1'; // Dining
-    else if (text.includes('grocer') || text.includes('walmart') || text.includes('supermarket')) categoryId = 'cat-2'; // Groceries
-    else if (text.includes('uber') || text.includes('gas') || text.includes('fuel') || text.includes('flight') || text.includes('cab')) categoryId = 'cat-3'; // Transport
-    else if (text.includes('bill') || text.includes('electricity') || text.includes('water') || text.includes('wifi')) categoryId = 'cat-4'; // Bills
-    else if (text.includes('movie') || text.includes('netflix') || text.includes('game')) categoryId = 'cat-5'; // Entertainment
+    if (text.includes('food') || text.includes('dinner') || text.includes('lunch') || text.includes('coffee') || text.includes('pizza') || text.includes('restaurant')) categoryId = 'cat-1';
+    else if (text.includes('grocer') || text.includes('walmart') || text.includes('supermarket')) categoryId = 'cat-2';
+    else if (text.includes('uber') || text.includes('gas') || text.includes('fuel') || text.includes('flight') || text.includes('cab')) categoryId = 'cat-3';
+    else if (text.includes('bill') || text.includes('electricity') || text.includes('water') || text.includes('wifi')) categoryId = 'cat-4';
+    else if (text.includes('movie') || text.includes('netflix') || text.includes('game')) categoryId = 'cat-5';
   }
 
-  // Account matching
   let accountId = accounts[0]?.id || 'acc-1';
   for (const acc of accounts) {
     if (text.includes(acc.name.toLowerCase())) {
@@ -219,7 +263,6 @@ function fallbackLocalParser(input, categories, accounts) {
     }
   }
 
-  // Extract description clean
   let description = input
     .replace(/(?:spent|paid|received|earned|for|via|with|on|at|using)\s*/gi, ' ')
     .replace(/(?:[\$₹€£]\s*)?\d+(?:\.\d{1,2})?/g, '')

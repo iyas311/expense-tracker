@@ -4,7 +4,7 @@ import { askAiAssistant } from '../services/aiService';
 import { Bot, Send, X, Loader2, Sparkles, User } from 'lucide-react';
 
 export function AiChatbotModal({ isOpen, onClose }) {
-  const { apiKey, currency, netWorth, totalIncome, totalExpenses, accounts, transactions, categories } = useExpense();
+  const { apiKey, groqApiKey, currency, netWorth, totalIncome, totalExpenses, accounts, transactions, categories } = useExpense();
   
   const [messages, setMessages] = useState([
     {
@@ -35,7 +35,7 @@ export function AiChatbotModal({ isOpen, onClose }) {
       budgets: categories.filter(c => c.type === 'expense').map(c => `${c.name}: Cap ${currency}${c.budgetCap}`)
     };
 
-    const botResponse = await askAiAssistant(userText, contextData, apiKey);
+    const botResponse = await askAiAssistant(userText, contextData, apiKey, groqApiKey);
 
     setMessages(prev => [...prev, { sender: 'bot', text: botResponse }]);
     setIsAsking(false);
@@ -69,7 +69,7 @@ export function AiChatbotModal({ isOpen, onClose }) {
             <div>
               <h3 className="font-heading" style={{ fontSize: '1.1rem' }}>AI Financial Assistant</h3>
               <p style={{ fontSize: '0.72rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} /> Powered by Gemini
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} /> Powered by Gemini & Groq
               </p>
             </div>
           </div>

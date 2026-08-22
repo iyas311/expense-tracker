@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useExpense } from '../context/ExpenseContext';
-import { Sparkles, Key, ExternalLink, Check, X, ShieldAlert } from 'lucide-react';
+import { Sparkles, Key, ExternalLink, Check, X, ShieldAlert, Cpu } from 'lucide-react';
 
 export function ApiKeyModal({ isOpen, onClose }) {
-  const { apiKey, setApiKey, currency, setCurrency, passcode, updatePasscode } = useExpense();
+  const { apiKey, setApiKey, groqApiKey, setGroqApiKey, currency, setCurrency, passcode, updatePasscode } = useExpense();
   const [keyInput, setKeyInput] = useState(apiKey);
+  const [groqInput, setGroqInput] = useState(groqApiKey);
   const [currInput, setCurrInput] = useState(currency);
   const [newPin, setNewPin] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -14,6 +15,7 @@ export function ApiKeyModal({ isOpen, onClose }) {
   const handleSave = (e) => {
     e.preventDefault();
     setApiKey(keyInput.trim());
+    setGroqApiKey(groqInput.trim());
     setCurrency(currInput);
     if (newPin.trim().length >= 4) {
       updatePasscode(newPin.trim());
@@ -40,7 +42,7 @@ export function ApiKeyModal({ isOpen, onClose }) {
             </div>
             <div>
               <h3 className="font-heading" style={{ fontSize: '1.25rem' }}>AI & System Settings</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Configure Free Gemini API & Preferences</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Configure Gemini & Groq AI Providers</p>
             </div>
           </div>
           <button className="btn-secondary" onClick={onClose} style={{ padding: '8px', borderRadius: '10px' }}>
@@ -50,9 +52,9 @@ export function ApiKeyModal({ isOpen, onClose }) {
 
         <form onSubmit={handleSave}>
           {/* Gemini API Key */}
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '600', marginBottom: '6px' }}>
-              Google Gemini API Key (100% Free)
+              Google Gemini API Key (Primary Free AI)
             </label>
             <input
               type="password"
@@ -71,7 +73,34 @@ export function ApiKeyModal({ isOpen, onClose }) {
                 rel="noreferrer"
                 style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
               >
-                Get Free API Key <ExternalLink size={12} />
+                Get Free Gemini Key <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+
+          {/* Groq API Key Fallback */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '600', marginBottom: '6px', color: '#8b5cf6' }}>
+              Groq API Key (Fallback AI Engine)
+            </label>
+            <input
+              type="password"
+              className="glass-input"
+              value={groqInput}
+              onChange={(e) => setGroqInput(e.target.value)}
+              placeholder="gsk_..."
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                Ultra-fast Llama 3.3 backup model.
+              </span>
+              <a
+                href="https://console.groq.com/keys"
+                target="_blank"
+                rel="noreferrer"
+                style={{ fontSize: '0.75rem', color: '#8b5cf6', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                Get Free Groq Key <ExternalLink size={12} />
               </a>
             </div>
           </div>

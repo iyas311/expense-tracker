@@ -4,7 +4,7 @@ import { parseNaturalLanguageTransaction, parseReceiptImage } from '../services/
 import { Sparkles, Camera, Plus, Loader2, ArrowRight } from 'lucide-react';
 
 export function QuickAiBar({ onOpenManualAdd }) {
-  const { categories, accounts, apiKey, addTransaction } = useExpense();
+  const { categories, accounts, apiKey, groqApiKey, addTransaction } = useExpense();
   const [naturalInput, setNaturalInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
@@ -17,7 +17,7 @@ export function QuickAiBar({ onOpenManualAdd }) {
     setStatusMsg('AI Parsing transaction...');
 
     try {
-      const parsed = await parseNaturalLanguageTransaction(naturalInput, categories, accounts, apiKey);
+      const parsed = await parseNaturalLanguageTransaction(naturalInput, categories, accounts, apiKey, groqApiKey);
       if (parsed) {
         addTransaction(parsed);
         setNaturalInput('');
