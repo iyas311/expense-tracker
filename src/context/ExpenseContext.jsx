@@ -86,13 +86,9 @@ export function ExpenseProvider({ children }) {
     }
   }, []);
 
-  // Fetch on mount & set 15-second background auto-polling sync
+  // Fetch on fresh page load only
   useEffect(() => {
     refreshCloudData();
-    const syncInterval = setInterval(() => {
-      refreshCloudData();
-    }, 15000);
-    return () => clearInterval(syncInterval);
   }, [refreshCloudData]);
 
   // Sync to LocalStorage
