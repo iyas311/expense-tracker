@@ -44,7 +44,7 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
             </div>
             <div>
               <h1 className="font-heading" style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
-                ANTIGRAVITY <span className="text-gradient-cyan">AI</span>
+                EXPENSIA <span className="text-gradient-cyan">AI</span>
               </h1>
               <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '500' }}>
                 Smart Personal Expense Tracker
