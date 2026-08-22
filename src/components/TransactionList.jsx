@@ -3,14 +3,14 @@ import { useExpense } from '../context/ExpenseContext';
 import { Search, Filter, Trash2, ArrowUpRight, ArrowDownRight, FileText, Calendar } from 'lucide-react';
 
 export function TransactionList() {
-  const { transactions, categories, accounts, currency, deleteTransaction } = useExpense();
+  const { transactions, filteredTransactions: timeFilteredTransactions, categories, accounts, currency, deleteTransaction, timeRange } = useExpense();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedAccount, setSelectedAccount] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
 
-  const filteredTransactions = transactions.filter(t => {
+  const displayTransactions = (timeFilteredTransactions || transactions).filter(t => {
     const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (t.notes && t.notes.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCat = selectedCategory === 'all' || t.categoryId === selectedCategory;
@@ -29,7 +29,7 @@ export function TransactionList() {
         <div>
           <h3 className="font-heading" style={{ fontSize: '1.25rem' }}>Transaction History</h3>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Showing {filteredTransactions.length} of {transactions.length} records
+            Showing {displayTransactions.length} records for selected period ({timeRange.replace('_', ' ')})
           </p>
         </div>
 
@@ -76,14 +76,14 @@ export function TransactionList() {
       </div>
 
       {/* Transaction Table / List */}
-      {filteredTransactions.length === 0 ? (
+      {displayTransactions.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
           <FileText size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
-          <p>No transactions match your search filters.</p>
+          <p>No transactions found for the selected period / filters.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {filteredTransactions.map((tx) => {
+          {displayTransactions.map((tx) => {
             const cat = getCategory(tx.categoryId);
             const acc = getAccount(tx.accountId);
             const isExpense = tx.type === 'expense';
