@@ -96,7 +96,7 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
             <button
               onClick={exportData}
               className="btn-secondary"
-              title="Export JSON Backup"
+              title="Export CSV Spreadsheet"
               style={{ padding: '9px', borderRadius: '12px' }}
             >
               <Download size={18} />

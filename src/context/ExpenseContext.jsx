@@ -266,17 +266,27 @@ export function ExpenseProvider({ children }) {
     setSubscriptions(prev => [...prev, newSub]);
   };
 
-  // Export / Import
+  // Export CSV Data
   const exportData = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
-      transactions, categories, accounts, subscriptions
-    }, null, 2));
+    const headers = ['Date', 'Type', 'Description', 'Amount', 'Category', 'Account', 'Notes'];
+    const rows = transactions.map(t => {
+      const cat = categories.find(c => c.id === t.categoryId)?.name || 'General';
+      const acc = accounts.find(a => a.id === t.accountId)?.name || 'Account';
+      const cleanDesc = `"${(t.description || '').replace(/"/g, '""')}"`;
+      const cleanNotes = `"${(t.notes || '').replace(/"/g, '""')}"`;
+      return [t.date, t.type, cleanDesc, t.amount, `"${cat}"`, `"${acc}"`, cleanNotes].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `expense_backup_${new Date().toISOString().split('T')[0]}.json`);
+    downloadAnchor.setAttribute('href', url);
+    downloadAnchor.setAttribute('download', `expense_tracker_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
+    URL.revokeObjectURL(url);
   };
 
   // Derived Calculations
