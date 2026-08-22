@@ -3,7 +3,7 @@
  * Supports Google Gemini API (gemini-1.5-flash / gemini-2.0-flash), Groq API (llama-3.3-70b-versatile), and smart regex fallback
  */
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 /**
