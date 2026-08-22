@@ -4,16 +4,16 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts';
-import { TrendingUp, PieChart as PieIcon, Award } from 'lucide-react';
+import { TrendingUp, PieChart as PieIcon } from 'lucide-react';
 
 export function AnalyticsDashboard() {
-  const { categories, transactions, currency, totalIncome, totalExpenses } = useExpense();
+  const { categories, filteredTransactions, currency, totalIncome, totalExpenses, timeRange } = useExpense();
 
-  // Category Pie Chart Data
+  // Category Pie Chart Data based on time view filter
   const categoryData = categories
     .filter(c => c.type === 'expense')
     .map(cat => {
-      const value = transactions
+      const value = filteredTransactions
         .filter(t => t.categoryId === cat.id && t.type === 'expense')
         .reduce((sum, t) => sum + t.amount, 0);
       return {
@@ -26,7 +26,7 @@ export function AnalyticsDashboard() {
 
   // Income vs Expense Comparison Bar Data
   const barData = [
-    { name: 'Financial Flow', Income: totalIncome, Expenses: totalExpenses }
+    { name: timeRange.replace('_', ' ').toUpperCase(), Income: totalIncome, Expenses: totalExpenses }
   ];
 
   return (
@@ -42,7 +42,7 @@ export function AnalyticsDashboard() {
 
           {categoryData.length === 0 ? (
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>
-              No expense records yet to plot category distribution.
+              No expense records found for this period.
             </p>
           ) : (
             <div style={{ width: '100%', height: 260 }}>

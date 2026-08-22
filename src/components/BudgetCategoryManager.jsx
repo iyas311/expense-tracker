@@ -3,7 +3,7 @@ import { useExpense } from '../context/ExpenseContext';
 import { PieChart, Plus, Edit2, AlertCircle, CheckCircle2, SlidersHorizontal, X, Sparkles } from 'lucide-react';
 
 export function BudgetCategoryManager() {
-  const { categories, transactions, currency, addCategory, updateCategoryBudget } = useExpense();
+  const { categories, filteredTransactions, currency, addCategory, updateCategoryBudget } = useExpense();
   
   const [showAddCatModal, setShowAddCatModal] = useState(false);
   const [editingCatId, setEditingCatId] = useState(null);
@@ -14,9 +14,9 @@ export function BudgetCategoryManager() {
   // Edit budget modal state
   const [editCapInput, setEditCapInput] = useState('');
 
-  // Calculate actual spending per category
+  // Calculate actual spending per category for selected period
   const getCategorySpent = (catId) => {
-    return transactions
+    return filteredTransactions
       .filter(t => t.categoryId === catId && t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
   };
@@ -41,7 +41,7 @@ export function BudgetCategoryManager() {
   };
 
   const handleAutoCalculateBudgets = () => {
-    // Auto-calculate budget based on recent spending average + 15% buffer
+    // Auto-calculate budget based on recent spending average + 25% buffer
     categories.forEach(cat => {
       if (cat.type === 'expense') {
         const spent = getCategorySpent(cat.id);
@@ -148,32 +148,36 @@ export function BudgetCategoryManager() {
                   </span>
                 </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>
-                  Cap: {currency}{cap.toLocaleString()}
+                  Cap: {cap > 0 ? `${currency}${cap.toLocaleString()}` : 'Uncapped'}
                 </div>
               </div>
 
               {/* Progress Meter */}
-              <div style={{
-                width: '100%',
-                height: '10px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                borderRadius: '6px',
-                overflow: 'hidden',
-                marginBottom: '10px'
-              }}>
+              {cap > 0 && (
                 <div style={{
-                  width: `${percent}%`,
-                  height: '100%',
-                  background: statusColor,
+                  width: '100%',
+                  height: '10px',
+                  background: 'rgba(255, 255, 255, 0.08)',
                   borderRadius: '6px',
-                  transition: 'width 0.4s ease'
-                }} />
-              </div>
+                  overflow: 'hidden',
+                  marginBottom: '10px'
+                }}>
+                  <div style={{
+                    width: `${percent}%`,
+                    height: '100%',
+                    background: statusColor,
+                    borderRadius: '6px',
+                    transition: 'width 0.4s ease'
+                  }} />
+                </div>
+              )}
 
               {/* Status Message */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: statusColor, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  {isOver ? (
+                <span style={{ color: cap > 0 ? statusColor : 'var(--text-dim)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {cap === 0 ? (
+                    'No budget cap set'
+                  ) : isOver ? (
                     <><AlertCircle size={14} /> Over budget by {currency}{(spent - cap).toFixed(2)}!</>
                   ) : isWarning ? (
                     <><AlertCircle size={14} /> Warning: {percent}% of budget spent</>
@@ -206,7 +210,7 @@ export function BudgetCategoryManager() {
                 className="glass-input"
                 value={editCapInput}
                 onChange={(e) => setEditCapInput(e.target.value)}
-                placeholder="e.g. 400"
+                placeholder="e.g. 400 (or 0 for uncapped)"
                 autoFocus
               />
             </div>

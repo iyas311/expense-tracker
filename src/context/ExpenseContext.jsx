@@ -13,10 +13,10 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const DEFAULT_ACCOUNTS = [
-  { id: 'acc-1', name: 'Main Bank Account', type: 'bank', balance: 0.00, color: '#6366f1', icon: 'Landmark' },
-  { id: 'acc-2', name: 'Rewards Credit Card', type: 'card', balance: 0.00, color: '#f43f5e', icon: 'CreditCard' },
-  { id: 'acc-3', name: 'Cash Wallet', type: 'cash', balance: 0.00, color: '#10b981', icon: 'Wallet' },
-  { id: 'acc-4', name: 'Emergency Savings', type: 'savings', balance: 0.00, color: '#06b6d4', icon: 'PiggyBank' }
+  { id: 'acc-1', name: 'Main Bank Account', type: 'bank', balance: 0.00, creditLimit: 0, color: '#6366f1', icon: 'Landmark' },
+  { id: 'acc-2', name: 'Rewards Credit Card', type: 'card', balance: 0.00, creditLimit: 5000, color: '#f43f5e', icon: 'CreditCard' },
+  { id: 'acc-3', name: 'Cash Wallet', type: 'cash', balance: 0.00, creditLimit: 0, color: '#10b981', icon: 'Wallet' },
+  { id: 'acc-4', name: 'Emergency Savings', type: 'savings', balance: 0.00, creditLimit: 0, color: '#06b6d4', icon: 'PiggyBank' }
 ];
 
 const DEFAULT_SAMPLE_TRANSACTIONS = [];
@@ -34,6 +34,10 @@ export function ExpenseProvider({ children }) {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('et_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || '');
   const [groqApiKey, setGroqApiKey] = useState(() => localStorage.getItem('et_groq_api_key') || import.meta.env.VITE_GROQ_API_KEY || '');
   const [currency, setCurrency] = useState(() => localStorage.getItem('et_currency') || '$');
+
+  // Time View Filter State: 'this_month' | 'today' | 'this_week' | 'custom_month' | 'all_time'
+  const [timeRange, setTimeRange] = useState('this_month');
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   // App Data State
   const [transactions, setTransactions] = useState(() => {
@@ -238,6 +242,7 @@ export function ExpenseProvider({ children }) {
       name: accData.name,
       type: accData.type || 'bank',
       balance: parseFloat(accData.balance) || 0,
+      creditLimit: parseFloat(accData.creditLimit) || 0,
       color: accData.color || '#06b6d4',
       icon: accData.icon || 'Landmark'
     };
@@ -289,12 +294,39 @@ export function ExpenseProvider({ children }) {
     URL.revokeObjectURL(url);
   };
 
-  // Derived Calculations
-  const totalIncome = transactions
+  // Time Range Filter Logic for Income & Expenses
+  const getFilteredTransactions = () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+
+    return transactions.filter(t => {
+      if (timeRange === 'today') {
+        return t.date === todayStr;
+      }
+      if (timeRange === 'this_week') {
+        const txDate = new Date(t.date);
+        const diffDays = Math.floor((now - txDate) / (1000 * 60 * 60 * 24));
+        return diffDays >= 0 && diffDays <= 7;
+      }
+      if (timeRange === 'this_month') {
+        const currentMonthPrefix = now.toISOString().slice(0, 7);
+        return t.date.startsWith(currentMonthPrefix);
+      }
+      if (timeRange === 'custom_month') {
+        return t.date.startsWith(selectedMonth);
+      }
+      return true; // all_time
+    });
+  };
+
+  const filteredTransactions = getFilteredTransactions();
+
+  // Derived Calculations based on selected Time View
+  const totalIncome = filteredTransactions
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalExpenses = transactions
+  const totalExpenses = filteredTransactions
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
@@ -307,7 +339,12 @@ export function ExpenseProvider({ children }) {
       apiKey,
       groqApiKey,
       currency,
+      timeRange,
+      setTimeRange,
+      selectedMonth,
+      setSelectedMonth,
       transactions,
+      filteredTransactions,
       categories,
       accounts,
       subscriptions,
