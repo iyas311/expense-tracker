@@ -254,12 +254,12 @@ body {
 .app-container {
   max-width: 1280px;
   margin: 0 auto;
-  padding: env(safe-area-inset-top, 24px) env(safe-area-inset-right, 20px) calc(100px + env(safe-area-inset-bottom, 0px)) env(safe-area-inset-left, 20px);
+  padding: max(24px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) calc(100px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
 }
 
 @media (max-width: 768px) {
   .app-container {
-    padding: env(safe-area-inset-top, 16px) env(safe-area-inset-right, 14px) calc(120px + env(safe-area-inset-bottom, 0px)) env(safe-area-inset-left, 14px);
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) calc(120px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
   }
   
   /* Make Modals into Bottom Sheets on Mobile */
