@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useExpense } from '../context/ExpenseContext';
 import { Repeat, Plus, Calendar, CreditCard, X, CheckCircle } from 'lucide-react';
 
@@ -94,12 +95,12 @@ export function SubscriptionsTracker() {
       </div>
 
       {/* Add Subscription Modal */}
-      {showAddModal && (
+      {showAddModal && createPortal(
         <div className="modal-overlay">
           <div className="modal-content animate-fade-in" style={{ maxWidth: '420px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 className="font-heading">Track New Subscription</h3>
-              <button className="btn-secondary" onClick={() => setShowAddModal(false)} style={{ padding: '6px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)} style={{ padding: '6px' }}>
                 <X size={16} />
               </button>
             </div>
@@ -158,7 +159,8 @@ export function SubscriptionsTracker() {
               </button>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useExpense } from '../context/ExpenseContext';
 import { PieChart, Plus, Edit2, AlertCircle, CheckCircle2, SlidersHorizontal, X, Sparkles } from 'lucide-react';
 
@@ -127,6 +128,7 @@ export function BudgetCategoryManager() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => {
                     setEditingCatId(cat.id);
                     setEditCapInput(cat.budgetCap.toString());
@@ -192,12 +194,12 @@ export function BudgetCategoryManager() {
       </div>
 
       {/* Edit Budget Cap Modal */}
-      {editingCatId && (
+      {editingCatId && createPortal(
         <div className="modal-overlay">
           <div className="modal-content animate-fade-in" style={{ maxWidth: '380px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h4 className="font-heading">Edit Monthly Budget Cap</h4>
-              <button className="btn-secondary" onClick={() => setEditingCatId(null)} style={{ padding: '6px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setEditingCatId(null)} style={{ padding: '6px' }}>
                 <X size={16} />
               </button>
             </div>
@@ -215,20 +217,21 @@ export function BudgetCategoryManager() {
               />
             </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button className="btn-secondary" onClick={() => setEditingCatId(null)}>Cancel</button>
-              <button className="btn-gradient" onClick={() => handleUpdateBudget(editingCatId)}>Save Cap</button>
+              <button type="button" className="btn-secondary" onClick={() => setEditingCatId(null)}>Cancel</button>
+              <button type="button" className="btn-gradient" onClick={() => handleUpdateBudget(editingCatId)}>Save Cap</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Add Custom Category Modal */}
-      {showAddCatModal && (
+      {showAddCatModal && createPortal(
         <div className="modal-overlay">
           <div className="modal-content animate-fade-in" style={{ maxWidth: '420px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 className="font-heading">Create Custom Category</h3>
-              <button className="btn-secondary" onClick={() => setShowAddCatModal(false)} style={{ padding: '6px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setShowAddCatModal(false)} style={{ padding: '6px' }}>
                 <X size={16} />
               </button>
             </div>
@@ -281,7 +284,8 @@ export function BudgetCategoryManager() {
               </button>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
