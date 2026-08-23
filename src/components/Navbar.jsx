@@ -25,9 +25,10 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
         borderBottom: '1px solid var(--border-light)',
         position: 'sticky',
         top: 0,
-        zIndex: 100
+        zIndex: 100,
+        paddingTop: 'env(safe-area-inset-top, 0px)'
       }}>
-        <div className="app-container" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '1280px', margin: '0 auto' }}>
           
           {/* Logo & Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -161,7 +162,8 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
         display: 'flex',
         justifyContent: 'around',
         alignItems: 'center',
-        padding: '10px 0',
+        paddingTop: '10px',
+        paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
         zIndex: 99
       }} className="mobile-nav">
         {[

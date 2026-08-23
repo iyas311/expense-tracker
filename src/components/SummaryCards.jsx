@@ -31,7 +31,7 @@ export function SummaryCards() {
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="hide-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch', paddingBottom: '4px' }}>
           {[
             { id: 'today', label: 'Today' },
             { id: 'this_week', label: 'This Week' },
@@ -43,7 +43,7 @@ export function SummaryCards() {
               key={item.id}
               onClick={() => setTimeRange(item.id)}
               className={timeRange === item.id ? 'btn-cyan' : 'btn-secondary'}
-              style={{ fontSize: '0.78rem', padding: '6px 12px', borderRadius: '10px' }}
+              style={{ fontSize: '0.78rem', padding: '6px 12px', borderRadius: '10px', whiteSpace: 'nowrap', flexShrink: 0 }}
             >
               {item.label}
             </button>
@@ -54,7 +54,7 @@ export function SummaryCards() {
             <input
               type="month"
               className="glass-input"
-              style={{ width: 'auto', padding: '6px 10px', fontSize: '0.8rem' }}
+              style={{ width: 'auto', padding: '6px 10px', fontSize: '0.8rem', flexShrink: 0 }}
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
             />

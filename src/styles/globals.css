@@ -254,11 +254,45 @@ body {
 .app-container {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 24px 20px 100px 20px;
+  padding: env(safe-area-inset-top, 24px) env(safe-area-inset-right, 20px) calc(100px + env(safe-area-inset-bottom, 0px)) env(safe-area-inset-left, 20px);
 }
 
 @media (max-width: 768px) {
   .app-container {
-    padding: 16px 14px 120px 14px;
+    padding: env(safe-area-inset-top, 16px) env(safe-area-inset-right, 14px) calc(120px + env(safe-area-inset-bottom, 0px)) env(safe-area-inset-left, 14px);
   }
+  
+  /* Make Modals into Bottom Sheets on Mobile */
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal-content {
+    border-radius: 32px 32px 0 0;
+    max-height: 95vh;
+    padding: 32px 24px calc(24px + env(safe-area-inset-bottom, 0px));
+    border-bottom: none;
+    animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Hide scrollbar for horizontal tracks */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Touch targets & anti-zoom */
+button, select, .badge {
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }

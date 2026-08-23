@@ -57,8 +57,8 @@ export function TransactionList() {
         </div>
 
         {/* Filters */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', maxWidth: '680px' }}>
-          <div style={{ position: 'relative', flex: '1 1 180px' }}>
+        <div className="hide-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch', width: '100%', maxWidth: '680px', paddingBottom: '4px' }}>
+          <div style={{ position: 'relative', flexShrink: 0, width: '180px' }}>
             <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input
               type="text" className="glass-input"
@@ -67,15 +67,15 @@ export function TransactionList() {
               placeholder="Search..."
             />
           </div>
-          <select className="glass-input" style={{ width: 'auto', fontSize: '0.82rem' }} value={selectedAccount} onChange={e => setSelectedAccount(e.target.value)}>
+          <select className="glass-input" style={{ width: 'auto', fontSize: '0.82rem', flexShrink: 0 }} value={selectedAccount} onChange={e => setSelectedAccount(e.target.value)}>
             <option value="all" style={{ background: '#0f172a' }}>All Accounts</option>
             {accounts.map(a => <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>)}
           </select>
-          <select className="glass-input" style={{ width: 'auto', fontSize: '0.82rem' }} value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}>
+          <select className="glass-input" style={{ width: 'auto', fontSize: '0.82rem', flexShrink: 0 }} value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}>
             <option value="all" style={{ background: '#0f172a' }}>All Categories</option>
             {categories.map(c => <option key={c.id} value={c.id} style={{ background: '#0f172a' }}>{c.name}</option>)}
           </select>
-          <select className="glass-input" style={{ width: 'auto', fontSize: '0.82rem' }} value={selectedType} onChange={e => setSelectedType(e.target.value)}>
+          <select className="glass-input" style={{ width: 'auto', fontSize: '0.82rem', flexShrink: 0 }} value={selectedType} onChange={e => setSelectedType(e.target.value)}>
             <option value="all" style={{ background: '#0f172a' }}>All Types</option>
             <option value="expense" style={{ background: '#0f172a' }}>Expenses</option>
             <option value="income" style={{ background: '#0f172a' }}>Income</option>

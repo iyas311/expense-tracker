@@ -134,21 +134,22 @@ export function AiChatbotModal({ isOpen, onClose }) {
           ))}
         </div>
 
-        {/* Chat Input Bar */}
-        <form onSubmit={handleSend} style={{ padding: '14px 18px', background: 'rgba(15, 22, 41, 0.95)', borderTop: '1px solid var(--border-light)', display: 'flex', gap: '8px' }}>
-          <input
-            type="text"
-            className="glass-input"
-            value={inputQuestion}
-            onChange={(e) => setInputQuestion(e.target.value)}
-            placeholder="Ask AI about your spending..."
-            disabled={isAsking}
-          />
-          <button type="submit" className="btn-cyan" disabled={isAsking || !inputQuestion.trim()} style={{ padding: '10px 16px' }}>
-            <Send size={16} />
-          </button>
-        </form>
-
+        {/* Chat Input Container */}
+        <div style={{ padding: '14px 18px', paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))', background: 'rgba(255, 255, 255, 0.02)', borderTop: '1px solid var(--border-light)' }}>
+          <form onSubmit={handleSend} style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              className="glass-input"
+              value={inputQuestion}
+              onChange={(e) => setInputQuestion(e.target.value)}
+              placeholder="Ask AI about your spending..."
+              disabled={isAsking}
+            />
+            <button type="submit" className="btn-cyan" disabled={isAsking || !inputQuestion.trim()} style={{ padding: '10px 16px' }}>
+              <Send size={16} />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
