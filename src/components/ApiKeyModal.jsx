@@ -27,8 +27,13 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
   const [isCreatingVault, setIsCreatingVault] = useState(false);
 
   useEffect(() => {
-    if (isOpen && currentVault?.isAdmin) {
-      loadVaults();
+    if (isOpen) {
+      if (!currentVault?.isAdmin) {
+        setActiveSettingsTab('general');
+        setVaultsList([]); // Clear any leaked state
+      } else {
+        loadVaults();
+      }
     }
   }, [isOpen, currentVault?.isAdmin]);
 
@@ -142,7 +147,7 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
           </div>
         )}
 
-        {activeSettingsTab === 'general' ? (
+        {(!currentVault?.isAdmin || activeSettingsTab === 'general') ? (
           <form onSubmit={handleSave}>
             {/* Gemini API Key */}
             <div style={{ marginBottom: '16px' }}>
