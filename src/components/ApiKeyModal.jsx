@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useExpense } from '../context/ExpenseContext';
-import { Sparkles, ExternalLink, Check, X, ShieldAlert, Activity } from 'lucide-react';
+import { Sparkles, ExternalLink, Check, X, Activity } from 'lucide-react';
 
 export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
-  const { apiKey, setApiKey, groqApiKey, setGroqApiKey, currency, setCurrency, passcode, updatePasscode, clearAllData } = useExpense();
+  const { apiKey, setApiKey, groqApiKey, setGroqApiKey, currency, setCurrency, passcode, updatePasscode } = useExpense();
   const [keyInput, setKeyInput] = useState(apiKey);
   const [groqInput, setGroqInput] = useState(groqApiKey);
   const [currInput, setCurrInput] = useState(currency);
@@ -140,35 +140,19 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
             />
           </div>
 
-          {/* Reset App / Clear History */}
+          {/* System & Diagnostics */}
           <div style={{ marginBottom: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-            <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '600', marginBottom: '10px', color: '#f43f5e' }}>
-              Database & Data Reset
+            <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '600', marginBottom: '10px', color: '#94a3b8' }}>
+              System & Diagnostics
             </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => onOpenLogs && onOpenLogs()}
-                style={{ width: '100%', color: '#6366f1', borderColor: 'rgba(99,102,241,0.3)', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-              >
-                <Activity size={16} /> View System Logs & AI Usage
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to clear all transactions and reset balances to ₹0?')) {
-                    clearAllData();
-                    alert('All transactions cleared!');
-                    onClose();
-                  }
-                }}
-                style={{ width: '100%', color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-              >
-                <ShieldAlert size={16} /> Clear All Transactions & Reset Balances
-              </button>
-            </div>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => onOpenLogs && onOpenLogs()}
+              style={{ width: '100%', color: '#6366f1', borderColor: 'rgba(99,102,241,0.3)', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+            >
+              <Activity size={16} /> View System Logs & AI Usage
+            </button>
           </div>
 
           {savedSuccess && (
