@@ -1,3 +1,25 @@
+// Helper: log AI usage to DB asynchronously (fire-and-forget)
+async function logAiUsage(action, aiUsed, latencyMs, success, errorMsg = null) {
+  try {
+    await fetch(`${process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'http://localhost:3000'}/api/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'addLog',
+        payload: {
+          level: success ? (aiUsed === 'local_fallback' ? 'warn' : 'info') : 'error',
+          message: success
+            ? `AI [${aiUsed.toUpperCase()}] handled '${action}' in ${latencyMs}ms`
+            : `AI [${aiUsed.toUpperCase()}] failed '${action}': ${errorMsg}`,
+          meta: { action, aiUsed, latencyMs, success, error: errorMsg }
+        }
+      })
+    });
+  } catch (e) {
+    // Logging failure should never break the main flow
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -9,10 +31,10 @@ export default async function handler(req, res) {
     const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
     const groqKey = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
 
-    const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+    const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
     const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-    // 1. Action: Natural Language Parsing
+    // ─── 1. parseText ───────────────────────────────────────────────────────────
     if (action === 'parseText') {
       const categoryNames = (categories || []).map(c => c.name).join(', ');
       const accountNames = (accounts || []).map(a => a.name).join(', ');
@@ -30,6 +52,7 @@ User text: "${textInput}"`;
 
       // Try Gemini
       if (geminiKey) {
+        const t0 = Date.now();
         try {
           const response = await fetch(`${GEMINI_URL}?key=${geminiKey}`, {
             method: 'POST',
@@ -39,44 +62,49 @@ User text: "${textInput}"`;
           if (response.ok) {
             const data = await response.json();
             const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) return res.status(200).json({ rawJson: text.replace(/```json/g, '').replace(/```/g, '').trim() });
+            if (text) {
+              logAiUsage(action, 'gemini', Date.now() - t0, true);
+              return res.status(200).json({ rawJson: text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'gemini' });
+            }
           }
-        } catch (e) {}
+        } catch (e) {
+          logAiUsage(action, 'gemini', Date.now() - t0, false, e.message);
+        }
       }
 
       // Try Groq Fallback
       if (groqKey) {
+        const t0 = Date.now();
         try {
           const response = await fetch(GROQ_URL, {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${groqKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: 'groq/compound-mini',
-              messages: [{ role: 'user', content: prompt }]
-            })
+            headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'compound-beta-mini', messages: [{ role: 'user', content: prompt }] })
           });
           if (response.ok) {
             const data = await response.json();
             const text = data?.choices?.[0]?.message?.content;
-            if (text) return res.status(200).json({ rawJson: text.replace(/```json/g, '').replace(/```/g, '').trim() });
+            if (text) {
+              logAiUsage(action, 'groq', Date.now() - t0, true);
+              return res.status(200).json({ rawJson: text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'groq' });
+            }
           }
-        } catch (e) {}
+        } catch (e) {
+          logAiUsage(action, 'groq', Date.now() - t0, false, e.message);
+        }
       }
 
+      logAiUsage(action, 'none', 0, false, 'No API key configured');
       return res.status(400).json({ error: 'No API key configured on server' });
     }
 
-    // 2. Action: Receipt Vision Scan
+    // ─── 2. parseReceipt ────────────────────────────────────────────────────────
     if (action === 'parseReceipt') {
       if (!geminiKey) return res.status(400).json({ error: 'GEMINI_API_KEY required for vision scan' });
 
       const mimeType = base64Image.split(';')[0].split(':')[1] || 'image/jpeg';
       const base64Data = base64Image.split(',')[1];
       const categoryNames = (categories || []).map(c => c.name).join(', ');
-
       const prompt = `Analyze this receipt image and extract transaction information.
 Return ONLY a raw JSON object with NO markdown block.
 JSON format:
@@ -88,28 +116,28 @@ JSON format:
   "description": string
 }`;
 
-      const response = await fetch(`${GEMINI_URL}?key=${geminiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: mimeType, data: base64Data } }
-            ]
-          }]
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) return res.status(200).json({ rawJson: text.replace(/```json/g, '').replace(/```/g, '').trim() });
+      const t0 = Date.now();
+      try {
+        const response = await fetch(`${GEMINI_URL}?key=${geminiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64Data } }] }] })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            logAiUsage(action, 'gemini', Date.now() - t0, true);
+            return res.status(200).json({ rawJson: text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'gemini' });
+          }
+        }
+      } catch (e) {
+        logAiUsage(action, 'gemini', Date.now() - t0, false, e.message);
       }
       return res.status(500).json({ error: 'Failed to scan receipt image' });
     }
 
-    // 3. Action: AI Chat Assistant
+    // ─── 3. chat ────────────────────────────────────────────────────────────────
     if (action === 'chat') {
       const prompt = `You are a friendly personal finance assistant in an expense tracker app.
 Context summary of user's financial state:
@@ -124,6 +152,7 @@ User question: "${question}"
 Provide a helpful, encouraging, and concise response in 2-4 sentences.`;
 
       if (geminiKey) {
+        const t0 = Date.now();
         try {
           const response = await fetch(`${GEMINI_URL}?key=${geminiKey}`, {
             method: 'POST',
@@ -133,30 +162,35 @@ Provide a helpful, encouraging, and concise response in 2-4 sentences.`;
           if (response.ok) {
             const data = await response.json();
             const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) return res.status(200).json({ response: text });
+            if (text) {
+              logAiUsage(action, 'gemini', Date.now() - t0, true);
+              return res.status(200).json({ response: text, aiUsed: 'gemini' });
+            }
           }
-        } catch (e) {}
+        } catch (e) {
+          logAiUsage(action, 'gemini', Date.now() - t0, false, e.message);
+        }
       }
 
       if (groqKey) {
+        const t0 = Date.now();
         try {
           const response = await fetch(GROQ_URL, {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${groqKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: 'groq/compound-mini',
-              messages: [{ role: 'user', content: prompt }]
-            })
+            headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'compound-beta-mini', messages: [{ role: 'user', content: prompt }] })
           });
           if (response.ok) {
             const data = await response.json();
             const text = data?.choices?.[0]?.message?.content;
-            if (text) return res.status(200).json({ response: text });
+            if (text) {
+              logAiUsage(action, 'groq', Date.now() - t0, true);
+              return res.status(200).json({ response: text, aiUsed: 'groq' });
+            }
           }
-        } catch (e) {}
+        } catch (e) {
+          logAiUsage(action, 'groq', Date.now() - t0, false, e.message);
+        }
       }
 
       return res.status(400).json({ error: 'No server API key set' });
