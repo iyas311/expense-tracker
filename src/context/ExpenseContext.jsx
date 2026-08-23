@@ -30,7 +30,7 @@ export function ExpenseProvider({ children }) {
     }
   });
 
-  const [passcode, setPasscode] = useState(() => localStorage.getItem('et_passcode') || '3311');
+  const [passcode, setPasscode] = useState(() => localStorage.getItem('et_passcode') || '1122');
   const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('et_is_logged_in') === 'true');
 
   // API Keys
