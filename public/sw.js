@@ -1,5 +1,5 @@
 // Expensia AI Service Worker
-const CACHE_NAME = 'expensia-pwa-v1';
+const CACHE_NAME = 'expensia-pwa-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -33,6 +33,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // For HTML requests (navigations), use Network First, fall back to cache
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept').includes('text/html')) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // For everything else, use Cache First, fall back to Network
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       return cachedResponse || fetch(event.request);
