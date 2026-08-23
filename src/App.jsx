@@ -31,7 +31,7 @@ function MainApp() {
       {/* Offline Banner */}
       {isOffline && (
         <div style={{ background: 'rgba(245,158,11,0.15)', border: 'none', borderBottom: '1px solid rgba(245,158,11,0.35)', padding: '8px 16px', textAlign: 'center', fontSize: '0.8rem', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-          <WifiOff size={14} /> Running in offline mode — changes saved locally only. Check your connection.
+          <WifiOff size={14} /> Running in offline mode — changes saved locally only.
         </div>
       )}
 
@@ -42,25 +42,40 @@ function MainApp() {
         onOpenChat={() => setIsChatOpen(true)}
       />
 
-      <main className="app-container">
-        <QuickAiBar onOpenManualAdd={() => setIsManualModalOpen(true)} />
-        <SummaryCards />
-
+      <main className="app-container" style={{ paddingBottom: '90px' }}>
+        {/* TAB 1: DASHBOARD (Home) */}
         {activeTab === 'dashboard' && (
-          <>
+          <div className="animate-fade-in">
+            <QuickAiBar onOpenManualAdd={() => setIsManualModalOpen(true)} />
+            <SummaryCards />
             <AccountsBar />
             <AnalyticsDashboard />
             <TransactionList />
-          </>
+          </div>
         )}
-        {activeTab === 'transactions' && <TransactionList />}
+
+        {/* TAB 2: TRANSACTIONS (History) */}
+        {activeTab === 'transactions' && (
+          <div className="animate-fade-in">
+            <QuickAiBar onOpenManualAdd={() => setIsManualModalOpen(true)} />
+            <TransactionList />
+          </div>
+        )}
+
+        {/* TAB 3: BUDGETS & CATEGORIES */}
         {activeTab === 'budgets' && (
-          <>
+          <div className="animate-fade-in">
             <BudgetReport />
             <BudgetCategoryManager />
-          </>
+          </div>
         )}
-        {activeTab === 'subscriptions' && <SubscriptionsTracker />}
+
+        {/* TAB 4: RECURRING BILLS */}
+        {activeTab === 'subscriptions' && (
+          <div className="animate-fade-in">
+            <SubscriptionsTracker />
+          </div>
+        )}
       </main>
 
       <TransactionModal isOpen={isManualModalOpen} onClose={() => setIsManualModalOpen(false)} />

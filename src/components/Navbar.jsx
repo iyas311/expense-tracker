@@ -108,7 +108,7 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
             {/* Refresh / Sync Cloud DB */}
             <button
               onClick={refreshCloudData}
-              className="btn-secondary"
+              className="btn-secondary hide-mobile"
               title="Sync Fresh Cloud DB Data"
               style={{ padding: '9px', borderRadius: '12px' }}
             >
@@ -118,7 +118,7 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
             {/* Export Data */}
             <button
               onClick={exportData}
-              className="btn-secondary"
+              className="btn-secondary hide-mobile"
               title="Export CSV Spreadsheet"
               style={{ padding: '9px', borderRadius: '12px' }}
             >
