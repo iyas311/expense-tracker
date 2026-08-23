@@ -105,7 +105,6 @@ export function BudgetCategoryManager() {
               key={cat.id}
               className="glass-card"
               style={{
-                padding: '20px',
                 borderRadius: '18px',
                 position: 'relative'
               }}

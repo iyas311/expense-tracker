@@ -64,7 +64,6 @@ export function SubscriptionsTracker() {
               key={sub.id}
               className="glass-card"
               style={{
-                padding: '20px',
                 borderRadius: '18px',
                 borderLeft: `4px solid ${cat.color || '#8b5cf6'}`
               }}

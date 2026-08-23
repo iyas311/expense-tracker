@@ -75,6 +75,12 @@ body {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 24px;
+}
+@media (max-width: 600px) {
+  .glass-card {
+    padding: 16px;
+  }
 }
 
 .glass-card:hover {

@@ -69,7 +69,7 @@ export function SummaryCards() {
         gap: '16px'
       }}>
         {/* Net Worth */}
-        <div className="glass-card" style={{ padding: '20px', position: 'relative', overflow: 'hidden' }}>
+        <div className="glass-card" style={{ position: 'relative', overflow: 'hidden' }}>
           <div style={{
             position: 'absolute',
             top: '-20px',
@@ -93,7 +93,7 @@ export function SummaryCards() {
         </div>
 
         {/* Monthly / Period Income */}
-        <div className="glass-card" style={{ padding: '20px', position: 'relative', overflow: 'hidden' }}>
+        <div className="glass-card" style={{ position: 'relative', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'capitalize' }}>
               {timeRange.replace('_', ' ')} Income
@@ -111,7 +111,7 @@ export function SummaryCards() {
         </div>
 
         {/* Monthly / Period Expenses */}
-        <div className="glass-card" style={{ padding: '20px', position: 'relative', overflow: 'hidden' }}>
+        <div className="glass-card" style={{ position: 'relative', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'capitalize' }}>
               {timeRange.replace('_', ' ')} Expenses
@@ -129,7 +129,7 @@ export function SummaryCards() {
         </div>
 
         {/* Net Savings & Rate */}
-        <div className="glass-card" style={{ padding: '20px', position: 'relative', overflow: 'hidden' }}>
+        <div className="glass-card" style={{ position: 'relative', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Net Savings</span>
             <div style={{ background: 'rgba(6, 182, 212, 0.15)', padding: '8px', borderRadius: '12px' }}>

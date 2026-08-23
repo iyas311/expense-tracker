@@ -30,7 +30,7 @@ export function BudgetReport() {
   const monthLabel = new Date(reportMonth + '-02').toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 
   return (
-    <div className="glass-card" style={{ padding: '24px', marginBottom: '24px' }}>
+    <div className="glass-card" style={{ marginBottom: '24px' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>

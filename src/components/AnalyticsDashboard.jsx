@@ -34,7 +34,7 @@ export function AnalyticsDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         
         {/* Donut Chart: Category Spending */}
-        <div className="glass-card" style={{ padding: '22px' }}>
+        <div className="glass-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
             <PieIcon size={20} color="#06b6d4" />
             <h3 className="font-heading" style={{ fontSize: '1.15rem' }}>Expense Breakdown by Category</h3>
@@ -73,7 +73,7 @@ export function AnalyticsDashboard() {
         </div>
 
         {/* Bar Chart: Cashflow Comparison */}
-        <div className="glass-card" style={{ padding: '22px' }}>
+        <div className="glass-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
             <TrendingUp size={20} color="#10b981" />
             <h3 className="font-heading" style={{ fontSize: '1.15rem' }}>Income vs Expenses Flow</h3>

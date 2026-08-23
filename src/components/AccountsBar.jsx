@@ -78,7 +78,6 @@ export function AccountsBar() {
               key={acc.id}
               className="glass-card"
               style={{
-                padding: '16px 18px',
                 borderRadius: '16px',
                 borderLeft: `4px solid ${acc.color || '#6366f1'}`
               }}

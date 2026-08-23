@@ -47,7 +47,7 @@ export function TransactionList() {
   const cancelEdit = () => setEditingId(null);
 
   return (
-    <div className="glass-card" style={{ padding: '24px', marginBottom: '24px' }}>
+    <div className="glass-card" style={{ marginBottom: '24px' }}>
       <div className="section-header">
         <div className="section-title">
           <h3 className="font-heading">Transaction History</h3>
