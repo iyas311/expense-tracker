@@ -281,6 +281,46 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Responsive Section Headers */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.section-title h3 {
+  font-size: 1.25rem;
+}
+.section-title p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+@media (max-width: 600px) {
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .section-header > div:last-child {
+    width: 100%;
+    display: flex;
+  }
+  .section-header > div:last-child button {
+    flex: 1;
+    justify-content: center;
+  }
+  .section-title h3 {
+    font-size: 1.15rem;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  .section-title p {
+    font-size: 0.75rem;
+  }
+}
+
 /* Hide scrollbar for horizontal tracks */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;

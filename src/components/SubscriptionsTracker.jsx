@@ -37,10 +37,10 @@ export function SubscriptionsTracker() {
 
   return (
     <div style={{ marginBottom: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div>
-          <h3 className="font-heading" style={{ fontSize: '1.25rem' }}>Recurring Bills & Subscriptions</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+      <div className="section-header">
+        <div className="section-title">
+          <h3 className="font-heading">Recurring Bills & Subscriptions</h3>
+          <p>
             Never miss a payment with automatic due date tracking
           </p>
         </div>

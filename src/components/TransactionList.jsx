@@ -48,10 +48,10 @@ export function TransactionList() {
 
   return (
     <div className="glass-card" style={{ padding: '24px', marginBottom: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h3 className="font-heading" style={{ fontSize: '1.25rem' }}>Transaction History</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+      <div className="section-header">
+        <div className="section-title">
+          <h3 className="font-heading">Transaction History</h3>
+          <p>
             Showing {displayTransactions.length} records · {timeRange.replace('_', ' ')}
           </p>
         </div>

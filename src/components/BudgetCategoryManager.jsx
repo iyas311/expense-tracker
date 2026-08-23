@@ -56,10 +56,10 @@ export function BudgetCategoryManager() {
   return (
     <div style={{ marginBottom: '24px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h3 className="font-heading" style={{ fontSize: '1.25rem' }}>Category Budget Limits</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+      <div className="section-header">
+        <div className="section-title">
+          <h3 className="font-heading">Category Budget Limits</h3>
+          <p>
             Monitor spending against monthly limits (Manual caps or AI auto-calculated)
           </p>
         </div>

@@ -31,8 +31,8 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
         <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '1280px', margin: '0 auto' }}>
           
           {/* Logo & Brand */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <div className="brand-logo-container" style={{
               width: '42px',
               height: '42px',
               borderRadius: '14px',
@@ -40,13 +40,14 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 20px rgba(99, 102, 241, 0.4)'
+              boxShadow: '0 0 20px rgba(99, 102, 241, 0.4)',
+              flexShrink: 0
             }}>
               <Sparkles size={24} color="#ffffff" />
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h1 className="font-heading" style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
+            <div style={{ minWidth: 0, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h1 className="font-heading brand-title" style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
                   EXPENSIA <span className="text-gradient-cyan">AI</span>
                 </h1>
                 {currentVault && (
@@ -54,13 +55,14 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
                     background: currentVault.isAdmin ? 'rgba(6, 182, 212, 0.15)' : 'rgba(16, 185, 129, 0.15)',
                     color: currentVault.isAdmin ? '#06b6d4' : '#10b981',
                     fontSize: '0.68rem',
-                    border: `1px solid ${currentVault.isAdmin ? 'rgba(6, 182, 212, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+                    border: `1px solid ${currentVault.isAdmin ? 'rgba(6, 182, 212, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
+                    whiteSpace: 'nowrap'
                   }}>
                     {currentVault.name}
                   </span>
                 )}
               </div>
-              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '500' }}>
+              <p className="hide-mobile" style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '500' }}>
                 Smart Personal Expense Tracker
               </p>
             </div>
@@ -90,11 +92,11 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
           </div>
 
           {/* Header Action Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {/* AI Assistant Button */}
             <button
               onClick={onOpenChat}
-              className="btn-gradient"
+              className="btn-gradient ai-btn"
               style={{
                 padding: '9px 15px',
                 fontSize: '0.85rem',
@@ -204,6 +206,13 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
           .desktop-nav { display: none !important; }
           .hide-mobile { display: none !important; }
           .mobile-nav { display: flex !important; }
+          
+          /* Prevent header congestion */
+          .brand-logo-container { width: 32px !important; height: 32px !important; border-radius: 10px !important; }
+          .brand-logo-container svg { width: 18px !important; height: 18px !important; }
+          .brand-title { font-size: 1.1rem !important; }
+          .header-actions { gap: 6px !important; flex-shrink: 0; }
+          .ai-btn { padding: 9px !important; }
         }
         @media (min-width: 769px) {
           .mobile-nav { display: none !important; }

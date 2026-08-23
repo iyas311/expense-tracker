@@ -38,12 +38,12 @@ export function AccountsBar() {
 
   return (
     <div style={{ marginBottom: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-        <div>
-          <h3 className="font-heading" style={{ fontSize: '1.1rem', color: 'var(--text-main)' }}>
+      <div className="section-header">
+        <div className="section-title">
+          <h3 className="font-heading">
             Payment Accounts & Credit Cards
           </h3>
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+          <p>
             Track cash, bank balances, and available credit card limits
           </p>
         </div>
