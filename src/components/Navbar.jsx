@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) {
-  const { logout, currency, netWorth, totalIncome, totalExpenses, exportData, isSyncing, refreshCloudData } = useExpense();
+  const { logout, currency, netWorth, totalIncome, totalExpenses, exportData, isSyncing, refreshCloudData, currentVault } = useExpense();
 
   return (
     <>
@@ -44,9 +44,21 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
               <Sparkles size={24} color="#ffffff" />
             </div>
             <div>
-              <h1 className="font-heading" style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
-                EXPENSIA <span className="text-gradient-cyan">AI</span>
-              </h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h1 className="font-heading" style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
+                  EXPENSIA <span className="text-gradient-cyan">AI</span>
+                </h1>
+                {currentVault && (
+                  <span className="badge" style={{
+                    background: currentVault.isAdmin ? 'rgba(6, 182, 212, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                    color: currentVault.isAdmin ? '#06b6d4' : '#10b981',
+                    fontSize: '0.68rem',
+                    border: `1px solid ${currentVault.isAdmin ? 'rgba(6, 182, 212, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+                  }}>
+                    {currentVault.name}
+                  </span>
+                )}
+              </div>
               <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '500' }}>
                 Smart Personal Expense Tracker
               </p>

@@ -20,7 +20,16 @@ const DEFAULT_ACCOUNTS = [
 ];
 
 export function ExpenseProvider({ children }) {
-  // Auth
+  // Vault & Auth State
+  const [currentVault, setCurrentVault] = useState(() => {
+    try {
+      const saved = localStorage.getItem('et_vault_info');
+      return saved ? JSON.parse(saved) : { id: 'vault_admin', name: 'Admin Vault', isAdmin: true };
+    } catch {
+      return { id: 'vault_admin', name: 'Admin Vault', isAdmin: true };
+    }
+  });
+
   const [passcode, setPasscode] = useState(() => localStorage.getItem('et_passcode') || '3311');
   const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('et_is_logged_in') === 'true');
 
@@ -39,25 +48,26 @@ export function ExpenseProvider({ children }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
 
-  // App Data
+  // App Data (Scoped to current vault)
   const [transactions, setTransactions] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('et_transactions') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(`et_tx_${currentVault?.id}`) || '[]'); } catch { return []; }
   });
   const [categories, setCategories] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('et_categories') || 'null') || DEFAULT_CATEGORIES; } catch { return DEFAULT_CATEGORIES; }
+    try { return JSON.parse(localStorage.getItem(`et_cat_${currentVault?.id}`) || 'null') || DEFAULT_CATEGORIES; } catch { return DEFAULT_CATEGORIES; }
   });
   const [accounts, setAccounts] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('et_accounts') || 'null') || DEFAULT_ACCOUNTS; } catch { return DEFAULT_ACCOUNTS; }
+    try { return JSON.parse(localStorage.getItem(`et_acc_${currentVault?.id}`) || 'null') || DEFAULT_ACCOUNTS; } catch { return DEFAULT_ACCOUNTS; }
   });
   const [subscriptions, setSubscriptions] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('et_subscriptions') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(`et_sub_${currentVault?.id}`) || '[]'); } catch { return []; }
   });
 
   // ─── Cloud Sync ─────────────────────────────────────────────────────────────
-  const refreshCloudData = useCallback(async () => {
+  const refreshCloudData = useCallback(async (targetVaultId) => {
+    const vId = targetVaultId || currentVault?.id || 'vault_admin';
     setIsSyncing(true);
     try {
-      const res = await fetch(`/api/data?t=${Date.now()}`, {
+      const res = await fetch(`/api/data?vaultId=${vId}&t=${Date.now()}`, {
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
       if (res.ok) {
@@ -68,20 +78,16 @@ export function ExpenseProvider({ children }) {
           if (cloudData.accounts?.length > 0) setAccounts(cloudData.accounts);
           if (Array.isArray(cloudData.transactions)) setTransactions(cloudData.transactions);
           if (Array.isArray(cloudData.subscriptions)) setSubscriptions(cloudData.subscriptions);
-          if (cloudData.settings?.passcode) {
-            setPasscode(cloudData.settings.passcode);
-            localStorage.setItem('et_passcode', cloudData.settings.passcode);
-          }
           if (cloudData.settings?.currency) {
             setCurrencyState(cloudData.settings.currency);
             localStorage.setItem('et_currency', cloudData.settings.currency);
           }
-          // Process recurring subscriptions if any are due
+          // Process recurring
           if (cloudData.subscriptions?.length > 0) {
             fetch('/api/data', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'processRecurring', payload: {} })
+              body: JSON.stringify({ action: 'processRecurring', payload: { vaultId: vId } })
             }).catch(() => {});
           }
         } else {
@@ -96,29 +102,69 @@ export function ExpenseProvider({ children }) {
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [currentVault?.id]);
 
-  useEffect(() => { refreshCloudData(); }, [refreshCloudData]);
+  useEffect(() => {
+    if (isLoggedIn) {
+      refreshCloudData(currentVault?.id);
+    }
+  }, [isLoggedIn, currentVault?.id, refreshCloudData]);
 
-  // ─── LocalStorage Sync ───────────────────────────────────────────────────────
+  // ─── Local Storage Sync ─────────────────────────────────────────────────────
   useEffect(() => { localStorage.setItem('et_passcode', passcode); }, [passcode]);
   useEffect(() => { localStorage.setItem('et_is_logged_in', isLoggedIn); }, [isLoggedIn]);
+  useEffect(() => { localStorage.setItem('et_vault_info', JSON.stringify(currentVault)); }, [currentVault]);
   useEffect(() => { localStorage.setItem('et_gemini_api_key', apiKey); }, [apiKey]);
   useEffect(() => { localStorage.setItem('et_groq_api_key', groqApiKey); }, [groqApiKey]);
   useEffect(() => { localStorage.setItem('et_currency', currency); }, [currency]);
-  useEffect(() => { localStorage.setItem('et_transactions', JSON.stringify(transactions)); }, [transactions]);
-  useEffect(() => { localStorage.setItem('et_categories', JSON.stringify(categories)); }, [categories]);
-  useEffect(() => { localStorage.setItem('et_accounts', JSON.stringify(accounts)); }, [accounts]);
-  useEffect(() => { localStorage.setItem('et_subscriptions', JSON.stringify(subscriptions)); }, [subscriptions]);
 
-  // ─── Auth ────────────────────────────────────────────────────────────────────
-  const login = (inputPass) => {
-    if (inputPass === passcode) {
-      setIsLoggedIn(true);
-      localStorage.setItem('et_is_logged_in', 'true');
-      return true;
+  useEffect(() => {
+    if (currentVault?.id) {
+      localStorage.setItem(`et_tx_${currentVault.id}`, JSON.stringify(transactions));
+      localStorage.setItem(`et_cat_${currentVault.id}`, JSON.stringify(categories));
+      localStorage.setItem(`et_acc_${currentVault.id}`, JSON.stringify(accounts));
+      localStorage.setItem(`et_sub_${currentVault.id}`, JSON.stringify(subscriptions));
     }
-    return false;
+  }, [transactions, categories, accounts, subscriptions, currentVault?.id]);
+
+  // ─── Auth / Vault Login ──────────────────────────────────────────────────────
+  const login = async (inputPass, rememberMe = true) => {
+    try {
+      const res = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'loginVault', payload: { passcode: inputPass.trim() } })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.vault) {
+          setCurrentVault(data.vault);
+          setPasscode(inputPass.trim());
+          setIsLoggedIn(true);
+          if (data.categories?.length > 0) setCategories(data.categories);
+          if (data.accounts?.length > 0) setAccounts(data.accounts);
+          if (Array.isArray(data.transactions)) setTransactions(data.transactions);
+          if (Array.isArray(data.subscriptions)) setSubscriptions(data.subscriptions);
+
+          if (rememberMe) {
+            localStorage.setItem('et_is_logged_in', 'true');
+            localStorage.setItem('et_passcode', inputPass.trim());
+            localStorage.setItem('et_vault_info', JSON.stringify(data.vault));
+          }
+          return { success: true, vault: data.vault };
+        }
+      }
+      return { success: false, error: 'Incorrect PIN' };
+    } catch (e) {
+      // Offline fallback: check stored passcode
+      if (inputPass === passcode) {
+        setIsLoggedIn(true);
+        if (rememberMe) localStorage.setItem('et_is_logged_in', 'true');
+        return { success: true, vault: currentVault };
+      }
+      return { success: false, error: 'Incorrect PIN (Offline)' };
+    }
   };
 
   const logout = () => {
@@ -130,12 +176,74 @@ export function ExpenseProvider({ children }) {
     setPasscode(newPass);
     localStorage.setItem('et_passcode', newPass);
     try {
-      await fetch('/api/data', {
+      const res = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'updatePasscode', payload: { passcode: newPass } })
+        body: JSON.stringify({
+          action: 'updateVaultPin',
+          payload: { targetVaultId: currentVault?.id || 'vault_admin', newPasscode: newPass }
+        })
       });
-    } catch (e) {}
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update PIN');
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  };
+
+  // ─── Admin Vault Management ──────────────────────────────────────────────────
+  const listVaults = async () => {
+    try {
+      const res = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'listVaults', payload: { adminPasscode: passcode } })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.vaults || [];
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const createVault = async (name, newPass) => {
+    try {
+      const res = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'createVault',
+          payload: { name, passcode: newPass, adminPasscode: passcode }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create vault');
+      return { success: true, vaultId: data.vaultId };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  };
+
+  const deleteVault = async (targetVaultId) => {
+    try {
+      const res = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'deleteVault',
+          payload: { targetVaultId, adminPasscode: passcode }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete vault');
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
   };
 
   // ─── Currency ────────────────────────────────────────────────────────────────
@@ -161,10 +269,10 @@ export function ExpenseProvider({ children }) {
       type: newTx.type || 'expense',
       categoryId: newTx.categoryId || categories[0]?.id || 'cat-1',
       accountId: newTx.accountId || accounts[0]?.id || 'acc-1',
-      notes: newTx.notes || ''
+      notes: newTx.notes || '',
+      vaultId: currentVault?.id || 'vault_admin'
     };
     setTransactions(prev => [formatted, ...prev]);
-    // Optimistic balance update
     setAccounts(prev => prev.map(acc => {
       if (acc.id === formatted.accountId) {
         const delta = formatted.type === 'income' ? formatted.amount : -formatted.amount;
@@ -188,7 +296,10 @@ export function ExpenseProvider({ children }) {
       await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'updateTransaction', payload: { id, ...updatedData } })
+        body: JSON.stringify({
+          action: 'updateTransaction',
+          payload: { id, ...updatedData, vaultId: currentVault?.id || 'vault_admin' }
+        })
       });
       refreshCloudData();
     } catch (e) {}
@@ -200,7 +311,10 @@ export function ExpenseProvider({ children }) {
       await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'deleteTransaction', payload: { id } })
+        body: JSON.stringify({
+          action: 'deleteTransaction',
+          payload: { id, vaultId: currentVault?.id || 'vault_admin' }
+        })
       });
       refreshCloudData();
     } catch (e) {}
@@ -211,10 +325,10 @@ export function ExpenseProvider({ children }) {
     const parsedAmount = parseFloat(amount) || 0;
     const transferDate = date || new Date().toISOString().split('T')[0];
     const transferId = `tfr-${Date.now()}`;
-    // Optimistic UI updates
+    const vId = currentVault?.id || 'vault_admin';
     setTransactions(prev => [
-      { id: `tx-out-${Date.now()}`, date: transferDate, description: 'Transfer Out', amount: parsedAmount, type: 'transfer', categoryId: null, accountId: fromAccountId, notes: notes || '', transferId },
-      { id: `tx-in-${Date.now() + 1}`, date: transferDate, description: 'Transfer In', amount: parsedAmount, type: 'income', categoryId: null, accountId: toAccountId, notes: notes || '', transferId },
+      { id: `tx-out-${Date.now()}`, date: transferDate, description: 'Transfer Out', amount: parsedAmount, type: 'transfer', categoryId: null, accountId: fromAccountId, notes: notes || '', transferId, vaultId: vId },
+      { id: `tx-in-${Date.now() + 1}`, date: transferDate, description: 'Transfer In', amount: parsedAmount, type: 'income', categoryId: null, accountId: toAccountId, notes: notes || '', transferId, vaultId: vId },
       ...prev
     ]);
     setAccounts(prev => prev.map(acc => {
@@ -226,7 +340,10 @@ export function ExpenseProvider({ children }) {
       await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'addTransfer', payload: { fromAccountId, toAccountId, amount: parsedAmount, date: transferDate, notes } })
+        body: JSON.stringify({
+          action: 'addTransfer',
+          payload: { fromAccountId, toAccountId, amount: parsedAmount, date: transferDate, notes, vaultId: vId }
+        })
       });
       refreshCloudData();
     } catch (e) {}
@@ -234,6 +351,7 @@ export function ExpenseProvider({ children }) {
 
   // ─── Categories ──────────────────────────────────────────────────────────────
   const addCategory = async (categoryData) => {
+    const vId = currentVault?.id || 'vault_admin';
     const newCat = {
       id: `cat-${Date.now()}`,
       name: categoryData.name,
@@ -241,7 +359,8 @@ export function ExpenseProvider({ children }) {
       budgetCap: parseFloat(categoryData.budgetCap) || 0,
       isAutoBudget: categoryData.isAutoBudget || false,
       color: categoryData.color || '#8b5cf6',
-      icon: categoryData.icon || 'Tag'
+      icon: categoryData.icon || 'Tag',
+      vaultId: vId
     };
     setCategories(prev => [...prev, newCat]);
     try {
@@ -260,13 +379,18 @@ export function ExpenseProvider({ children }) {
       await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'updateBudget', payload: { id: catId, budgetCap, isAutoBudget } })
+        body: JSON.stringify({
+          action: 'updateBudget',
+          payload: { id: catId, budgetCap, isAutoBudget, vaultId: currentVault?.id || 'vault_admin' }
+        })
       });
+      refreshCloudData();
     } catch (e) {}
   };
 
   // ─── Accounts ────────────────────────────────────────────────────────────────
   const addAccount = async (accData) => {
+    const vId = currentVault?.id || 'vault_admin';
     const newAcc = {
       id: `acc-${Date.now()}`,
       name: accData.name,
@@ -275,7 +399,8 @@ export function ExpenseProvider({ children }) {
       initialBalance: parseFloat(accData.balance) || 0,
       creditLimit: parseFloat(accData.creditLimit) || 0,
       color: accData.color || '#06b6d4',
-      icon: accData.icon || 'Landmark'
+      icon: accData.icon || 'Landmark',
+      vaultId: vId
     };
     setAccounts(prev => [...prev, newAcc]);
     try {
@@ -290,6 +415,7 @@ export function ExpenseProvider({ children }) {
 
   // ─── Subscriptions ───────────────────────────────────────────────────────────
   const addSubscription = async (subData) => {
+    const vId = currentVault?.id || 'vault_admin';
     const newSub = {
       id: `sub-${Date.now()}`,
       name: subData.name,
@@ -297,7 +423,8 @@ export function ExpenseProvider({ children }) {
       categoryId: subData.categoryId || categories[0]?.id,
       accountId: subData.accountId || accounts[0]?.id,
       billingCycle: subData.billingCycle || 'monthly',
-      nextDueDate: subData.nextDueDate || new Date().toISOString().split('T')[0]
+      nextDueDate: subData.nextDueDate || new Date().toISOString().split('T')[0],
+      vaultId: vId
     };
     setSubscriptions(prev => [...prev, newSub]);
     try {
@@ -313,12 +440,11 @@ export function ExpenseProvider({ children }) {
   const clearAllData = async () => {
     setTransactions([]);
     setAccounts(prev => prev.map(a => ({ ...a, balance: 0, initialBalance: 0 })));
-    localStorage.removeItem('et_transactions');
     try {
       await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'clearAllData' })
+        body: JSON.stringify({ action: 'clearAllData', payload: { vaultId: currentVault?.id || 'vault_admin' } })
       });
       refreshCloudData();
     } catch (e) {}
@@ -337,7 +463,7 @@ export function ExpenseProvider({ children }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `expensia_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `expensia_${currentVault?.name || 'vault'}_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -369,13 +495,14 @@ export function ExpenseProvider({ children }) {
 
   return (
     <ExpenseContext.Provider value={{
-      passcode, isLoggedIn, apiKey, groqApiKey, currency,
+      currentVault, passcode, isLoggedIn, apiKey, groqApiKey, currency,
       timeRange, setTimeRange, selectedMonth, setSelectedMonth,
       isSyncing, isOffline, refreshCloudData,
       transactions, filteredTransactions,
       categories, accounts, subscriptions,
       totalIncome, totalExpenses, netWorth,
       login, logout, updatePasscode,
+      listVaults, createVault, deleteVault,
       setApiKey, setGroqApiKey, setCurrency,
       addTransaction, editTransaction, deleteTransaction,
       addTransfer,
