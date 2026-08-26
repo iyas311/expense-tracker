@@ -1,10 +1,10 @@
 import { neon } from '@neondatabase/serverless';
 
-// Direct DB log — avoids unreliable self-HTTP call on Vercel
+// Direct DB log — must be AWAITED before returning response on Vercel serverless
 async function logAiUsage(action, aiUsed, latencyMs, success, errorMsg = null) {
   try {
     const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_PRISMA_URL;
-    if (!databaseUrl) return; // No DB configured, skip logging silently
+    if (!databaseUrl) return;
     const sql = neon(databaseUrl);
     const level = success ? (aiUsed === 'local_fallback' ? 'warn' : 'info') : 'error';
     const message = success
@@ -74,12 +74,12 @@ User text: "${textInput}"`;
             const data = await response.json();
             const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
             if (text) {
-              logAiUsage(action, 'gemini', Date.now() - t0, true);
+              await logAiUsage(action, 'gemini', Date.now() - t0, true); // ← awaited
               return res.status(200).json({ rawJson: text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'gemini' });
             }
           }
         } catch (e) {
-          logAiUsage(action, 'gemini', Date.now() - t0, false, e.message);
+          await logAiUsage(action, 'gemini', Date.now() - t0, false, e.message); // ← awaited
         }
       }
 
@@ -96,16 +96,16 @@ User text: "${textInput}"`;
             const data = await response.json();
             const text = data?.choices?.[0]?.message?.content;
             if (text) {
-              logAiUsage(action, 'groq', Date.now() - t0, true);
+              await logAiUsage(action, 'groq', Date.now() - t0, true); // ← awaited
               return res.status(200).json({ rawJson: text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'groq' });
             }
           }
         } catch (e) {
-          logAiUsage(action, 'groq', Date.now() - t0, false, e.message);
+          await logAiUsage(action, 'groq', Date.now() - t0, false, e.message); // ← awaited
         }
       }
 
-      logAiUsage(action, 'none', 0, false, 'No API key configured');
+      await logAiUsage(action, 'none', 0, false, 'No API key configured'); // ← awaited
       return res.status(400).json({ error: 'No API key configured on server' });
     }
 
@@ -138,12 +138,12 @@ JSON format:
           const data = await response.json();
           const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
-            logAiUsage(action, 'gemini', Date.now() - t0, true);
+            await logAiUsage(action, 'gemini', Date.now() - t0, true); // ← awaited
             return res.status(200).json({ rawJson: text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'gemini' });
           }
         }
       } catch (e) {
-        logAiUsage(action, 'gemini', Date.now() - t0, false, e.message);
+        await logAiUsage(action, 'gemini', Date.now() - t0, false, e.message); // ← awaited
       }
       return res.status(500).json({ error: 'Failed to scan receipt image' });
     }
@@ -174,12 +174,12 @@ Provide a helpful, encouraging, and concise response in 2-4 sentences.`;
             const data = await response.json();
             const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
             if (text) {
-              logAiUsage(action, 'gemini', Date.now() - t0, true);
+              await logAiUsage(action, 'gemini', Date.now() - t0, true); // ← awaited
               return res.status(200).json({ response: text, aiUsed: 'gemini' });
             }
           }
         } catch (e) {
-          logAiUsage(action, 'gemini', Date.now() - t0, false, e.message);
+          await logAiUsage(action, 'gemini', Date.now() - t0, false, e.message); // ← awaited
         }
       }
 
@@ -195,12 +195,12 @@ Provide a helpful, encouraging, and concise response in 2-4 sentences.`;
             const data = await response.json();
             const text = data?.choices?.[0]?.message?.content;
             if (text) {
-              logAiUsage(action, 'groq', Date.now() - t0, true);
+              await logAiUsage(action, 'groq', Date.now() - t0, true); // ← awaited
               return res.status(200).json({ response: text, aiUsed: 'groq' });
             }
           }
         } catch (e) {
-          logAiUsage(action, 'groq', Date.now() - t0, false, e.message);
+          await logAiUsage(action, 'groq', Date.now() - t0, false, e.message); // ← awaited
         }
       }
 
