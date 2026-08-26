@@ -8,6 +8,25 @@ export function SummaryCards() {
   const netSavings = totalIncome - totalExpenses;
   const savingsRate = totalIncome > 0 ? Math.max(0, Math.round((netSavings / totalIncome) * 100)) : 0;
 
+  const getPeriodLabel = () => {
+    switch (timeRange) {
+      case 'today': return 'Today\'s';
+      case 'this_week': return 'This Week\'s';
+      case 'this_month': return 'This Month\'s';
+      case 'all_time': return 'All Time';
+      case 'custom_month': {
+        const [year, month] = selectedMonth.split('-');
+        const label = new Date(year, month - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+        return label;
+      }
+      case 'custom_date': {
+        const label = new Date(selectedDate + 'T00:00:00').toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        return label;
+      }
+      default: return 'Period';
+    }
+  };
+
   return (
     <div style={{ marginBottom: '24px' }}>
       {/* Time View Filter Switcher Toolbar */}
@@ -109,7 +128,7 @@ export function SummaryCards() {
         <div className="glass-card" style={{ position: 'relative', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'capitalize' }}>
-              {timeRange.replace('_', ' ')} Income
+              {getPeriodLabel()} Income
             </span>
             <div style={{ background: 'rgba(16, 185, 129, 0.15)', padding: '8px', borderRadius: '12px' }}>
               <TrendingUp size={20} color="#10b981" />
@@ -127,7 +146,7 @@ export function SummaryCards() {
         <div className="glass-card" style={{ position: 'relative', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'capitalize' }}>
-              {timeRange.replace('_', ' ')} Expenses
+              {getPeriodLabel()} Expenses
             </span>
             <div style={{ background: 'rgba(244, 63, 94, 0.15)', padding: '8px', borderRadius: '12px' }}>
               <TrendingDown size={20} color="#f43f5e" />

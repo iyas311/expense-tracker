@@ -19,30 +19,34 @@ export function QuickAiBar({ onOpenManualAdd }) {
 
     try {
       const parsedArray = await parseNaturalLanguageTransaction(promptText, categories, accounts, apiKey, groqApiKey);
-      if (parsedArray && parsedArray.length > 0) {
+
+      // Filter out zero-amount entries — nothing to log
+      const validTx = (parsedArray || []).filter(p => p.amount > 0);
+
+      if (validTx.length > 0) {
         // Use addTransactions (plural) — single atomic state update, avoids React batching bug
-        await addTransactions(parsedArray);
+        await addTransactions(validTx);
         setNaturalInput('');
 
         // Save prompt to history
         fetch('/api/data', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'addPromptHistory', payload: { text: promptText, txCount: parsedArray.length } })
+          body: JSON.stringify({ action: 'addPromptHistory', payload: { text: promptText, txCount: validTx.length } })
         }).catch(() => {});
 
-        const isMultiple = parsedArray.length > 1;
-        const totalAmount = parsedArray.reduce((sum, p) => sum + p.amount, 0);
+        const isMultiple = validTx.length > 1;
+        const totalAmount = validTx.reduce((sum, p) => sum + p.amount, 0);
 
         setStatus({
           type: 'success',
           message: isMultiple
-            ? `Logged ${parsedArray.length} transactions totaling ${currency}${totalAmount}`
-            : `Logged ${parsedArray[0].type === 'expense' ? '−' : '+'}${currency}${parsedArray[0].amount} for "${parsedArray[0].description}"`
+            ? `Logged ${validTx.length} transactions totaling ${currency}${totalAmount}`
+            : `Logged ${validTx[0].type === 'expense' ? '−' : '+'}${currency}${validTx[0].amount} for "${validTx[0].description}"`
         });
         setTimeout(() => setStatus(null), 4000);
       } else {
-        setStatus({ type: 'error', message: 'Could not detect amount or details. Try manual entry.' });
+        setStatus({ type: 'error', message: 'Could not detect a valid amount. Try: "burger 60 and groceries 100"' });
         setTimeout(() => setStatus(null), 4000);
       }
     } catch (err) {
