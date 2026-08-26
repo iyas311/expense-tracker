@@ -12,30 +12,72 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 export async function parseNaturalLanguageTransaction(textInput, categories = [], accounts = [], apiKey = '', groqApiKey = '') {
   if (!textInput || !textInput.trim()) return null;
 
+  const processParsed = (parsed) => {
+    let arr = Array.isArray(parsed) ? parsed : null;
+    if (!arr && typeof parsed === 'object' && parsed !== null) {
+      // LLM might wrap the array in an object (e.g. { transactions: [...] } or { items: [...] })
+      for (const key of Object.keys(parsed)) {
+        if (Array.isArray(parsed[key])) {
+          arr = parsed[key];
+          break;
+        }
+      }
+      if (!arr) arr = [parsed];
+    } else if (!arr) {
+      arr = [];
+    }
+
+    return arr.map(p => formatParsedTransaction(p, categories, accounts));
+  };
+
   // 1. First try Serverless Proxy /api/ai (100% Secret Server Keys)
   try {
+    console.log('[AI] Trying serverless /api/ai...');
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'parseText', textInput, categories, accounts })
     });
+    console.log('[AI] /api/ai status:', res.status);
     if (res.ok) {
       const data = await res.json();
+      console.log('[AI] /api/ai response:', data);
       if (data.rawJson) {
         const parsed = JSON.parse(data.rawJson);
-        return formatParsedTransaction(parsed, categories, accounts);
+        console.log('[AI] Parsed from server:', parsed);
+        return processParsed(parsed);
+      }
+      if (data.error) {
+        console.warn('[AI] Server returned error:', data.error);
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn('[AI] /api/ai call failed:', e.message);
+  }
 
   // 2. Direct browser Gemini API key call
   if (apiKey && apiKey.trim()) {
+    console.log('[AI] Trying browser Gemini key...');
     try {
       const categoryNames = categories.map(c => c.name).join(', ');
       const accountNames = accounts.map(a => a.name).join(', ');
       const prompt = `You are a financial transaction extractor. Analyze the user's text and extract transaction details.
-Return ONLY a raw JSON object with NO markdown formatting, NO code blocks.
-Fields required:
+Return ONLY a raw JSON array of objects with NO markdown formatting, NO code blocks. Do not wrap the array in an object.
+If there are multiple transactions in the text, extract them all into the array.
+
+Example Output format:
+[
+  {
+    "amount": 240,
+    "type": "expense",
+    "description": "Clean item name",
+    "category": "Match best category",
+    "account": "Match best account",
+    "date": "YYYY-MM-DD"
+  }
+]
+
+Object Fields required:
 - amount: number
 - type: string ("expense" or "income")
 - description: string (clean merchant or item name ONLY, e.g. "Pepsi" or "Burger". Do NOT include words like "rs", "spent", "for", "costed")
@@ -51,26 +93,48 @@ User text: "${textInput}"`;
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
       });
 
+      console.log('[AI] Browser Gemini status:', response.status);
       if (response.ok) {
         const data = await response.json();
         const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        console.log('[AI] Browser Gemini raw text:', rawText);
         if (rawText) {
           const cleanedText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleanedText);
-          return formatParsedTransaction(parsed, categories, accounts);
+          console.log('[AI] Browser Gemini parsed:', parsed);
+          return processParsed(parsed);
         }
       }
-    } catch (err) {}
+    } catch (err) {
+      console.warn('[AI] Browser Gemini failed:', err.message);
+    }
+  } else {
+    console.log('[AI] No browser Gemini key available');
   }
 
   // 3. Direct browser Groq API key call
   if (groqApiKey && groqApiKey.trim()) {
+    console.log('[AI] Trying browser Groq key...');
     try {
       const categoryNames = categories.map(c => c.name).join(', ');
       const accountNames = accounts.map(a => a.name).join(', ');
       const prompt = `You are a financial transaction extractor. Analyze the user's text and extract transaction details.
-Return ONLY a raw JSON object with NO markdown formatting, NO code blocks.
-Fields required:
+Return ONLY a raw JSON array of objects with NO markdown formatting, NO code blocks. Do not wrap the array in an object.
+If there are multiple transactions in the text, extract them all into the array.
+
+Example Output format:
+[
+  {
+    "amount": 240,
+    "type": "expense",
+    "description": "Clean item name",
+    "category": "Match best category",
+    "account": "Match best account",
+    "date": "YYYY-MM-DD"
+  }
+]
+
+Object Fields required:
 - amount: number
 - type: string ("expense" or "income")
 - description: string (clean item or merchant name ONLY, e.g. "Pepsi" or "Burger")
@@ -81,14 +145,21 @@ Fields required:
 User text: "${textInput}"`;
 
       const groqResult = await callGroqApi(prompt, groqApiKey);
+      console.log('[AI] Browser Groq raw result:', groqResult);
       if (groqResult) {
         const parsed = JSON.parse(groqResult);
-        return formatParsedTransaction(parsed, categories, accounts);
+        console.log('[AI] Browser Groq parsed:', parsed);
+        return processParsed(parsed);
       }
-    } catch (err) {}
+    } catch (err) {
+      console.warn('[AI] Browser Groq failed:', err.message);
+    }
+  } else {
+    console.log('[AI] No browser Groq key available');
   }
 
-  // 4. Smart local regex fallback
+  // 4. Smart local regex fallback (handles multiple transactions)
+  console.warn('[AI] Falling back to local regex parser');
   return fallbackLocalParser(textInput, categories, accounts);
 }
 
@@ -278,54 +349,83 @@ function formatParsedTransaction(parsed, categories, accounts) {
 }
 
 /**
- * Intelligent local regex fallback parser
+ * Intelligent local regex fallback parser — handles multiple transactions
  */
 function fallbackLocalParser(input, categories, accounts) {
-  const text = input.toLowerCase();
+  const today = new Date().toISOString().split('T')[0];
+  const defaultAccountId = accounts[0]?.id || 'acc-1';
+  const defaultCategoryId = categories[0]?.id || 'cat-1';
 
-  const amountMatch = text.match(/(?:[\$₹€£]\s*)?(\d+(?:\.\d{1,2})?)/);
-  const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
-
-  const isIncome = /\b(?:salary|income|received|earned|got paid)\b/i.test(text);
-  const type = isIncome ? 'income' : 'expense';
-
-  let categoryId = categories[0]?.id || 'cat-1';
-  for (const cat of categories) {
-    if (text.includes(cat.name.toLowerCase())) {
-      categoryId = cat.id;
-      break;
+  const getCategoryId = (text) => {
+    for (const cat of categories) {
+      if (text.includes(cat.name.toLowerCase())) return cat.id;
     }
-  }
-  if (categoryId === categories[0]?.id) {
-    if (/\b(?:food|dinner|lunch|coffee|pizza|restaurant|pepsi|burger|coke|drink|snack|eat|ate)\b/i.test(text)) categoryId = 'cat-1';
-    else if (/\b(?:grocer|walmart|supermarket|vegetable|fruit)\b/i.test(text)) categoryId = 'cat-2';
-    else if (/\b(?:uber|gas|fuel|flight|cab|ride|auto|taxi|train|bus)\b/i.test(text)) categoryId = 'cat-3';
-    else if (/\b(?:bill|electricity|water|wifi|recharge|internet|power)\b/i.test(text)) categoryId = 'cat-4';
-    else if (/\b(?:movie|netflix|game|cinema|show)\b/i.test(text)) categoryId = 'cat-5';
-  }
-
-  let accountId = accounts[0]?.id || 'acc-1';
-  for (const acc of accounts) {
-    if (text.includes(acc.name.toLowerCase())) {
-      accountId = acc.id;
-      break;
-    }
-  }
-
-  let description = input
-    .replace(/(?:[\$₹€£]\s*)?\d+(?:\.\d{1,2})?/g, ' ')
-    .replace(/\b(?:spent|paid|received|earned|costed|cost|for|via|with|on|at|using|me|rs|inr|usd|bucks|dollars|rupees|a|an|the)\b/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (!description) description = isIncome ? 'Income Source' : 'Expense Item';
-
-  return {
-    amount,
-    type,
-    description: description.charAt(0).toUpperCase() + description.slice(1),
-    categoryId,
-    accountId,
-    date: new Date().toISOString().split('T')[0]
+    if (/\b(?:food|dinner|lunch|breakfast|coffee|pizza|restaurant|pepsi|burger|coke|drink|snack|eat|ate|protta|dosa|idli|biriyani|chai|tea)\b/i.test(text)) return categories.find(c => /food|dining|restaurant/i.test(c.name))?.id || defaultCategoryId;
+    if (/\b(?:grocer|supermarket|vegetable|fruit|milk)\b/i.test(text)) return categories.find(c => /grocer|market/i.test(c.name))?.id || defaultCategoryId;
+    if (/\b(?:uber|gas|fuel|cab|ride|auto|taxi|train|bus|petrol)\b/i.test(text)) return categories.find(c => /transport|travel/i.test(c.name))?.id || defaultCategoryId;
+    if (/\b(?:bill|electricity|water|wifi|recharge|internet|power)\b/i.test(text)) return categories.find(c => /bill|util/i.test(c.name))?.id || defaultCategoryId;
+    if (/\b(?:movie|netflix|game|cinema|show)\b/i.test(text)) return categories.find(c => /entertain/i.test(c.name))?.id || defaultCategoryId;
+    return defaultCategoryId;
   };
+
+  const getAccountId = (text) => {
+    for (const acc of accounts) {
+      if (text.includes(acc.name.toLowerCase())) return acc.id;
+    }
+    if (/\b(?:card|credit|debit|upi|gpay|phonepay|paytm)\b/i.test(text)) {
+      return accounts.find(a => /card|credit|debit/i.test(a.name))?.id || defaultAccountId;
+    }
+    return defaultAccountId;
+  };
+
+  const isIncomeSentence = (text) => /\b(?:salary|income|received|earned|got paid)\b/i.test(text);
+
+  // Split input into chunks at conjunctions that likely separate two expenses
+  // Pattern: "... 240 rs and had choco tnami costed 229 rs"
+  // We split whenever we see "and" preceded by an amount
+  const chunks = input
+    .split(/\b(?:and also|and then|also|then)\b/i)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const results = [];
+
+  for (const chunk of chunks) {
+    const text = chunk.toLowerCase();
+
+    // Find amount in this chunk
+    const amountMatch = text.match(/(?:[\$₹€£]\s*)?(\d+(?:\.\d{1,2})?)/);
+    const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+
+    // Build description: remove amount, currency words, filler words
+    let description = chunk
+      .replace(/(?:[\$₹€£]\s*)?\d+(?:\.\d{1,2})?/g, ' ')
+      .replace(/\b(?:spent|paid|received|earned|costed|cost|for|via|with|on|at|using|me|i|had|have|rs|inr|usd|bucks|dollars|rupees|a|an|the|it|was|is)\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!description || description.length < 2) {
+      description = isIncomeSentence(text) ? 'Income' : 'Expense Item';
+    }
+
+    results.push({
+      amount,
+      type: isIncomeSentence(text) ? 'income' : 'expense',
+      description: description.charAt(0).toUpperCase() + description.slice(1),
+      categoryId: getCategoryId(text),
+      accountId: getAccountId(text),
+      date: today
+    });
+  }
+
+  console.log('[AI] Local fallback produced:', results);
+  return results.length > 0 ? results : [{
+    amount: 0,
+    type: 'expense',
+    description: 'Expense Item',
+    categoryId: defaultCategoryId,
+    accountId: defaultAccountId,
+    date: today
+  }];
 }
+

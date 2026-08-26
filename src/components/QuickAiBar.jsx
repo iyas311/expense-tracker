@@ -17,13 +17,19 @@ export function QuickAiBar({ onOpenManualAdd }) {
     setStatus({ type: 'loading', message: 'Analyzing transaction details...' });
 
     try {
-      const parsed = await parseNaturalLanguageTransaction(naturalInput, categories, accounts, apiKey, groqApiKey);
-      if (parsed) {
-        addTransaction(parsed);
+      const parsedArray = await parseNaturalLanguageTransaction(naturalInput, categories, accounts, apiKey, groqApiKey);
+      if (parsedArray && parsedArray.length > 0) {
+        parsedArray.forEach(parsed => addTransaction(parsed));
         setNaturalInput('');
+        
+        const isMultiple = parsedArray.length > 1;
+        const totalAmount = parsedArray.reduce((sum, p) => sum + p.amount, 0);
+        
         setStatus({
           type: 'success',
-          message: `Logged ${parsed.type === 'expense' ? '−' : '+'}${currency}${parsed.amount} for "${parsed.description}"`
+          message: isMultiple
+            ? `Logged ${parsedArray.length} transactions totaling ${currency}${totalAmount}`
+            : `Logged ${parsedArray[0].type === 'expense' ? '−' : '+'}${currency}${parsedArray[0].amount} for "${parsedArray[0].description}"`
         });
         setTimeout(() => setStatus(null), 4000);
       } else {

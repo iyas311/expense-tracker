@@ -1,20 +1,17 @@
-// Helper: log AI usage to DB asynchronously (fire-and-forget)
+import { neon } from '@neondatabase/serverless';
+
+// Direct DB log — avoids unreliable self-HTTP call on Vercel
 async function logAiUsage(action, aiUsed, latencyMs, success, errorMsg = null) {
   try {
-    await fetch(`${process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'http://localhost:3000'}/api/data`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'addLog',
-        payload: {
-          level: success ? (aiUsed === 'local_fallback' ? 'warn' : 'info') : 'error',
-          message: success
-            ? `AI [${aiUsed.toUpperCase()}] handled '${action}' in ${latencyMs}ms`
-            : `AI [${aiUsed.toUpperCase()}] failed '${action}': ${errorMsg}`,
-          meta: { action, aiUsed, latencyMs, success, error: errorMsg }
-        }
-      })
-    });
+    const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_PRISMA_URL;
+    if (!databaseUrl) return; // No DB configured, skip logging silently
+    const sql = neon(databaseUrl);
+    const level = success ? (aiUsed === 'local_fallback' ? 'warn' : 'info') : 'error';
+    const message = success
+      ? `AI [${aiUsed.toUpperCase()}] handled '${action}' in ${latencyMs}ms`
+      : `AI [${aiUsed.toUpperCase()}] failed '${action}': ${errorMsg}`;
+    const meta = JSON.stringify({ action, aiUsed, latencyMs, success, error: errorMsg });
+    await sql`INSERT INTO app_logs (level, message, meta) VALUES (${level}, ${message}, ${meta})`;
   } catch (e) {
     // Logging failure should never break the main flow
   }
@@ -39,8 +36,22 @@ export default async function handler(req, res) {
       const categoryNames = (categories || []).map(c => c.name).join(', ');
       const accountNames = (accounts || []).map(a => a.name).join(', ');
       const prompt = `You are a financial transaction extractor. Analyze the user's text and extract transaction details.
-Return ONLY a raw JSON object with NO markdown formatting, NO code blocks.
-Fields required:
+Return ONLY a raw JSON array of objects with NO markdown formatting, NO code blocks. Do not wrap the array in an object.
+If there are multiple transactions in the text, extract them all into the array.
+
+Example Output format:
+[
+  {
+    "amount": 240,
+    "type": "expense",
+    "description": "Clean item name",
+    "category": "Match best category",
+    "account": "Match best account",
+    "date": "YYYY-MM-DD"
+  }
+]
+
+Object Fields required:
 - amount: number
 - type: string ("expense" or "income")
 - description: string (clean item or merchant name ONLY, e.g. "Pepsi" or "Burger". Do NOT include words like "rs", "inr", "spent", "for", "costed")
