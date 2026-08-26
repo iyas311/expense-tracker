@@ -43,6 +43,7 @@ export function ExpenseProvider({ children }) {
   // Time filter
   const [timeRange, setTimeRange] = useState('this_month');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
@@ -527,6 +528,7 @@ export function ExpenseProvider({ children }) {
       }
       if (timeRange === 'this_month') return t.date.startsWith(now.toISOString().slice(0, 7));
       if (timeRange === 'custom_month') return t.date.startsWith(selectedMonth);
+      if (timeRange === 'custom_date') return t.date === selectedDate;
       return true;
     });
   };
@@ -541,7 +543,7 @@ export function ExpenseProvider({ children }) {
   return (
     <ExpenseContext.Provider value={{
       currentVault, passcode, isLoggedIn, apiKey, groqApiKey, currency,
-      timeRange, setTimeRange, selectedMonth, setSelectedMonth,
+      timeRange, setTimeRange, selectedMonth, setSelectedMonth, selectedDate, setSelectedDate,
       isSyncing, isOffline, refreshCloudData,
       transactions, filteredTransactions,
       categories, accounts, subscriptions,

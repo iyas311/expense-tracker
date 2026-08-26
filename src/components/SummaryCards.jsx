@@ -3,7 +3,7 @@ import { useExpense } from '../context/ExpenseContext';
 import { Wallet, TrendingUp, TrendingDown, PiggyBank, ArrowUpRight, ArrowDownRight, Calendar, Clock } from 'lucide-react';
 
 export function SummaryCards() {
-  const { currency, netWorth, totalIncome, totalExpenses, timeRange, setTimeRange, selectedMonth, setSelectedMonth } = useExpense();
+  const { currency, netWorth, totalIncome, totalExpenses, timeRange, setTimeRange, selectedMonth, setSelectedMonth, selectedDate, setSelectedDate } = useExpense();
 
   const netSavings = totalIncome - totalExpenses;
   const savingsRate = totalIncome > 0 ? Math.max(0, Math.round((netSavings / totalIncome) * 100)) : 0;
@@ -37,7 +37,8 @@ export function SummaryCards() {
             { id: 'this_week', label: 'This Week' },
             { id: 'this_month', label: 'This Month' },
             { id: 'all_time', label: 'All Time' },
-            { id: 'custom_month', label: 'Select Month' }
+            { id: 'custom_month', label: 'Select Month' },
+            { id: 'custom_date', label: 'Select Date' }
           ].map((item) => (
             <button
               key={item.id}
@@ -57,6 +58,17 @@ export function SummaryCards() {
               style={{ width: 'auto', padding: '6px 10px', fontSize: '0.8rem', flexShrink: 0 }}
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
+            />
+          )}
+
+          {/* Date Picker — shown when Select Date is active */}
+          {timeRange === 'custom_date' && (
+            <input
+              type="date"
+              className="glass-input"
+              style={{ width: 'auto', padding: '6px 10px', fontSize: '0.8rem', flexShrink: 0 }}
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
             />
           )}
 
