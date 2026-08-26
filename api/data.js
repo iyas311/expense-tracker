@@ -53,6 +53,14 @@ async function runMigrations(sql) {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );`;
   } catch (e) {}
+  try {
+    await sql`CREATE TABLE IF NOT EXISTS app_prompt_history (
+      id SERIAL PRIMARY KEY,
+      text TEXT NOT NULL,
+      tx_count INTEGER DEFAULT 1,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );`;
+  } catch (e) {}
 
   // 4. Migrate any null vault_ids to 'vault_admin'
   try { await sql`UPDATE accounts SET vault_id = 'vault_admin' WHERE vault_id IS NULL;`; } catch (e) {}
@@ -496,6 +504,22 @@ export default async function handler(req, res) {
 
       if (action === 'clearLogs') {
         await sql`DELETE FROM app_logs;`;
+        return res.status(200).json({ success: true });
+      }
+
+      if (action === 'addPromptHistory') {
+        const { text, txCount } = payload;
+        await sql`INSERT INTO app_prompt_history (text, tx_count) VALUES (${text || ''}, ${txCount || 1});`;
+        return res.status(200).json({ success: true });
+      }
+
+      if (action === 'getPromptHistory') {
+        const history = await sql`SELECT id, text, tx_count as "txCount", created_at as "createdAt" FROM app_prompt_history ORDER BY created_at DESC LIMIT 100;`;
+        return res.status(200).json({ history });
+      }
+
+      if (action === 'clearPromptHistory') {
+        await sql`DELETE FROM app_prompt_history;`;
         return res.status(200).json({ success: true });
       }
 

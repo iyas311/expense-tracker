@@ -290,6 +290,51 @@ export function ExpenseProvider({ children }) {
     } catch (e) {}
   };
 
+  // Adds multiple transactions atomically in a single state update (avoids React batching bug)
+  const addTransactions = async (txList) => {
+    if (!txList || txList.length === 0) return;
+    const now = Date.now();
+    const formatted = txList.map((newTx, i) => ({
+      id: `tx-${now + i}`,
+      date: newTx.date || new Date().toISOString().split('T')[0],
+      description: newTx.description || 'Transaction',
+      amount: parseFloat(newTx.amount) || 0,
+      type: newTx.type || 'expense',
+      categoryId: newTx.categoryId || categories[0]?.id || 'cat-1',
+      accountId: newTx.accountId || accounts[0]?.id || 'acc-1',
+      notes: newTx.notes || '',
+      vaultId: currentVault?.id || 'vault_admin'
+    }));
+
+    // Single state update for all transactions
+    setTransactions(prev => [...formatted, ...prev]);
+
+    // Single state update for all account balance changes
+    setAccounts(prev => {
+      const updated = [...prev];
+      for (const tx of formatted) {
+        const idx = updated.findIndex(a => a.id === tx.accountId);
+        if (idx !== -1) {
+          const delta = tx.type === 'income' ? tx.amount : -tx.amount;
+          updated[idx] = { ...updated[idx], balance: Math.round((updated[idx].balance + delta) * 100) / 100 };
+        }
+      }
+      return updated;
+    });
+
+    // Save each to DB
+    try {
+      await Promise.all(formatted.map(tx =>
+        fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'addTransaction', payload: tx })
+        })
+      ));
+      refreshCloudData();
+    } catch (e) {}
+  };
+
   const editTransaction = async (id, updatedData) => {
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updatedData } : t));
     try {
@@ -504,7 +549,7 @@ export function ExpenseProvider({ children }) {
       login, logout, updatePasscode,
       listVaults, createVault, deleteVault,
       setApiKey, setGroqApiKey, setCurrency,
-      addTransaction, editTransaction, deleteTransaction,
+      addTransaction, addTransactions, editTransaction, deleteTransaction,
       addTransfer,
       addCategory, updateCategoryBudget,
       addAccount,

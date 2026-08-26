@@ -4,7 +4,7 @@ import { parseNaturalLanguageTransaction, parseReceiptImage } from '../services/
 import { Sparkles, Camera, Plus, Loader2, CornerDownLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export function QuickAiBar({ onOpenManualAdd }) {
-  const { categories, accounts, apiKey, groqApiKey, addTransaction, currency } = useExpense();
+  const { categories, accounts, apiKey, groqApiKey, addTransaction, addTransactions, currency } = useExpense();
   const [naturalInput, setNaturalInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState(null); // { type: 'success' | 'error', message: string }
@@ -13,18 +13,27 @@ export function QuickAiBar({ onOpenManualAdd }) {
     e?.preventDefault();
     if (!naturalInput.trim() || isLoading) return;
 
+    const promptText = naturalInput.trim();
     setIsLoading(true);
     setStatus({ type: 'loading', message: 'Analyzing transaction details...' });
 
     try {
-      const parsedArray = await parseNaturalLanguageTransaction(naturalInput, categories, accounts, apiKey, groqApiKey);
+      const parsedArray = await parseNaturalLanguageTransaction(promptText, categories, accounts, apiKey, groqApiKey);
       if (parsedArray && parsedArray.length > 0) {
-        parsedArray.forEach(parsed => addTransaction(parsed));
+        // Use addTransactions (plural) — single atomic state update, avoids React batching bug
+        await addTransactions(parsedArray);
         setNaturalInput('');
-        
+
+        // Save prompt to history
+        fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'addPromptHistory', payload: { text: promptText, txCount: parsedArray.length } })
+        }).catch(() => {});
+
         const isMultiple = parsedArray.length > 1;
         const totalAmount = parsedArray.reduce((sum, p) => sum + p.amount, 0);
-        
+
         setStatus({
           type: 'success',
           message: isMultiple
