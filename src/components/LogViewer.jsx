@@ -164,9 +164,9 @@ export function LogViewer({ isOpen, onClose }) {
           </button>
           <button style={tabStyle(activeTab === 'logs')} onClick={() => setActiveTab('logs')}>
             <Activity size={14} /> System Logs
-            {logs.filter(l => l.level === 'error').length > 0 && (
-              <span style={{ background: '#f43f5e', color: '#fff', borderRadius: '20px', fontSize: '0.65rem', padding: '1px 6px', fontWeight: '700' }}>
-                {logs.filter(l => l.level === 'error').length} errors
+            {logs.length > 0 && (
+              <span style={{ background: logs.filter(l => l.level === 'error').length > 0 ? '#f43f5e' : '#6366f1', color: '#fff', borderRadius: '20px', fontSize: '0.65rem', padding: '1px 6px', fontWeight: '700' }}>
+                {logs.length}
               </span>
             )}
           </button>

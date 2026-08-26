@@ -36,8 +36,8 @@ export function SummaryCards() {
             { id: 'today', label: 'Today' },
             { id: 'this_week', label: 'This Week' },
             { id: 'this_month', label: 'This Month' },
-            { id: 'custom_month', label: 'Select Month' },
-            { id: 'all_time', label: 'All Time' }
+            { id: 'all_time', label: 'All Time' },
+            { id: 'custom_month', label: 'Select Month' }
           ].map((item) => (
             <button
               key={item.id}
@@ -49,7 +49,7 @@ export function SummaryCards() {
             </button>
           ))}
 
-          {/* Month Picker Dropdown when 'custom_month' is selected */}
+          {/* Month Picker — shown inline right after Select Month button */}
           {timeRange === 'custom_month' && (
             <input
               type="month"
@@ -59,6 +59,7 @@ export function SummaryCards() {
               onChange={(e) => setSelectedMonth(e.target.value)}
             />
           )}
+
         </div>
       </div>
 
