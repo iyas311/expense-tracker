@@ -140,7 +140,7 @@ export function AccountsBar() {
                 <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
                     <span style={{ color: 'var(--text-dim)' }}>Avail: <strong style={{ color: '#10b981' }}>{currency}{availableCredit.toLocaleString()}</strong></span>
-                    <span style={{ color: 'var(--text-dim)' }}>Limit: {currency}{limit.toLocaleString()}</span>
+                    <span style={{ color: 'var(--text-dim)' }}>Limit: {currency}{limit.toLocaleString()} <span style={{ color: usedPercent > 80 ? '#f43f5e' : 'var(--text-dim)', fontWeight: 'bold' }}>({usedPercent}%)</span></span>
                   </div>
                   <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', marginBottom: '6px' }}>
                     <div style={{ width: `${usedPercent}%`, height: '100%', background: usedPercent > 80 ? '#f43f5e' : '#06b6d4' }} />
