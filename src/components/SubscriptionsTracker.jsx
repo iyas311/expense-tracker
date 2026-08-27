@@ -104,7 +104,7 @@ export function SubscriptionsTracker() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
         {subscriptions.map(sub => {
           const cat = getCategory(sub.categoryId);
           const acc = getAccount(sub.accountId);
@@ -138,16 +138,18 @@ export function SubscriptionsTracker() {
                 </span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                 <span>Paid via: <strong style={{ color: 'var(--text-main)' }}>{acc.name}</strong></span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10b981' }}>
-                  <Calendar size={12} /> Due {sub.nextDueDate}
-                </span>
               </div>
-              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'flex-end' }}>
+
+              <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontSize: '0.8rem', fontWeight: '600' }}>
+                  <Calendar size={14} /> Due {sub.nextDueDate}
+                </span>
+                
                 {paidFeedback[sub.id] ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10b981', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                    <CheckCircle size={14} /> Paid & Logged!
+                    <CheckCircle size={14} /> Paid!
                   </div>
                 ) : (
                   <button
