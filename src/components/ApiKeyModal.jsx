@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useExpense } from '../context/ExpenseContext';
 import { Sparkles, ExternalLink, Check, X, Activity, Lock, Loader2 } from 'lucide-react';
 
@@ -105,7 +105,6 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
                   className="glass-input"
                   value={currentPassword}
                   onChange={e => setCurrentPassword(e.target.value)}
-                  placeholder="Enter current password"
                   required
                 />
               </div>
@@ -116,7 +115,6 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
                   className="glass-input"
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
-                  placeholder="Enter new password"
                   required
                 />
               </div>

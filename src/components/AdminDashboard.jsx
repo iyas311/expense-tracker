@@ -80,11 +80,11 @@ export function AdminDashboard() {
           <form onSubmit={handleCreateUser}>
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '8px' }}>Username</label>
-              <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} className="glass-input" style={{ width: '100%', padding: '12px' }} required placeholder="e.g. rahul" />
+              <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} className="glass-input" style={{ width: '100%', padding: '12px' }} required />
             </div>
             <div style={{ marginBottom: '24px' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '8px' }}>Password</label>
-              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="glass-input" style={{ width: '100%', padding: '12px' }} required placeholder="Enter temporary password" />
+              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="glass-input" style={{ width: '100%', padding: '12px' }} required />
             </div>
             
             <button type="submit" disabled={isCreating} className="btn-gradient" style={{ width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>

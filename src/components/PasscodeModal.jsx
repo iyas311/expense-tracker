@@ -97,7 +97,6 @@ export function PasscodeModal() {
                 onChange={(e) => setUsername(e.target.value)}
                 className="glass-input"
                 style={{ paddingLeft: '38px', height: '42px', fontSize: '1rem' }}
-                placeholder="Enter username"
                 disabled={isVerifying}
                 required
               />
@@ -114,7 +113,6 @@ export function PasscodeModal() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="glass-input"
                 style={{ paddingLeft: '38px', height: '42px', fontSize: '1rem' }}
-                placeholder="Enter password"
                 disabled={isVerifying}
                 required
               />
