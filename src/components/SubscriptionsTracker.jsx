@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useExpense } from '../context/ExpenseContext';
-import { Repeat, Plus, Calendar, CreditCard, X, CheckCircle, Receipt } from 'lucide-react';
+import { Repeat, Plus, Calendar, CreditCard, X, CheckCircle, Receipt, Trash2, Edit2 } from 'lucide-react';
 
 export function SubscriptionsTracker() {
-  const { subscriptions, categories, accounts, currency, addSubscription, addTransaction, updateSubscription } = useExpense();
+  const { subscriptions, categories, accounts, currency, addSubscription, addTransaction, updateSubscription, deleteSubscription } = useExpense();
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState(categories[0]?.id || 'cat-5');
@@ -14,11 +15,29 @@ export function SubscriptionsTracker() {
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [nextDueDate, setNextDueDate] = useState('');
 
-  const handleAddSubmit = (e) => {
+  const [paidFeedback, setPaidFeedback] = useState({});
+
+  const openEdit = (sub) => {
+    setEditingId(sub.id);
+    setName(sub.name);
+    setAmount(sub.amount.toString());
+    setCategoryId(sub.categoryId);
+    setAccountId(sub.accountId);
+    setBillingCycle(sub.billingCycle);
+    setNextDueDate(sub.nextDueDate);
+    setShowAddModal(true);
+  };
+
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim() || !amount) return;
 
-    addSubscription({
+    if (editingId) {
+      // Delete old and add new as a simple update method
+      await deleteSubscription(editingId);
+    }
+    
+    await addSubscription({
       name,
       amount: parseFloat(amount),
       categoryId,
@@ -29,6 +48,7 @@ export function SubscriptionsTracker() {
 
     setName('');
     setAmount('');
+    setEditingId(null);
     setShowAddModal(false);
   };
 
@@ -51,9 +71,15 @@ export function SubscriptionsTracker() {
     } else if (sub.billingCycle === 'yearly') {
       d.setFullYear(d.getFullYear() + 1);
     } else {
-      d.setDate(d.getDate() + 7); // weekly fallback
+      d.setDate(d.getDate() + 7);
     }
     updateSubscription(sub.id, d.toISOString().split('T')[0]);
+
+    // Show feedback
+    setPaidFeedback(prev => ({ ...prev, [sub.id]: true }));
+    setTimeout(() => {
+      setPaidFeedback(prev => ({ ...prev, [sub.id]: false }));
+    }, 3000);
   };
 
   const getCategory = (catId) => categories.find(c => c.id === catId) || { name: 'Subscriptions', color: '#8b5cf6' };
@@ -89,10 +115,16 @@ export function SubscriptionsTracker() {
               className="glass-card"
               style={{
                 borderRadius: '18px',
-                borderLeft: `4px solid ${cat.color || '#8b5cf6'}`
+                borderLeft: `4px solid ${cat.color || '#8b5cf6'}`,
+                position: 'relative'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '4px' }}>
+                <button onClick={() => openEdit(sub)} className="btn-secondary" style={{ padding: '4px', borderRadius: '6px' }}><Edit2 size={12} /></button>
+                <button onClick={() => deleteSubscription(sub.id)} className="btn-secondary" style={{ padding: '4px', borderRadius: '6px' }}><Trash2 size={12} color="#f43f5e" /></button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', paddingRight: '50px' }}>
                 <h4 style={{ fontSize: '1rem', fontWeight: '700' }}>{sub.name}</h4>
                 <span className="badge" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6', textTransform: 'capitalize' }}>
                   {sub.billingCycle}
@@ -112,14 +144,20 @@ export function SubscriptionsTracker() {
                   <Calendar size={12} /> Due {sub.nextDueDate}
                 </span>
               </div>
-              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <button
-                  onClick={() => handleLogPayment(sub)}
-                  className="btn-secondary"
-                  style={{ width: '100%', padding: '8px', fontSize: '0.8rem', display: 'flex', justifyContent: 'center', gap: '6px', color: '#06b6d4', borderColor: 'rgba(6, 182, 212, 0.2)' }}
-                >
-                  <Receipt size={14} /> 1-Click Pay Now
-                </button>
+              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'flex-end' }}>
+                {paidFeedback[sub.id] ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10b981', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                    <CheckCircle size={14} /> Paid & Logged!
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleLogPayment(sub)}
+                    className="btn-secondary"
+                    style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', color: '#06b6d4', borderColor: 'rgba(6, 182, 212, 0.2)' }}
+                  >
+                    <Receipt size={14} /> 1-Click Pay
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -131,8 +169,8 @@ export function SubscriptionsTracker() {
         <div className="modal-overlay">
           <div className="modal-content animate-fade-in" style={{ maxWidth: '420px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 className="font-heading">Add Subscription</h3>
-              <button className="btn-secondary" onClick={() => setShowAddModal(false)} style={{ padding: '6px' }}>
+              <h3 className="font-heading">{editingId ? 'Edit Subscription' : 'Add Subscription'}</h3>
+              <button className="btn-secondary" onClick={() => { setShowAddModal(false); setEditingId(null); }} style={{ padding: '6px' }}>
                 <X size={16} />
               </button>
             </div>
