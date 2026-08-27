@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useExpense } from '../context/ExpenseContext';
 import { Landmark, CreditCard, Wallet, PiggyBank, Plus, X, Edit2, Trash2, CalendarDays, AlertCircle } from 'lucide-react';
 
@@ -156,7 +157,7 @@ export function AccountsBar() {
         })}
       </div>
 
-      {showAddModal && (
+      {showAddModal && createPortal(
         <div className="modal-overlay">
           <div className="modal-content animate-fade-in" style={{ maxWidth: '420px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -235,7 +236,7 @@ export function AccountsBar() {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

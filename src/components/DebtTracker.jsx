@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useExpense } from '../context/ExpenseContext';
 import { HandCoins, Plus, Check, Trash2, X, ChevronDown, ChevronUp, AlertCircle, Clock } from 'lucide-react';
 
@@ -244,7 +245,7 @@ export function DebtTracker() {
       </div>
 
       {/* Add Debt Modal */}
-      {showAddModal && (
+      {showAddModal && createPortal(
         <div className="modal-overlay">
           <div className="modal-content animate-fade-in" style={{ maxWidth: '420px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -322,7 +323,7 @@ export function DebtTracker() {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }
