@@ -1,4 +1,5 @@
 import { neon } from '@neondatabase/serverless';
+import crypto from 'crypto';
 
 // In-memory rate limiter (max 60 requests/minute per IP)
 const rateLimitMap = new Map();
@@ -19,8 +20,12 @@ function getSql() {
   return neon(dbUrl);
 }
 
+const hashPassword = (password) => {
+  return crypto.createHash('sha256').update(password + 'ET_SALT_99').digest('hex');
+};
+
 async function runMigrations(sql) {
-  // 1. Vaults table
+  // Vaults table (legacy, kept for foreign key references if any)
   await sql`
     CREATE TABLE IF NOT EXISTS app_vaults (
       id VARCHAR(64) PRIMARY KEY,
@@ -30,6 +35,40 @@ async function runMigrations(sql) {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
   `;
+
+  // 1. Users and Sessions tables
+  await sql`
+    CREATE TABLE IF NOT EXISTS app_users (
+      id VARCHAR(64) PRIMARY KEY,
+      username VARCHAR(128) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      role VARCHAR(32) DEFAULT 'user',
+      vault_id VARCHAR(64) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS app_sessions (
+      token VARCHAR(128) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      vault_id VARCHAR(64) NOT NULL,
+      role VARCHAR(32) NOT NULL,
+      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+
+  // Insert default admin if no users exist
+  try {
+    const usersCount = await sql`SELECT COUNT(*) as count FROM app_users;`;
+    if (parseInt(usersCount[0].count) === 0) {
+      await sql`
+        INSERT INTO app_users (id, username, password_hash, role, vault_id)
+        VALUES ('user_admin', 'admin', ${hashPassword('password123')}, 'admin', 'vault_admin');
+      `;
+    }
+  } catch (e) {}
 
   // 2. Add vault_id column to core tables
   try { await sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS vault_id VARCHAR(64) DEFAULT 'vault_admin';`; } catch (e) {}
@@ -295,7 +334,18 @@ export default async function handler(req, res) {
       await runMigrations(sql);
       await ensureTablesExist(sql);
 
-      const vaultId = req.query.vaultId || 'vault_admin';
+      const token = req.query.token;
+      if (!token) return res.status(401).json({ error: 'Unauthorized: No token provided' });
+
+      // Clean up expired sessions randomly (approx 1/10 chance)
+      if (Math.random() < 0.1) {
+        await sql`DELETE FROM app_sessions WHERE expires_at < CURRENT_TIMESTAMP;`;
+      }
+
+      const sessions = await sql`SELECT user_id, vault_id FROM app_sessions WHERE token = ${token} AND expires_at > CURRENT_TIMESTAMP;`;
+      if (sessions.length === 0) return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
+
+      const vaultId = sessions[0].vault_id;
       const data = await getVaultData(sql, vaultId);
       return res.status(200).json(data);
     }
@@ -304,106 +354,88 @@ export default async function handler(req, res) {
       await runMigrations(sql);
       await ensureTablesExist(sql);
       const { action, payload } = req.body || {};
-      const vaultId = payload?.vaultId || 'vault_admin';
 
-      // ─── LOGIN VAULT BY PIN ──────────────────────────────────────────────────
-      if (action === 'loginVault') {
-        const { passcode } = payload || {};
-        if (!passcode) return res.status(400).json({ success: false, error: 'PIN required' });
+      // ─── LOGIN USER ──────────────────────────────────────────────────────────
+      if (action === 'login') {
+        const { username, password } = payload || {};
+        if (!username || !password) return res.status(400).json({ success: false, error: 'Username and password required' });
 
-        const matchingVaults = await sql`
-          SELECT id, name, is_admin as "isAdmin", passcode
-          FROM app_vaults
-          WHERE passcode = ${passcode.toString().trim()};
-        `;
+        const users = await sql`SELECT id, username, password_hash, role, vault_id FROM app_users WHERE username = ${username.toLowerCase().trim()};`;
+        if (users.length === 0) return res.status(401).json({ success: false, error: 'Invalid credentials' });
 
-        if (matchingVaults.length === 0) {
-          return res.status(401).json({ success: false, error: 'Incorrect PIN' });
+        const user = users[0];
+        const hash = hashPassword(password);
+        if (hash !== user.password_hash) {
+          return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
-        const matched = matchingVaults[0];
-        const vaultInfo = { id: matched.id, name: matched.name, isAdmin: Boolean(matched.isAdmin) };
-        const vaultData = await getVaultData(sql, matched.id);
+        // Generate token and session (expires in 30 days)
+        const token = crypto.randomUUID();
+        await sql`
+          INSERT INTO app_sessions (token, user_id, vault_id, role, expires_at)
+          VALUES (${token}, ${user.id}, ${user.vault_id}, ${user.role}, CURRENT_TIMESTAMP + INTERVAL '30 days');
+        `;
 
+        const vaultData = await getVaultData(sql, user.vault_id);
+        
         return res.status(200).json({
           success: true,
-          vault: vaultInfo,
+          token,
+          user: { id: user.id, username: user.username, role: user.role, vaultId: user.vault_id },
           ...vaultData
         });
       }
 
-      // ─── CREATE NEW VAULT (Admin only) ───────────────────────────────────────
-      if (action === 'createVault') {
-        const { name, passcode, adminPasscode } = payload || {};
-        if (!name || !passcode) return res.status(400).json({ error: 'Name and PIN required' });
-
-        // Verify admin
-        const adminCheck = await sql`SELECT id FROM app_vaults WHERE passcode = ${adminPasscode} AND is_admin = TRUE;`;
-        if (adminCheck.length === 0) return res.status(403).json({ error: 'Admin authorization required' });
-
-        // Check PIN collision
-        const pinCheck = await sql`SELECT id FROM app_vaults WHERE passcode = ${passcode.trim()};`;
-        if (pinCheck.length > 0) return res.status(400).json({ error: 'This PIN is already in use. Please choose another.' });
-
-        const newVaultId = `vault_${Date.now()}`;
-        await sql`INSERT INTO app_vaults (id, name, passcode, is_admin) VALUES (${newVaultId}, ${name.trim()}, ${passcode.trim()}, FALSE);`;
-
-        // Seed fresh starter categories & accounts for this friend
-        await seedStarterCategories(sql, newVaultId);
-        await seedStarterAccounts(sql, newVaultId);
-
-        return res.status(200).json({ success: true, vaultId: newVaultId });
-      }
-
-      // ─── LIST ALL VAULTS (Admin only) ────────────────────────────────────────
-      if (action === 'listVaults') {
-        const { adminPasscode } = payload || {};
-        const adminCheck = await sql`SELECT id FROM app_vaults WHERE passcode = ${adminPasscode} AND is_admin = TRUE;`;
-        if (adminCheck.length === 0) return res.status(403).json({ error: 'Admin authorization required' });
-
-        const vaults = await sql`
-          SELECT id, name, passcode, is_admin as "isAdmin", created_at as "createdAt"
-          FROM app_vaults
-          ORDER BY is_admin DESC, created_at ASC;
-        `;
-        return res.status(200).json({ vaults });
-      }
-
-      // ─── DELETE VAULT (Admin only) ───────────────────────────────────────────
-      if (action === 'deleteVault') {
-        const { targetVaultId, adminPasscode } = payload || {};
-        if (targetVaultId === 'vault_admin') return res.status(400).json({ error: 'Cannot delete primary Admin vault' });
-
-        const adminCheck = await sql`SELECT id FROM app_vaults WHERE passcode = ${adminPasscode} AND is_admin = TRUE;`;
-        if (adminCheck.length === 0) return res.status(403).json({ error: 'Admin authorization required' });
-
-        await sql`DELETE FROM transactions WHERE vault_id = ${targetVaultId};`;
-        await sql`DELETE FROM subscriptions WHERE vault_id = ${targetVaultId};`;
-        await sql`DELETE FROM categories WHERE vault_id = ${targetVaultId};`;
-        await sql`DELETE FROM accounts WHERE vault_id = ${targetVaultId};`;
-        await sql`DELETE FROM app_vaults WHERE id = ${targetVaultId};`;
-
+      // ─── LOGOUT USER ─────────────────────────────────────────────────────────
+      if (action === 'logout') {
+        const { token } = payload || {};
+        if (token) {
+          await sql`DELETE FROM app_sessions WHERE token = ${token};`;
+        }
         return res.status(200).json({ success: true });
       }
 
-      // ─── UPDATE VAULT PIN ────────────────────────────────────────────────────
-      if (action === 'updateVaultPin') {
-        const { targetVaultId, newPasscode } = payload || {};
-        if (!newPasscode || newPasscode.trim().length < 4) {
-          return res.status(400).json({ error: 'PIN must be at least 4 digits' });
-        }
+      // ─── AUTHENTICATION WALL ───────────────────────────────────────────────
+      const token = payload?.token;
+      if (!token) return res.status(401).json({ error: 'Unauthorized: No token provided' });
 
-        // Check if new PIN is already used by another vault
-        const check = await sql`SELECT id FROM app_vaults WHERE passcode = ${newPasscode.trim()} AND id != ${targetVaultId};`;
-        if (check.length > 0) return res.status(400).json({ error: 'This PIN is already in use by another vault.' });
+      const sessions = await sql`SELECT user_id, vault_id, role FROM app_sessions WHERE token = ${token} AND expires_at > CURRENT_TIMESTAMP;`;
+      if (sessions.length === 0) return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
 
-        await sql`UPDATE app_vaults SET passcode = ${newPasscode.trim()} WHERE id = ${targetVaultId};`;
-        if (targetVaultId === 'vault_admin') {
-          await sql`INSERT INTO app_settings (key, value) VALUES ('passcode', ${newPasscode.trim()}) ON CONFLICT (key) DO UPDATE SET value = ${newPasscode.trim()};`;
-        }
+      const session = sessions[0];
+      const vaultId = session.vault_id;
 
-        return res.status(200).json({ success: true });
+      // ─── GET USERS (Admin only) ────────────────────────────────────────────
+      if (action === 'getUsers') {
+        if (session.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+        const users = await sql`SELECT id, username, role, vault_id, created_at FROM app_users ORDER BY created_at DESC;`;
+        return res.status(200).json({ success: true, users });
       }
+
+      // ─── CREATE NEW USER (Admin only) ──────────────────────────────────────
+      if (action === 'createUser') {
+        if (session.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+        const { newUsername, newPassword, role } = payload || {};
+        if (!newUsername || !newPassword) return res.status(400).json({ error: 'Username and password required' });
+
+        try {
+          const newUserId = crypto.randomUUID();
+          const newVaultId = 'vault_' + crypto.randomUUID().slice(0, 8);
+          
+          await sql`
+            INSERT INTO app_users (id, username, password_hash, role, vault_id)
+            VALUES (${newUserId}, ${newUsername.toLowerCase().trim()}, ${hashPassword(newPassword)}, ${role || 'user'}, ${newVaultId});
+          `;
+          return res.status(200).json({ success: true, message: 'User created successfully' });
+        } catch (e) {
+          if (e.message.includes('unique constraint')) {
+            return res.status(400).json({ error: 'Username already exists' });
+          }
+          return res.status(500).json({ error: 'Error creating user' });
+        }
+      }
+
+
 
       // ─── ADD TRANSACTION ─────────────────────────────────────────────────────
       if (action === 'addTransaction') {

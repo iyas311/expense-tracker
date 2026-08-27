@@ -30,8 +30,7 @@ export function ExpenseProvider({ children }) {
     }
   });
 
-  const [passcode, setPasscode] = useState(() => localStorage.getItem('et_passcode') || '1122');
-  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('et_is_logged_in') === 'true');
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('et_token'));
 
   // API Keys
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('et_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || '');
@@ -67,11 +66,13 @@ export function ExpenseProvider({ children }) {
   });
 
   // ─── Cloud Sync ─────────────────────────────────────────────────────────────
-  const refreshCloudData = useCallback(async (targetVaultId) => {
-    const vId = targetVaultId || currentVault?.id || 'vault_admin';
+  const refreshCloudData = useCallback(async () => {
+    const token = localStorage.getItem('et_token');
+    if (!token) return;
+
     setIsSyncing(true);
     try {
-      const res = await fetch(`/api/data?vaultId=${vId}&t=${Date.now()}`, {
+      const res = await fetch(`/api/data?token=${token}&t=${Date.now()}`, {
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
       if (res.ok) {
@@ -92,7 +93,7 @@ export function ExpenseProvider({ children }) {
             fetch('/api/data', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'processRecurring', payload: { vaultId: vId } })
+              body: JSON.stringify({ action: 'processRecurring', payload: { token } })
             }).catch(() => {});
           }
         } else {
@@ -107,16 +108,15 @@ export function ExpenseProvider({ children }) {
     } finally {
       setIsSyncing(false);
     }
-  }, [currentVault?.id]);
+  }, []);
 
   useEffect(() => {
     if (isLoggedIn) {
-      refreshCloudData(currentVault?.id);
+      refreshCloudData();
     }
-  }, [isLoggedIn, currentVault?.id, refreshCloudData]);
+  }, [isLoggedIn, refreshCloudData]);
 
   // ─── Local Storage Sync ─────────────────────────────────────────────────────
-  useEffect(() => { localStorage.setItem('et_passcode', passcode); }, [passcode]);
   useEffect(() => { localStorage.setItem('et_is_logged_in', isLoggedIn); }, [isLoggedIn]);
   useEffect(() => { localStorage.setItem('et_vault_info', JSON.stringify(currentVault)); }, [currentVault]);
   useEffect(() => { localStorage.setItem('et_gemini_api_key', apiKey); }, [apiKey]);
@@ -134,81 +134,60 @@ export function ExpenseProvider({ children }) {
   }, [transactions, categories, accounts, subscriptions, debts, currentVault?.id]);
 
   // ─── Auth / Vault Login ──────────────────────────────────────────────────────
-  const login = async (inputPass, rememberMe = true) => {
+  const login = async (username, password) => {
     try {
       const res = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'loginVault', payload: { passcode: inputPass.trim() } })
+        body: JSON.stringify({ action: 'login', payload: { username, password } })
       });
 
       if (res.ok) {
         const data = await res.json();
-        if (data.success && data.vault) {
-          setCurrentVault(data.vault);
-          setPasscode(inputPass.trim());
+        if (data.success && data.token) {
+          localStorage.setItem('et_token', data.token);
+          setCurrentVault({ id: data.user.vaultId, name: data.user.username + ' Vault', isAdmin: data.user.role === 'admin' });
           setIsLoggedIn(true);
+          
           if (data.categories?.length > 0) setCategories(data.categories);
           if (data.accounts?.length > 0) setAccounts(data.accounts);
           if (Array.isArray(data.transactions)) setTransactions(data.transactions);
           if (Array.isArray(data.subscriptions)) setSubscriptions(data.subscriptions);
-
-          if (rememberMe) {
-            localStorage.setItem('et_is_logged_in', 'true');
-            localStorage.setItem('et_passcode', inputPass.trim());
-            localStorage.setItem('et_vault_info', JSON.stringify(data.vault));
-          }
-          return { success: true, vault: data.vault };
+          
+          localStorage.setItem('et_vault_info', JSON.stringify({ id: data.user.vaultId, name: data.user.username + ' Vault', isAdmin: data.user.role === 'admin' }));
+          
+          return { success: true };
         }
       }
-      return { success: false, error: 'Incorrect PIN' };
+      return { success: false, error: 'Incorrect Username or Password' };
     } catch (e) {
-      // Offline fallback: check stored passcode
-      if (inputPass === passcode) {
-        setIsLoggedIn(true);
-        if (rememberMe) localStorage.setItem('et_is_logged_in', 'true');
-        return { success: true, vault: currentVault };
-      }
-      return { success: false, error: 'Incorrect PIN (Offline)' };
+      return { success: false, error: 'Network error. Offline login not available for users.' };
     }
   };
 
-  const logout = () => {
+  const authFetch = async (action, payload = {}) => {
+    const token = localStorage.getItem('et_token');
+    return fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, payload: { ...payload, token } })
+    });
+  };
+
+  const logout = async () => {
+    try { await authFetch('logout'); } catch (e) {}
     setIsLoggedIn(false);
-    localStorage.removeItem('et_is_logged_in');
+    localStorage.removeItem('et_token');
+    localStorage.removeItem('et_vault_info');
   };
 
-  const updatePasscode = async (newPass) => {
-    setPasscode(newPass);
-    localStorage.setItem('et_passcode', newPass);
+  // ─── Admin User Management ──────────────────────────────────────────────────
+  const getUsers = async () => {
     try {
-      const res = await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'updateVaultPin',
-          payload: { targetVaultId: currentVault?.id || 'vault_admin', newPasscode: newPass }
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update PIN');
-      return { success: true };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  };
-
-  // ─── Admin Vault Management ──────────────────────────────────────────────────
-  const listVaults = async () => {
-    try {
-      const res = await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'listVaults', payload: { adminPasscode: passcode } })
-      });
+      const res = await authFetch('getUsers');
       if (res.ok) {
         const data = await res.json();
-        return data.vaults || [];
+        return data.users || [];
       }
       return [];
     } catch (e) {
@@ -216,36 +195,11 @@ export function ExpenseProvider({ children }) {
     }
   };
 
-  const createVault = async (name, newPass) => {
+  const createUser = async (newUsername, newPassword, role = 'user') => {
     try {
-      const res = await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'createVault',
-          payload: { name, passcode: newPass, adminPasscode: passcode }
-        })
-      });
+      const res = await authFetch('createUser', { newUsername, newPassword, role });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create vault');
-      return { success: true, vaultId: data.vaultId };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  };
-
-  const deleteVault = async (targetVaultId) => {
-    try {
-      const res = await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'deleteVault',
-          payload: { targetVaultId, adminPasscode: passcode }
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete vault');
+      if (!res.ok) throw new Error(data.error || 'Failed to create user');
       return { success: true };
     } catch (e) {
       return { success: false, error: e.message };
@@ -257,11 +211,7 @@ export function ExpenseProvider({ children }) {
     setCurrencyState(sym);
     localStorage.setItem('et_currency', sym);
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'updateSetting', payload: { key: 'currency', value: sym } })
-      });
+      await authFetch('updateSetting', { key: 'currency', value: sym });
     } catch (e) {}
   };
 
@@ -287,11 +237,7 @@ export function ExpenseProvider({ children }) {
       return acc;
     }));
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'addTransaction', payload: formatted })
-      });
+      await authFetch('addTransaction', formatted);
       refreshCloudData();
     } catch (e) {}
   };
@@ -309,7 +255,6 @@ export function ExpenseProvider({ children }) {
       categoryId: newTx.categoryId || categories[0]?.id || 'cat-1',
       accountId: newTx.accountId || accounts[0]?.id || 'acc-1',
       notes: newTx.notes || '',
-      vaultId: currentVault?.id || 'vault_admin'
     }));
 
     // Single state update for all transactions
@@ -330,13 +275,7 @@ export function ExpenseProvider({ children }) {
 
     // Save each to DB
     try {
-      await Promise.all(formatted.map(tx =>
-        fetch('/api/data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'addTransaction', payload: tx })
-        })
-      ));
+      await Promise.all(formatted.map(tx => authFetch('addTransaction', tx)));
       refreshCloudData();
     } catch (e) {}
   };
@@ -344,14 +283,7 @@ export function ExpenseProvider({ children }) {
   const editTransaction = async (id, updatedData) => {
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updatedData } : t));
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'updateTransaction',
-          payload: { id, ...updatedData, vaultId: currentVault?.id || 'vault_admin' }
-        })
-      });
+      await authFetch('updateTransaction', { id, ...updatedData });
       refreshCloudData();
     } catch (e) {}
   };
@@ -359,14 +291,7 @@ export function ExpenseProvider({ children }) {
   const deleteTransaction = async (id) => {
     setTransactions(prev => prev.filter(t => t.id !== id && t.transferId !== id));
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'deleteTransaction',
-          payload: { id, vaultId: currentVault?.id || 'vault_admin' }
-        })
-      });
+      await authFetch('deleteTransaction', { id });
       refreshCloudData();
     } catch (e) {}
   };
@@ -388,14 +313,7 @@ export function ExpenseProvider({ children }) {
       return acc;
     }));
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'addTransfer',
-          payload: { fromAccountId, toAccountId, amount: parsedAmount, date: transferDate, notes, vaultId: vId }
-        })
-      });
+      await authFetch('addTransfer', { fromAccountId, toAccountId, amount: parsedAmount, date: transferDate, notes });
       refreshCloudData();
     } catch (e) {}
   };
@@ -415,11 +333,7 @@ export function ExpenseProvider({ children }) {
     };
     setCategories(prev => [...prev, newCat]);
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'addCategory', payload: newCat })
-      });
+      await authFetch('addCategory', newCat);
       refreshCloudData();
     } catch (e) {}
   };
@@ -427,14 +341,7 @@ export function ExpenseProvider({ children }) {
   const updateCategoryBudget = async (catId, budgetCap, isAutoBudget = false) => {
     setCategories(prev => prev.map(c => c.id === catId ? { ...c, budgetCap: parseFloat(budgetCap) || 0, isAutoBudget } : c));
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'updateBudget',
-          payload: { id: catId, budgetCap, isAutoBudget, vaultId: currentVault?.id || 'vault_admin' }
-        })
-      });
+      await authFetch('updateBudget', { id: catId, budgetCap, isAutoBudget });
       refreshCloudData();
     } catch (e) {}
   };
@@ -455,11 +362,7 @@ export function ExpenseProvider({ children }) {
     };
     setAccounts(prev => [...prev, newAcc]);
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'addAccount', payload: newAcc })
-      });
+      await authFetch('addAccount', newAcc);
       refreshCloudData();
     } catch (e) {}
   };
@@ -467,11 +370,7 @@ export function ExpenseProvider({ children }) {
   const editAccount = async (id, updatedData) => {
     setAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updatedData } : a));
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'updateAccount', payload: { id, ...updatedData, vaultId: currentVault?.id || 'vault_admin' } })
-      });
+      await authFetch('updateAccount', { id, ...updatedData });
       refreshCloudData();
     } catch (e) {}
   };
@@ -479,11 +378,7 @@ export function ExpenseProvider({ children }) {
   const deleteAccount = async (id) => {
     setAccounts(prev => prev.filter(a => a.id !== id));
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'deleteAccount', payload: { id, vaultId: currentVault?.id || 'vault_admin' } })
-      });
+      await authFetch('deleteAccount', { id });
     } catch (e) {}
   };
 
@@ -505,33 +400,21 @@ export function ExpenseProvider({ children }) {
     };
     setDebts(prev => [newDebt, ...prev]);
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'addDebt', payload: { ...newDebt, vaultId: vId } })
-      });
+      await authFetch('addDebt', newDebt);
     } catch (e) {}
   };
 
   const settleDebt = async (id, settledAmount, status = 'settled') => {
     setDebts(prev => prev.map(d => d.id === id ? { ...d, settledAmount: parseFloat(settledAmount) || d.amount, status } : d));
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'settleDebt', payload: { id, settledAmount, status, vaultId: currentVault?.id || 'vault_admin' } })
-      });
+      await authFetch('settleDebt', { id, settledAmount, status });
     } catch (e) {}
   };
 
   const deleteDebt = async (id) => {
     setDebts(prev => prev.filter(d => d.id !== id));
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'deleteDebt', payload: { id, vaultId: currentVault?.id || 'vault_admin' } })
-      });
+      await authFetch('deleteDebt', { id });
     } catch (e) {}
   };
 
@@ -550,33 +433,21 @@ export function ExpenseProvider({ children }) {
     };
     setSubscriptions(prev => [...prev, newSub]);
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'addSubscription', payload: newSub })
-      });
+      await authFetch('addSubscription', newSub);
     } catch (e) {}
   };
 
   const updateSubscription = async (id, nextDueDate) => {
     setSubscriptions(prev => prev.map(s => s.id === id ? { ...s, nextDueDate } : s));
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'updateSubscription', payload: { id, nextDueDate, vaultId: currentVault?.id || 'vault_admin' } })
-      });
+      await authFetch('updateSubscription', { id, nextDueDate });
     } catch (e) {}
   };
 
   const deleteSubscription = async (id) => {
     setSubscriptions(prev => prev.filter(s => s.id !== id));
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'deleteSubscription', payload: { id, vaultId: currentVault?.id || 'vault_admin' } })
-      });
+      await authFetch('deleteSubscription', { id });
     } catch (e) {}
   };
 
@@ -585,11 +456,7 @@ export function ExpenseProvider({ children }) {
     setTransactions([]);
     setAccounts(prev => prev.map(a => ({ ...a, balance: 0, initialBalance: 0 })));
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'clearAllData', payload: { vaultId: currentVault?.id || 'vault_admin' } })
-      });
+      await authFetch('clearAllData');
       refreshCloudData();
     } catch (e) {}
   };

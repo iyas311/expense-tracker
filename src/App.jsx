@@ -11,6 +11,7 @@ import { TransactionList } from './components/TransactionList';
 import { BudgetCategoryManager } from './components/BudgetCategoryManager';
 import { BudgetReport } from './components/BudgetReport';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
+import { AdminDashboard } from './components/AdminDashboard';
 import { SubscriptionsTracker } from './components/SubscriptionsTracker';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { AiChatbotModal } from './components/AiChatbotModal';
@@ -23,7 +24,7 @@ function MainApp() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isLogViewerOpen, setIsLogViewerOpen] = useState(false);
-  const { isOffline } = useExpense();
+  const { isOffline, currentVault } = useExpense();
 
   return (
     <div className="app-layout">
@@ -76,6 +77,13 @@ function MainApp() {
           <div className="animate-fade-in">
             <DebtTracker />
             <SubscriptionsTracker />
+          </div>
+        )}
+
+        {/* TAB 5: ADMIN DASHBOARD */}
+        {activeTab === 'admin' && currentVault?.isAdmin && (
+          <div className="animate-fade-in">
+            <AdminDashboard />
           </div>
         )}
       </main>
