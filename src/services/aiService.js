@@ -73,7 +73,8 @@ Example Output format:
     "description": "Clean item name",
     "category": "Match best category",
     "account": "Match best account",
-    "date": "YYYY-MM-DD"
+    "date": "YYYY-MM-DD",
+    "notes": "Optional extra remarks/context or empty string"
   }
 ]
 
@@ -84,6 +85,7 @@ Object Fields required:
 - category: string (match best from: [${categoryNames}] or invent a logical one)
 - account: string (match best from: [${accountNames}] or default "Bank Account")
 - date: YYYY-MM-DD (default to current date: ${new Date().toISOString().split('T')[0]} if unspecified)
+- notes: string (any additional context, purpose, person involved, payment method, remarks, e.g. "with Alex", "birthday treat", or empty string "" if none)
 
 User text: "${textInput}"`;
 
@@ -130,7 +132,8 @@ Example Output format:
     "description": "Clean item name",
     "category": "Match best category",
     "account": "Match best account",
-    "date": "YYYY-MM-DD"
+    "date": "YYYY-MM-DD",
+    "notes": "Optional extra remarks/context or empty string"
   }
 ]
 
@@ -141,6 +144,7 @@ Object Fields required:
 - category: string
 - account: string
 - date: string (YYYY-MM-DD)
+- notes: string (any additional context, purpose, person involved, payment method, remarks, e.g. "with Alex", "birthday treat", or empty string "" if none)
 
 User text: "${textInput}"`;
 
@@ -344,7 +348,8 @@ function formatParsedTransaction(parsed, categories, accounts) {
     description: cleanDescription.charAt(0).toUpperCase() + cleanDescription.slice(1),
     categoryId: matchedCategory ? matchedCategory.id : 'cat-1',
     accountId: matchedAccount ? matchedAccount.id : 'acc-1',
-    date: parsed.date || new Date().toISOString().split('T')[0]
+    date: parsed.date || new Date().toISOString().split('T')[0],
+    notes: (parsed.notes || '').toString().trim()
   };
 }
 
@@ -414,7 +419,8 @@ function fallbackLocalParser(input, categories, accounts) {
       description: description.charAt(0).toUpperCase() + description.slice(1),
       categoryId: getCategoryId(text),
       accountId: getAccountId(text),
-      date: today
+      date: today,
+      notes: ''
     });
   }
 
@@ -425,7 +431,8 @@ function fallbackLocalParser(input, categories, accounts) {
     description: 'Expense Item',
     categoryId: defaultCategoryId,
     accountId: defaultAccountId,
-    date: today
+    date: today,
+    notes: ''
   }];
 }
 

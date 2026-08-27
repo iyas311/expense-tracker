@@ -47,7 +47,8 @@ Example Output format:
     "description": "Clean item name",
     "category": "Match best category",
     "account": "Match best account",
-    "date": "YYYY-MM-DD"
+    "date": "YYYY-MM-DD",
+    "notes": "Optional extra remarks/context or empty string"
   }
 ]
 
@@ -58,6 +59,7 @@ Object Fields required:
 - category: string (match best from: [${categoryNames}] or invent a logical one)
 - account: string (match best from: [${accountNames}] or default "Bank Account")
 - date: YYYY-MM-DD (default to current date: ${new Date().toISOString().split('T')[0]} if unspecified)
+- notes: string (any additional context, purpose, person involved, payment method, remarks, e.g. "with Alex", "birthday treat", or empty string "" if none)
 
 User text: "${textInput}"`;
 

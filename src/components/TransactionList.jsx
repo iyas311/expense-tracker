@@ -109,25 +109,35 @@ export function TransactionList() {
 
             if (isEditing) {
               return (
-                <div key={tx.id} style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: '16px', padding: '16px 18px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                <div key={tx.id} style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: '16px', padding: '16px 18px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginBottom: '12px' }}>
                     <div>
-                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Description</label>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Description</label>
                       <input className="glass-input" style={{ fontSize: '0.85rem' }} value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Amount</label>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Amount</label>
                       <input type="number" step="0.01" className="glass-input" style={{ fontSize: '0.85rem' }} value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Category</label>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Category</label>
                       <select className="glass-input" style={{ fontSize: '0.82rem' }} value={editForm.categoryId} onChange={e => setEditForm(f => ({ ...f, categoryId: e.target.value }))}>
                         {categories.map(c => <option key={c.id} value={c.id} style={{ background: '#0f172a' }}>{c.name}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Date</label>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Account</label>
+                      <select className="glass-input" style={{ fontSize: '0.82rem' }} value={editForm.accountId} onChange={e => setEditForm(f => ({ ...f, accountId: e.target.value }))}>
+                        {accounts.map(a => <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Date</label>
                       <input type="date" className="glass-input" style={{ fontSize: '0.82rem' }} value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Notes</label>
+                      <input type="text" className="glass-input" style={{ fontSize: '0.85rem' }} placeholder="Optional details..." value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -143,41 +153,48 @@ export function TransactionList() {
             }
 
             return (
-              <div key={tx.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-light)', borderRadius: '16px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', transition: 'all 0.2s ease' }}>
+              <div key={tx.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-light)', borderRadius: '16px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', transition: 'all 0.2s ease' }}>
                 {/* Left */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: iconBg, border: `1px solid ${iconBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    {isTransfer ? <ArrowLeftRight size={20} color="#6366f1" /> : isIncome ? <ArrowUpRight size={20} color="#10b981" /> : <ArrowDownRight size={20} color="#f43f5e" />}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: iconBg, border: `1px solid ${iconBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {isTransfer ? <ArrowLeftRight size={18} color="#6366f1" /> : isIncome ? <ArrowUpRight size={18} color="#10b981" /> : <ArrowDownRight size={18} color="#f43f5e" />}
                   </div>
-                  <div>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px' }}>{tx.description}</h4>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span className="badge" style={{ background: `${cat.color}20`, color: cat.color, border: `1px solid ${cat.color}40` }}>{cat.name}</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>• {acc.name}</span>
-                      {tx.notes && <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>"{tx.notes}"</span>}
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <h4 style={{ fontSize: '0.92rem', fontWeight: '700', marginBottom: '3px', wordBreak: 'break-word' }}>{tx.description}</h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span className="badge" style={{ background: `${cat.color}20`, color: cat.color, border: `1px solid ${cat.color}40`, padding: '2px 8px', fontSize: '0.7rem' }}>{cat.name}</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>• {acc.name}</span>
                       {isTransfer && <span className="badge" style={{ background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: '0.65rem' }}>Transfer</span>}
                     </div>
+                    {tx.notes && (
+                      <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px', wordBreak: 'break-word' }}>
+                        <span style={{ opacity: 0.7 }}>📝</span>
+                        <span>{tx.notes}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Right */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ textAlign: 'right' }}>
-                    <div className="font-heading" style={{ fontSize: '1.05rem', fontWeight: '800', color: amtColor }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div className="font-heading" style={{ fontSize: '1.02rem', fontWeight: '800', color: amtColor, whiteSpace: 'nowrap', display: 'inline-block' }}>
                       {amtPrefix}{currency}{tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', marginTop: '2px' }}>
-                      <Calendar size={11} /> {tx.date}
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                      <Calendar size={10} /> {tx.date}
                     </div>
                   </div>
-                  {!isTransfer && (
-                    <button onClick={() => startEdit(tx)} className="btn-secondary" title="Edit" style={{ padding: '7px', color: '#6366f1', border: 'none', borderRadius: '9px' }}>
-                      <Pencil size={14} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                    {!isTransfer && (
+                      <button onClick={() => startEdit(tx)} className="btn-secondary" title="Edit" style={{ padding: '6px', color: '#6366f1', border: 'none', borderRadius: '8px' }}>
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                    <button onClick={() => deleteTransaction(tx.id)} className="btn-secondary" title="Delete" style={{ padding: '6px', color: 'var(--text-dim)', border: 'none', borderRadius: '8px' }}>
+                      <Trash2 size={13} />
                     </button>
-                  )}
-                  <button onClick={() => deleteTransaction(tx.id)} className="btn-secondary" title="Delete" style={{ padding: '7px', color: 'var(--text-dim)', border: 'none', borderRadius: '9px' }}>
-                    <Trash2 size={14} />
-                  </button>
+                  </div>
                 </div>
               </div>
             );
