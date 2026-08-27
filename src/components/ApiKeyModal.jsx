@@ -1,13 +1,13 @@
 ﻿import React, { useState } from 'react';
 import { useExpense } from '../context/ExpenseContext';
-import { Sparkles, ExternalLink, Check, X, Activity } from 'lucide-react';
+import { Sparkles, ExternalLink, Check, X, Activity, Lock, Loader2 } from 'lucide-react';
 
 export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
   const {
     apiKey, setApiKey,
     groqApiKey, setGroqApiKey,
     currency, setCurrency,
-    currentVault
+    currentVault, changePassword
   } = useExpense();
 
   const [keyInput, setKeyInput] = useState(apiKey);
@@ -15,9 +15,15 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
   const [currInput, setCurrInput] = useState(currency);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  // Change Password state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isChangingPass, setIsChangingPass] = useState(false);
+  const [passMsg, setPassMsg] = useState({ text: '', type: '' });
+
   if (!isOpen) return null;
 
-  const handleSave = (e) => {
+  const handleSaveSettings = (e) => {
     e?.preventDefault();
     setApiKey(keyInput.trim());
     setGroqApiKey(groqInput.trim());
@@ -28,6 +34,30 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
       setSavedSuccess(false);
       onClose();
     }, 1500);
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword) return;
+    if (newPassword.length < 4) {
+      setPassMsg({ text: 'New password must be at least 4 characters', type: 'error' });
+      return;
+    }
+
+    setIsChangingPass(true);
+    setPassMsg({ text: '', type: '' });
+
+    const res = await changePassword(currentPassword, newPassword);
+    
+    if (res.success) {
+      setPassMsg({ text: 'Password changed successfully!', type: 'success' });
+      setCurrentPassword('');
+      setNewPassword('');
+    } else {
+      setPassMsg({ text: res.error || 'Failed to change password', type: 'error' });
+    }
+    
+    setIsChangingPass(false);
   };
 
   return (
@@ -59,8 +89,60 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
           </button>
         </div>
 
-        <div style={{ padding: '24px' }}>
-          <form onSubmit={handleSave}>
+        <div style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
+          
+          {/* Change Password Section */}
+          <div style={{ marginBottom: '32px', paddingBottom: '24px', borderBottom: '1px solid var(--border-light)' }}>
+            <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-cyan)' }}>
+              <Lock size={16} /> Account Security
+            </h4>
+            
+            <form onSubmit={handleChangePassword}>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '6px' }}>Current Password</label>
+                <input
+                  type="password"
+                  className="glass-input"
+                  value={currentPassword}
+                  onChange={e => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password"
+                  required
+                />
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '6px' }}>New Password</label>
+                <input
+                  type="password"
+                  className="glass-input"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  required
+                />
+              </div>
+              
+              {passMsg.text && (
+                <div style={{
+                  marginBottom: '12px', padding: '10px', borderRadius: '8px', fontSize: '0.85rem',
+                  background: passMsg.type === 'error' ? 'rgba(244,63,94,0.1)' : 'rgba(16,185,129,0.1)',
+                  color: passMsg.type === 'error' ? '#f43f5e' : '#10b981'
+                }}>
+                  {passMsg.text}
+                </div>
+              )}
+              
+              <button
+                type="submit"
+                disabled={isChangingPass || !currentPassword || !newPassword}
+                className="btn-secondary"
+                style={{ width: '100%', padding: '10px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                {isChangingPass ? <><Loader2 size={16} className="animate-spin" /> Updating...</> : 'Update Password'}
+              </button>
+            </form>
+          </div>
+
+          <form onSubmit={handleSaveSettings}>
             {/* Gemini API Key */}
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '6px' }}>

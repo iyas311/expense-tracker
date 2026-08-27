@@ -435,7 +435,23 @@ export default async function handler(req, res) {
         }
       }
 
+      // ─── CHANGE PASSWORD ───────────────────────────────────────────────────
+      if (action === 'changePassword') {
+        const { currentPassword, newPassword } = payload || {};
+        if (!currentPassword || !newPassword || newPassword.length < 4) {
+          return res.status(400).json({ error: 'Invalid password provided' });
+        }
 
+        const users = await sql`SELECT password_hash FROM app_users WHERE id = ${session.user_id};`;
+        if (users.length === 0) return res.status(404).json({ error: 'User not found' });
+
+        if (users[0].password_hash !== hashPassword(currentPassword)) {
+          return res.status(401).json({ error: 'Current password is incorrect' });
+        }
+
+        await sql`UPDATE app_users SET password_hash = ${hashPassword(newPassword)} WHERE id = ${session.user_id};`;
+        return res.status(200).json({ success: true });
+      }
 
       // ─── ADD TRANSACTION ─────────────────────────────────────────────────────
       if (action === 'addTransaction') {

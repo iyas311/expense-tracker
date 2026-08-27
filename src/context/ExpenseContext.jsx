@@ -206,6 +206,17 @@ export function ExpenseProvider({ children }) {
     }
   };
 
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      const res = await authFetch('changePassword', { currentPassword, newPassword });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to change password');
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  };
+
   // ─── Currency ────────────────────────────────────────────────────────────────
   const setCurrency = async (sym) => {
     setCurrencyState(sym);
@@ -521,7 +532,7 @@ export function ExpenseProvider({ children }) {
       transactions, filteredTransactions,
       categories, accounts, subscriptions, debts,
       totalIncome, totalExpenses, netWorth,
-      login, logout, getUsers, createUser,
+      login, logout, getUsers, createUser, changePassword,
       setApiKey, setGroqApiKey, setCurrency,
       addTransaction, addTransactions, editTransaction, deleteTransaction,
       addTransfer,
