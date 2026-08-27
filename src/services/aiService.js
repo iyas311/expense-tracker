@@ -15,7 +15,6 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
   const processParsed = (parsed) => {
     let arr = Array.isArray(parsed) ? parsed : null;
     if (!arr && typeof parsed === 'object' && parsed !== null) {
-      // LLM might wrap the array in an object (e.g. { transactions: [...] } or { items: [...] })
       for (const key of Object.keys(parsed)) {
         if (Array.isArray(parsed[key])) {
           arr = parsed[key];
@@ -27,8 +26,60 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
       arr = [];
     }
 
-    return arr.map(p => formatParsedTransaction(p, categories, accounts));
+    return arr.map(p => {
+      // It's a regular transaction
+      if (!p.operation || p.operation === 'transaction') {
+        const desc = p.description || 'Expense';
+        const searchDesc = desc.toLowerCase();
+        let matchedCategory = categories.find(c => searchDesc.includes(c.name.toLowerCase()));
+        if (!matchedCategory && p.category) {
+          const aiCat = p.category.toLowerCase();
+          matchedCategory = categories.find(c => aiCat.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(aiCat));
+        }
+
+        let matchedAccount = null;
+        if (p.account) {
+          const aiAcc = p.account.toLowerCase();
+          matchedAccount = accounts.find(a => aiAcc.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(aiAcc));
+        }
+        if (!matchedAccount) {
+          matchedAccount = accounts.find(a => searchDesc.includes(a.name.toLowerCase()));
+        }
+
+        return {
+          operation: 'transaction',
+          amount: parseFloat(p.amount) || 0,
+          type: p.type === 'income' ? 'income' : 'expense',
+          description: desc.charAt(0).toUpperCase() + desc.slice(1),
+          categoryId: matchedCategory ? matchedCategory.id : categories[0]?.id || 'cat-1',
+          accountId: matchedAccount ? matchedAccount.id : accounts[0]?.id || 'acc-1',
+          date: p.date || new Date().toISOString().split('T')[0],
+          notes: (p.notes || '').toString().trim()
+        };
+      }
+
+      // It's a debt operation
+      if (p.operation === 'debt_add' || p.operation === 'debt_settle') {
+        let matchedAccount = null;
+        const aiAcc = (p.account || 'Slice Savings').toLowerCase();
+        matchedAccount = accounts.find(a => aiAcc.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(aiAcc));
+        
+        return {
+          operation: p.operation,
+          amount: parseFloat(p.amount) || 0,
+          direction: p.direction === 'borrowed' ? 'borrowed' : 'lent',
+          personName: p.personName || 'Unknown',
+          reason: p.reason || '',
+          accountId: matchedAccount ? matchedAccount.id : accounts[0]?.id || 'acc-1',
+          date: p.date || new Date().toISOString().split('T')[0],
+          notes: (p.notes || '').toString().trim()
+        };
+      }
+
+      return null;
+    }).filter(Boolean);
   };
+
 
   // 1. First try Serverless Proxy /api/ai (100% Secret Server Keys)
   try {

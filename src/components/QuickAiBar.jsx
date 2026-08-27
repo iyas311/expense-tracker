@@ -4,7 +4,7 @@ import { parseNaturalLanguageTransaction, parseReceiptImage } from '../services/
 import { Sparkles, Camera, Plus, Loader2, CornerDownLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export function QuickAiBar({ onOpenManualAdd }) {
-  const { categories, accounts, apiKey, groqApiKey, addTransaction, addTransactions, currency } = useExpense();
+  const { categories, accounts, apiKey, groqApiKey, addTransactions, addDebt, settleDebt, debts, currency } = useExpense();
   const [naturalInput, setNaturalInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState(null); // { type: 'success' | 'error', message: string }
@@ -15,48 +15,100 @@ export function QuickAiBar({ onOpenManualAdd }) {
 
     const promptText = naturalInput.trim();
     setIsLoading(true);
-    setStatus({ type: 'loading', message: 'Analyzing transaction details...' });
+    setStatus({ type: 'loading', message: 'Analyzing AI prompt...' });
 
     try {
       const parsedArray = await parseNaturalLanguageTransaction(promptText, categories, accounts, apiKey, groqApiKey);
+      const validOps = (parsedArray || []).filter(p => p.amount > 0);
 
-      // Filter out zero-amount entries — nothing to log
-      const validTx = (parsedArray || []).filter(p => p.amount > 0);
+      if (validOps.length > 0) {
+        const transactionsToLog = [];
+        
+        for (const op of validOps) {
+          if (op.operation === 'transaction') {
+            transactionsToLog.push(op);
+          } 
+          else if (op.operation === 'debt_add') {
+            const debtPayload = {
+              personName: op.personName,
+              amount: op.amount,
+              direction: op.direction,
+              reason: op.reason,
+              dateCreated: op.date,
+              dueDate: null,
+              notes: op.notes
+            };
+            addDebt(debtPayload);
 
-      if (validTx.length > 0) {
-        // Use addTransactions (plural) — single atomic state update, avoids React batching bug
-        await addTransactions(validTx);
+            // Create corresponding transaction
+            transactionsToLog.push({
+              amount: op.amount,
+              type: op.direction === 'lent' ? 'expense' : 'income',
+              description: `${op.direction === 'lent' ? 'Lent to' : 'Borrowed from'} ${op.personName}`,
+              categoryId: categories[0]?.id || 'cat-1', // Default category
+              accountId: op.accountId,
+              date: op.date,
+              notes: op.notes
+            });
+          }
+          else if (op.operation === 'debt_settle') {
+            // Find existing debt for this person
+            const targetDebt = debts.find(d => 
+              d.personName.toLowerCase().includes(op.personName.toLowerCase()) && 
+              d.status !== 'settled'
+            );
+            
+            if (targetDebt) {
+              const newSettled = (targetDebt.settledAmount || 0) + op.amount;
+              const status = newSettled >= targetDebt.amount ? 'settled' : 'partial';
+              settleDebt(targetDebt.id, Math.min(newSettled, targetDebt.amount), status);
+
+              // Create corresponding transaction
+              transactionsToLog.push({
+                amount: op.amount,
+                type: targetDebt.direction === 'lent' ? 'income' : 'expense',
+                description: `${targetDebt.direction === 'lent' ? 'Received back from' : 'Paid back to'} ${targetDebt.personName}`,
+                categoryId: categories[0]?.id || 'cat-1',
+                accountId: op.accountId,
+                date: op.date,
+                notes: op.notes
+              });
+            } else {
+              console.warn("Could not find matching debt for settlement:", op.personName);
+            }
+          }
+        }
+
+        if (transactionsToLog.length > 0) {
+          await addTransactions(transactionsToLog);
+        }
+        
         setNaturalInput('');
 
-        // Save prompt to history
         fetch('/api/data', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'addPromptHistory', payload: { text: promptText, txCount: validTx.length } })
+          body: JSON.stringify({ action: 'addPromptHistory', payload: { text: promptText, txCount: validOps.length } })
         }).catch(() => {});
-
-        const isMultiple = validTx.length > 1;
-        const totalAmount = validTx.reduce((sum, p) => sum + p.amount, 0);
 
         setStatus({
           type: 'success',
-          message: isMultiple
-            ? `Logged ${validTx.length} transactions totaling ${currency}${totalAmount}`
-            : `Logged ${validTx[0].type === 'expense' ? '−' : '+'}${currency}${validTx[0].amount} for "${validTx[0].description}"`
+          message: `Processed ${validOps.length} action(s) successfully!`
         });
         setTimeout(() => setStatus(null), 4000);
       } else {
-        setStatus({ type: 'error', message: 'Could not detect a valid amount. Try: "burger 60 and groceries 100"' });
+        setStatus({ type: 'error', message: 'Could not detect a valid operation.' });
         setTimeout(() => setStatus(null), 4000);
       }
     } catch (err) {
       console.error(err);
-      setStatus({ type: 'error', message: 'Failed to process transaction.' });
+      setStatus({ type: 'error', message: 'Failed to process AI operation.' });
       setTimeout(() => setStatus(null), 4000);
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const handleReceiptUpload = async (e) => {
     const file = e.target.files?.[0];
