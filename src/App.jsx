@@ -49,7 +49,6 @@ function MainApp() {
           <div className="animate-fade-in">
             <QuickAiBar onOpenManualAdd={() => setIsManualModalOpen(true)} />
             <SummaryCards />
-            <DebtTracker />
             <AccountsBar />
             <AnalyticsDashboard />
             <TransactionList showNotes={false} />
@@ -75,6 +74,7 @@ function MainApp() {
         {/* TAB 4: RECURRING BILLS */}
         {activeTab === 'subscriptions' && (
           <div className="animate-fade-in">
+            <DebtTracker />
             <SubscriptionsTracker />
           </div>
         )}

@@ -73,8 +73,8 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
             {[
               { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
               { id: 'transactions', label: 'Transactions', icon: Receipt },
-              { id: 'budgets', label: 'Budgets & Categories', icon: PieChart },
-              { id: 'subscriptions', label: 'Recurring Bills', icon: Repeat }
+              { id: 'budgets', label: 'Budgets', icon: PieChart },
+              { id: 'subscriptions', label: 'Bills & Debts', icon: Repeat }
             ].map(item => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -172,7 +172,7 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
           { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
           { id: 'transactions', label: 'History', icon: Receipt },
           { id: 'budgets', label: 'Budgets', icon: PieChart },
-          { id: 'subscriptions', label: 'Bills', icon: Repeat }
+          { id: 'subscriptions', label: 'Bills & Debts', icon: Repeat }
         ].map(item => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
