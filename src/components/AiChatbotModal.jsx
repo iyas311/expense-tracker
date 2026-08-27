@@ -4,7 +4,7 @@ import { askAiAssistant } from '../services/aiService';
 import { Bot, Send, X, Loader2, Sparkles, User } from 'lucide-react';
 
 export function AiChatbotModal({ isOpen, onClose }) {
-  const { apiKey, groqApiKey, currency, netWorth, totalIncome, totalExpenses, accounts, transactions, categories } = useExpense();
+  const { apiKey, groqApiKey, currency, netWorth, totalIncome, totalExpenses, accounts, transactions, categories, debts, subscriptions } = useExpense();
   
   const [messages, setMessages] = useState([
     {
@@ -26,13 +26,22 @@ export function AiChatbotModal({ isOpen, onClose }) {
     setInputQuestion('');
     setIsAsking(true);
 
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const monthlySpending = {};
+    transactions.filter(t => t.type === 'expense' && t.date.startsWith(currentMonth)).forEach(t => {
+      const cat = categories.find(c => c.id === t.categoryId)?.name || 'Other';
+      monthlySpending[cat] = (monthlySpending[cat] || 0) + t.amount;
+    });
+
     const contextData = {
       netWorth: `${currency}${netWorth.toFixed(2)}`,
       totalIncome: `${currency}${totalIncome.toFixed(2)}`,
       totalExpenses: `${currency}${totalExpenses.toFixed(2)}`,
-      accounts: accounts.map(a => `${a.name}: ${currency}${a.balance}`),
-      recentTransactions: transactions.slice(0, 10).map(t => `${t.date}: ${t.description} (${currency}${t.amount})`),
-      budgets: categories.filter(c => c.type === 'expense').map(c => `${c.name}: Cap ${currency}${c.budgetCap}`)
+      monthlySpendingByCategory: monthlySpending,
+      accounts: accounts.map(a => `${a.name} (${a.type}): ${currency}${a.balance}${a.creditLimit > 0 ? ` [Limit: ${a.creditLimit}, Stmt Day: ${a.statementDay||'N/A'}, Due Day: ${a.dueDay||'N/A'}]` : ''}`),
+      debts: debts.map(d => `${d.direction === 'lent' ? 'I Lent' : 'I Borrowed'} ${currency}${d.amount} to/from ${d.personName}. Status: ${d.status}`),
+      subscriptions: subscriptions.map(s => `${s.name}: ${currency}${s.amount}/${s.billingCycle} (Next due: ${s.nextDueDate})`),
+      recentTransactions: transactions.slice(0, 10).map(t => `${t.date}: ${t.description} (${currency}${t.amount})`)
     };
 
     const botResponse = await askAiAssistant(userText, contextData, apiKey, groqApiKey);

@@ -558,6 +558,28 @@ export function ExpenseProvider({ children }) {
     } catch (e) {}
   };
 
+  const updateSubscription = async (id, nextDueDate) => {
+    setSubscriptions(prev => prev.map(s => s.id === id ? { ...s, nextDueDate } : s));
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateSubscription', payload: { id, nextDueDate, vaultId: currentVault?.id || 'vault_admin' } })
+      });
+    } catch (e) {}
+  };
+
+  const deleteSubscription = async (id) => {
+    setSubscriptions(prev => prev.filter(s => s.id !== id));
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deleteSubscription', payload: { id, vaultId: currentVault?.id || 'vault_admin' } })
+      });
+    } catch (e) {}
+  };
+
   // ─── Clear All ───────────────────────────────────────────────────────────────
   const clearAllData = async () => {
     setTransactions([]);
@@ -641,7 +663,10 @@ export function ExpenseProvider({ children }) {
       addAccount, editAccount, deleteAccount,
       addDebt, settleDebt, deleteDebt,
       addSubscription,
-      exportData, clearAllData
+      updateSubscription,
+      deleteSubscription,
+      clearAllData,
+      exportData
     }}>
       {children}
     </ExpenseContext.Provider>

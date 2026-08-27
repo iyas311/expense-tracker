@@ -537,6 +537,22 @@ VALUES (${id}, ${name}, ${type}, ${bal}, ${bal}, ${creditLimit || 0}, ${color ||
         return res.status(200).json({ success: true });
       }
 
+      if (action === 'updateSubscription') {
+        const { id, nextDueDate } = payload;
+        await sql`
+          UPDATE subscriptions
+          SET next_due_date=${nextDueDate}
+          WHERE id=${id} AND vault_id=${vaultId};
+        `;
+        return res.status(200).json({ success: true });
+      }
+
+      if (action === 'deleteSubscription') {
+        const { id } = payload;
+        await sql`DELETE FROM subscriptions WHERE id=${id} AND vault_id=${vaultId};`;
+        return res.status(200).json({ success: true });
+      }
+
       // ─── PROCESS RECURRING ───────────────────────────────────────────────────
       if (action === 'processRecurring') {
         const today = new Date().toISOString().split('T')[0];

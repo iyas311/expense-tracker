@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useExpense } from '../context/ExpenseContext';
-import { Repeat, Plus, Calendar, CreditCard, X, CheckCircle } from 'lucide-react';
+import { Repeat, Plus, Calendar, CreditCard, X, CheckCircle, Receipt } from 'lucide-react';
 
 export function SubscriptionsTracker() {
-  const { subscriptions, categories, accounts, currency, addSubscription } = useExpense();
+  const { subscriptions, categories, accounts, currency, addSubscription, addTransaction, updateSubscription } = useExpense();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [name, setName] = useState('');
@@ -30,6 +30,30 @@ export function SubscriptionsTracker() {
     setName('');
     setAmount('');
     setShowAddModal(false);
+  };
+
+  const handleLogPayment = (sub) => {
+    // Log the transaction
+    addTransaction({
+      description: `Paid: ${sub.name}`,
+      amount: sub.amount,
+      type: 'expense',
+      categoryId: sub.categoryId,
+      accountId: sub.accountId,
+      date: new Date().toISOString().split('T')[0],
+      notes: `Manual 1-Click Pay for ${sub.billingCycle} bill.`
+    });
+
+    // Advance the due date
+    const d = new Date(sub.nextDueDate);
+    if (sub.billingCycle === 'monthly') {
+      d.setMonth(d.getMonth() + 1);
+    } else if (sub.billingCycle === 'yearly') {
+      d.setFullYear(d.getFullYear() + 1);
+    } else {
+      d.setDate(d.getDate() + 7); // weekly fallback
+    }
+    updateSubscription(sub.id, d.toISOString().split('T')[0]);
   };
 
   const getCategory = (catId) => categories.find(c => c.id === catId) || { name: 'Subscriptions', color: '#8b5cf6' };
@@ -82,11 +106,20 @@ export function SubscriptionsTracker() {
                 </span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                 <span>Paid via: <strong style={{ color: 'var(--text-main)' }}>{acc.name}</strong></span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10b981' }}>
                   <Calendar size={12} /> Due {sub.nextDueDate}
                 </span>
+              </div>
+              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <button
+                  onClick={() => handleLogPayment(sub)}
+                  className="btn-secondary"
+                  style={{ width: '100%', padding: '8px', fontSize: '0.8rem', display: 'flex', justifyContent: 'center', gap: '6px', color: '#06b6d4', borderColor: 'rgba(6, 182, 212, 0.2)' }}
+                >
+                  <Receipt size={14} /> 1-Click Pay Now
+                </button>
               </div>
             </div>
           );
@@ -98,20 +131,21 @@ export function SubscriptionsTracker() {
         <div className="modal-overlay">
           <div className="modal-content animate-fade-in" style={{ maxWidth: '420px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 className="font-heading">Track New Subscription</h3>
-              <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)} style={{ padding: '6px' }}>
+              <h3 className="font-heading">Add Subscription</h3>
+              <button className="btn-secondary" onClick={() => setShowAddModal(false)} style={{ padding: '6px' }}>
                 <X size={16} />
               </button>
             </div>
+
             <form onSubmit={handleAddSubmit}>
               <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px' }}>Service / Bill Name</label>
+                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px' }}>Name / Service</label>
                 <input
                   type="text"
                   className="glass-input"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Netflix, Rent, Electricity"
+                  placeholder="e.g. Netflix, Spotify, Gym"
                   required
                 />
               </div>
@@ -127,6 +161,15 @@ export function SubscriptionsTracker() {
                   placeholder="15.99"
                   required
                 />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px' }}>Payment Account</label>
+                <select className="glass-input" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
