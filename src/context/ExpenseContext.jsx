@@ -515,13 +515,13 @@ export function ExpenseProvider({ children }) {
 
   return (
     <ExpenseContext.Provider value={{
-      currentVault, passcode, isLoggedIn, apiKey, groqApiKey, currency,
+      currentVault, isLoggedIn, apiKey, groqApiKey, currency,
       timeRange, setTimeRange, selectedMonth, setSelectedMonth, selectedDate, setSelectedDate,
       isSyncing, isOffline, refreshCloudData,
       transactions, filteredTransactions,
       categories, accounts, subscriptions, debts,
       totalIncome, totalExpenses, netWorth,
-      login, logout, updatePasscode,
+      login, logout,
       listVaults, createVault, deleteVault,
       setApiKey, setGroqApiKey, setCurrency,
       addTransaction, addTransactions, editTransaction, deleteTransaction,
