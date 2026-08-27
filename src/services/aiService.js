@@ -58,6 +58,28 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
         };
       }
 
+      // It's a transfer operation
+      if (p.operation === 'transfer') {
+        let fromAcc = null;
+        let toAcc = null;
+        if (p.fromAccount) {
+          const aiFrom = p.fromAccount.toLowerCase();
+          fromAcc = accounts.find(a => aiFrom.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(aiFrom));
+        }
+        if (p.toAccount) {
+          const aiTo = p.toAccount.toLowerCase();
+          toAcc = accounts.find(a => aiTo.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(aiTo));
+        }
+        return {
+          operation: 'transfer',
+          amount: parseFloat(p.amount) || 0,
+          fromAccountId: fromAcc ? fromAcc.id : accounts[0]?.id || 'acc-1',
+          toAccountId: toAcc ? toAcc.id : accounts[1]?.id || 'acc-2',
+          date: p.date || new Date().toISOString().split('T')[0],
+          notes: (p.notes || '').toString().trim()
+        };
+      }
+
       // It's a debt operation
       if (p.operation === 'debt_add' || p.operation === 'debt_settle') {
         let matchedAccount = null;

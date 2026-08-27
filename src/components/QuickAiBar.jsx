@@ -4,7 +4,7 @@ import { parseNaturalLanguageTransaction, parseReceiptImage } from '../services/
 import { Sparkles, Camera, Plus, Loader2, CornerDownLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export function QuickAiBar({ onOpenManualAdd }) {
-  const { categories, accounts, apiKey, groqApiKey, addTransactions, addDebt, settleDebt, debts, currency } = useExpense();
+  const { categories, accounts, apiKey, groqApiKey, addTransactions, addTransfer, addDebt, settleDebt, debts, currency } = useExpense();
   const [naturalInput, setNaturalInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState(null); // { type: 'success' | 'error', message: string }
@@ -28,6 +28,15 @@ export function QuickAiBar({ onOpenManualAdd }) {
           if (op.operation === 'transaction') {
             transactionsToLog.push(op);
           } 
+          else if (op.operation === 'transfer') {
+            await addTransfer({
+              fromAccountId: op.fromAccountId,
+              toAccountId: op.toAccountId,
+              amount: op.amount,
+              date: op.date,
+              notes: op.notes
+            });
+          }
           else if (op.operation === 'debt_add') {
             const debtPayload = {
               personName: op.personName,

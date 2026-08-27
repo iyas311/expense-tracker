@@ -40,8 +40,9 @@ Return ONLY a raw JSON array of objects with NO markdown formatting, NO code blo
 
 Types of operations you can extract:
 1. "transaction": Standard expense or income (buying things, receiving salary).
-2. "debt_add": When the user lends money TO someone, or borrows money FROM someone.
-3. "debt_settle": When a person pays the user back, or the user pays a person back.
+2. "transfer": Moving money between accounts or paying a credit card bill from a bank account.
+3. "debt_add": When the user lends money TO someone, or borrows money FROM someone.
+4. "debt_settle": When a person pays the user back, or the user pays a person back.
 
 Example Output format:
 [
@@ -54,6 +55,14 @@ Example Output format:
     "account": "Match best account",
     "date": "YYYY-MM-DD",
     "notes": "Optional extra remarks"
+  },
+  {
+    "operation": "transfer",
+    "amount": 5000,
+    "fromAccount": "Match best source account",
+    "toAccount": "Match best destination account",
+    "date": "YYYY-MM-DD",
+    "notes": ""
   },
   {
     "operation": "debt_add",
@@ -77,7 +86,7 @@ Example Output format:
 ]
 
 Rules:
-- For 'account', match best from: [${accountNames}].
+- For 'account', 'fromAccount', 'toAccount', match best from: [${accountNames}].
 - IMPORTANT: For ANY debt operation (debt_add or debt_settle), if the user does NOT explicitly mention an account, you MUST default the account to "Slice Savings".
 - For standard 'transaction', if the account is unspecified, default to "Bank Account".
 - For 'category', match best from: [${categoryNames}] or invent a logical one.
