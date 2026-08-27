@@ -260,8 +260,8 @@ export function BudgetCategoryManager() {
 
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px' }}>Category Badge Color</label>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  {['#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6'].map(c => (
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {['#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#7e22ce', '#4f46e5', '#14b8a6', '#84cc16', '#ea580c', '#e11d48', '#64748b'].map(c => (
                     <div
                       key={c}
                       onClick={() => setNewCatColor(c)}
