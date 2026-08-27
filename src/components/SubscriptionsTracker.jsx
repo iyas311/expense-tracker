@@ -203,13 +203,23 @@ export function SubscriptionsTracker() {
                 />
               </div>
 
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px' }}>Payment Account</label>
-                <select className="glass-input" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-                  {accounts.map(a => (
-                    <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>
-                  ))}
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px' }}>Category</label>
+                  <select className="glass-input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                    {categories.filter(c => c.type === 'expense').map(c => (
+                      <option key={c.id} value={c.id} style={{ background: '#0f172a' }}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px' }}>Payment Account</label>
+                  <select className="glass-input" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+                    {accounts.map(a => (
+                      <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
