@@ -88,7 +88,7 @@ Example Output format:
 Rules:
 - For 'account', 'fromAccount', 'toAccount', match best from: [${accountNames}].
 - IMPORTANT: For ANY debt operation (debt_add or debt_settle), if the user does NOT explicitly mention an account, you MUST default the account to "Slice Savings".
-- For standard 'transaction', if the account is unspecified, default to "Bank Account".
+- For standard 'transaction', if the account is unspecified, default to "Kotak Bank".
 - For 'category', match best from: [${categoryNames}] or invent a logical one.
 - For 'direction' in debts: "lent" means the user gave money to someone (people owe user). "borrowed" means user took money (user owes people).
 - date: default to current date: ${new Date().toISOString().split('T')[0]} if unspecified.
