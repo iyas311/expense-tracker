@@ -4,6 +4,7 @@ import { PasscodeModal } from './components/PasscodeModal';
 import { Navbar } from './components/Navbar';
 import { SummaryCards } from './components/SummaryCards';
 import { AccountsBar } from './components/AccountsBar';
+import { DebtTracker } from './components/DebtTracker';
 import { QuickAiBar } from './components/QuickAiBar';
 import { TransactionModal } from './components/TransactionModal';
 import { TransactionList } from './components/TransactionList';
@@ -48,6 +49,7 @@ function MainApp() {
           <div className="animate-fade-in">
             <QuickAiBar onOpenManualAdd={() => setIsManualModalOpen(true)} />
             <SummaryCards />
+            <DebtTracker />
             <AccountsBar />
             <AnalyticsDashboard />
             <TransactionList showNotes={false} />

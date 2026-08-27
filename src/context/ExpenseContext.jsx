@@ -62,6 +62,9 @@ export function ExpenseProvider({ children }) {
   const [subscriptions, setSubscriptions] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`et_sub_${currentVault?.id}`) || '[]'); } catch { return []; }
   });
+  const [debts, setDebts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`et_debts_${currentVault?.id}`) || '[]'); } catch { return []; }
+  });
 
   // ─── Cloud Sync ─────────────────────────────────────────────────────────────
   const refreshCloudData = useCallback(async (targetVaultId) => {
@@ -79,6 +82,7 @@ export function ExpenseProvider({ children }) {
           if (cloudData.accounts?.length > 0) setAccounts(cloudData.accounts);
           if (Array.isArray(cloudData.transactions)) setTransactions(cloudData.transactions);
           if (Array.isArray(cloudData.subscriptions)) setSubscriptions(cloudData.subscriptions);
+          if (Array.isArray(cloudData.debts)) setDebts(cloudData.debts);
           if (cloudData.settings?.currency) {
             setCurrencyState(cloudData.settings.currency);
             localStorage.setItem('et_currency', cloudData.settings.currency);
@@ -125,8 +129,9 @@ export function ExpenseProvider({ children }) {
       localStorage.setItem(`et_cat_${currentVault.id}`, JSON.stringify(categories));
       localStorage.setItem(`et_acc_${currentVault.id}`, JSON.stringify(accounts));
       localStorage.setItem(`et_sub_${currentVault.id}`, JSON.stringify(subscriptions));
+      localStorage.setItem(`et_debts_${currentVault.id}`, JSON.stringify(debts));
     }
-  }, [transactions, categories, accounts, subscriptions, currentVault?.id]);
+  }, [transactions, categories, accounts, subscriptions, debts, currentVault?.id]);
 
   // ─── Auth / Vault Login ──────────────────────────────────────────────────────
   const login = async (inputPass, rememberMe = true) => {
@@ -459,6 +464,77 @@ export function ExpenseProvider({ children }) {
     } catch (e) {}
   };
 
+  const editAccount = async (id, updatedData) => {
+    setAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updatedData } : a));
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateAccount', payload: { id, ...updatedData, vaultId: currentVault?.id || 'vault_admin' } })
+      });
+      refreshCloudData();
+    } catch (e) {}
+  };
+
+  const deleteAccount = async (id) => {
+    setAccounts(prev => prev.filter(a => a.id !== id));
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deleteAccount', payload: { id, vaultId: currentVault?.id || 'vault_admin' } })
+      });
+    } catch (e) {}
+  };
+
+  // ─── Debts / IOU ─────────────────────────────────────────────────────────────
+  const addDebt = async (debtData) => {
+    const vId = currentVault?.id || 'vault_admin';
+    const newDebt = {
+      id: `debt-${Date.now()}`,
+      personName: debtData.personName,
+      amount: parseFloat(debtData.amount) || 0,
+      direction: debtData.direction || 'lent',
+      reason: debtData.reason || '',
+      dateCreated: debtData.dateCreated || new Date().toISOString().split('T')[0],
+      dueDate: debtData.dueDate || null,
+      status: 'pending',
+      settledAmount: 0,
+      notes: debtData.notes || '',
+      vaultId: vId
+    };
+    setDebts(prev => [newDebt, ...prev]);
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'addDebt', payload: { ...newDebt, vaultId: vId } })
+      });
+    } catch (e) {}
+  };
+
+  const settleDebt = async (id, settledAmount, status = 'settled') => {
+    setDebts(prev => prev.map(d => d.id === id ? { ...d, settledAmount: parseFloat(settledAmount) || d.amount, status } : d));
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'settleDebt', payload: { id, settledAmount, status, vaultId: currentVault?.id || 'vault_admin' } })
+      });
+    } catch (e) {}
+  };
+
+  const deleteDebt = async (id) => {
+    setDebts(prev => prev.filter(d => d.id !== id));
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deleteDebt', payload: { id, vaultId: currentVault?.id || 'vault_admin' } })
+      });
+    } catch (e) {}
+  };
+
   // ─── Subscriptions ───────────────────────────────────────────────────────────
   const addSubscription = async (subData) => {
     const vId = currentVault?.id || 'vault_admin';
@@ -538,7 +614,15 @@ export function ExpenseProvider({ children }) {
   // ─── Derived Metrics ─────────────────────────────────────────────────────────
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpenses = filteredTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const netWorth = accounts.reduce((s, a) => s + a.balance, 0);
+  const accountsNetWorth = accounts.reduce((s, a) => s + a.balance, 0);
+  // Lent debts (people owe you) add to net worth; borrowed debts subtract
+  const debtNetWorth = debts
+    .filter(d => d.status !== 'settled')
+    .reduce((s, d) => {
+      const remaining = d.amount - (d.settledAmount || 0);
+      return d.direction === 'lent' ? s + remaining : s - remaining;
+    }, 0);
+  const netWorth = accountsNetWorth + debtNetWorth;
 
   return (
     <ExpenseContext.Provider value={{
@@ -546,7 +630,7 @@ export function ExpenseProvider({ children }) {
       timeRange, setTimeRange, selectedMonth, setSelectedMonth, selectedDate, setSelectedDate,
       isSyncing, isOffline, refreshCloudData,
       transactions, filteredTransactions,
-      categories, accounts, subscriptions,
+      categories, accounts, subscriptions, debts,
       totalIncome, totalExpenses, netWorth,
       login, logout, updatePasscode,
       listVaults, createVault, deleteVault,
@@ -554,7 +638,8 @@ export function ExpenseProvider({ children }) {
       addTransaction, addTransactions, editTransaction, deleteTransaction,
       addTransfer,
       addCategory, updateCategoryBudget,
-      addAccount,
+      addAccount, editAccount, deleteAccount,
+      addDebt, settleDebt, deleteDebt,
       addSubscription,
       exportData, clearAllData
     }}>

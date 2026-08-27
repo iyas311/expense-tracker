@@ -40,6 +40,29 @@ async function runMigrations(sql) {
   try { await sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS initial_balance NUMERIC(12,2) DEFAULT 0;`; } catch (e) {}
   try { await sql`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS transfer_id VARCHAR(64);`; } catch (e) {}
 
+  // Billing cycle fields on accounts
+  try { await sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS statement_day INT DEFAULT NULL;`; } catch (e) {}
+  try { await sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS due_day INT DEFAULT NULL;`; } catch (e) {}
+  try { await sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS due_month_offset INT DEFAULT 1;`; } catch (e) {}
+
+  // Debts table
+  try {
+    await sql`CREATE TABLE IF NOT EXISTS app_debts (
+      id VARCHAR(64) PRIMARY KEY,
+      vault_id VARCHAR(64) NOT NULL,
+      person_name VARCHAR(255) NOT NULL,
+      amount NUMERIC(12,2) NOT NULL,
+      direction VARCHAR(16) NOT NULL DEFAULT 'lent',
+      reason TEXT DEFAULT '',
+      date_created DATE NOT NULL,
+      due_date DATE,
+      status VARCHAR(16) NOT NULL DEFAULT 'pending',
+      settled_amount NUMERIC(12,2) DEFAULT 0,
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );`;
+  } catch (e) {}
+
   // 3. Settings and Logs tables
   try {
     await sql`CREATE TABLE IF NOT EXISTS app_settings (key VARCHAR(64) PRIMARY KEY, value TEXT NOT NULL);`;
@@ -178,7 +201,7 @@ async function seedStarterAccounts(sql, vaultId) {
 // Compute balances per vault from transactions (source of truth)
 async function getComputedAccounts(sql, vaultId) {
   const accounts = await sql`
-    SELECT id, name, type, initial_balance as "initialBalance", credit_limit as "creditLimit", color, icon, vault_id as "vaultId"
+    SELECT id, name, type, initial_balance as "initialBalance", credit_limit as "creditLimit", color, icon, vault_id as "vaultId", statement_day as "statementDay", due_day as "dueDay", due_month_offset as "dueMonthOffset"
     FROM accounts
     WHERE vault_id = ${vaultId}
     ORDER BY name ASC;
@@ -208,7 +231,10 @@ async function getComputedAccounts(sql, vaultId) {
       creditLimit: parseFloat(a.creditLimit) || 0,
       color: a.color,
       icon: a.icon,
-      vaultId: a.vaultId
+      vaultId: a.vaultId,
+      statementDay: a.statementDay ? parseInt(a.statementDay) : null,
+      dueDay: a.dueDay ? parseInt(a.dueDay) : null,
+      dueMonthOffset: a.dueMonthOffset !== null ? parseInt(a.dueMonthOffset) : 1,
     };
   });
 }
@@ -235,6 +261,12 @@ async function getVaultData(sql, vaultId) {
   `;
   const rawSettings = await sql`SELECT key, value FROM app_settings;`;
 
+  let debts = [];
+  try {
+    debts = await sql`SELECT id, person_name as "personName", amount, direction, reason, date_created as "dateCreated", due_date as "dueDate", status, settled_amount as "settledAmount", notes FROM app_debts WHERE vault_id = ${vaultId} ORDER BY created_at DESC;`;
+    debts = debts.map(d => ({ ...d, amount: parseFloat(d.amount) || 0, settledAmount: parseFloat(d.settledAmount) || 0 }));
+  } catch (e) {}
+
   const settings = {};
   for (const row of rawSettings) settings[row.key] = row.value;
 
@@ -242,7 +274,7 @@ async function getVaultData(sql, vaultId) {
   const transactions = rawTransactions.map(t => ({ ...t, amount: parseFloat(t.amount) || 0 }));
   const subscriptions = rawSubscriptions.map(s => ({ ...s, amount: parseFloat(s.amount) || 0 }));
 
-  return { categories, accounts, transactions, subscriptions, settings };
+  return { categories, accounts, transactions, subscriptions, settings, debts };
 }
 
 export default async function handler(req, res) {
@@ -441,12 +473,56 @@ export default async function handler(req, res) {
 
       // ─── ADD ACCOUNT ─────────────────────────────────────────────────────────
       if (action === 'addAccount') {
-        const { id, name, type, balance, creditLimit, color, icon } = payload;
+        const { id, name, type, balance, creditLimit, color, icon, statementDay, dueDay, dueMonthOffset } = payload;
         const bal = parseFloat(balance) || 0;
+        await sql`INSERT INTO accounts (id, name, type, balance, initial_balance, credit_limit, color, icon, vault_id, statement_day, due_day, due_month_offset)
+VALUES (${id}, ${name}, ${type}, ${bal}, ${bal}, ${creditLimit || 0}, ${color || '#06b6d4'}, ${icon || 'Landmark'}, ${vaultId}, ${statementDay || null}, ${dueDay || null}, ${dueMonthOffset !== undefined ? dueMonthOffset : 1})`;
+        return res.status(200).json({ success: true });
+      }
+
+      // ─── UPDATE ACCOUNT ─────────────────────────────────────────────────────────
+      if (action === 'updateAccount') {
+        const { id, name, type, creditLimit, color, statementDay, dueDay, dueMonthOffset, initialBalance } = payload;
         await sql`
-          INSERT INTO accounts (id, name, type, balance, initial_balance, credit_limit, color, icon, vault_id)
-          VALUES (${id}, ${name}, ${type}, ${bal}, ${bal}, ${creditLimit || 0}, ${color || '#06b6d4'}, ${icon || 'Landmark'}, ${vaultId});
+          UPDATE accounts
+          SET name=${name}, type=${type}, credit_limit=${creditLimit || 0}, color=${color || '#06b6d4'},
+              statement_day=${statementDay || null}, due_day=${dueDay || null}, due_month_offset=${dueMonthOffset !== undefined ? dueMonthOffset : 1},
+              initial_balance=${parseFloat(initialBalance) || 0}
+          WHERE id=${id} AND vault_id=${vaultId};
         `;
+        return res.status(200).json({ success: true });
+      }
+
+      // ─── DELETE ACCOUNT ─────────────────────────────────────────────────────────
+      if (action === 'deleteAccount') {
+        const { id } = payload;
+        await sql`DELETE FROM accounts WHERE id=${id} AND vault_id=${vaultId};`;
+        return res.status(200).json({ success: true });
+      }
+
+      // ─── DEBT CRUD ───────────────────────────────────────────────────────────────
+      if (action === 'addDebt') {
+        const { id, personName, amount, direction, reason, dateCreated, dueDate, notes } = payload;
+        await sql`
+          INSERT INTO app_debts (id, vault_id, person_name, amount, direction, reason, date_created, due_date, status, settled_amount, notes)
+          VALUES (${id}, ${vaultId}, ${personName}, ${parseFloat(amount) || 0}, ${direction || 'lent'}, ${reason || ''}, ${dateCreated}, ${dueDate || null}, ${'pending'}, ${0}, ${notes || ''});
+        `;
+        return res.status(200).json({ success: true });
+      }
+
+      if (action === 'settleDebt') {
+        const { id, settledAmount, status } = payload;
+        await sql`
+          UPDATE app_debts
+          SET settled_amount=${parseFloat(settledAmount) || 0}, status=${status || 'settled'}
+          WHERE id=${id} AND vault_id=${vaultId};
+        `;
+        return res.status(200).json({ success: true });
+      }
+
+      if (action === 'deleteDebt') {
+        const { id } = payload;
+        await sql`DELETE FROM app_debts WHERE id=${id} AND vault_id=${vaultId};`;
         return res.status(200).json({ success: true });
       }
 
