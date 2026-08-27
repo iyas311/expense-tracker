@@ -50,7 +50,7 @@ function MainApp() {
             <SummaryCards />
             <AccountsBar />
             <AnalyticsDashboard />
-            <TransactionList />
+            <TransactionList showNotes={false} />
           </div>
         )}
 
@@ -58,7 +58,7 @@ function MainApp() {
         {activeTab === 'transactions' && (
           <div className="animate-fade-in">
             <QuickAiBar onOpenManualAdd={() => setIsManualModalOpen(true)} />
-            <TransactionList />
+            <TransactionList showNotes={true} />
           </div>
         )}
 

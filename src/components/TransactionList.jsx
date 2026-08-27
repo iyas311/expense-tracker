@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useExpense } from '../context/ExpenseContext';
 import { Search, Trash2, ArrowUpRight, ArrowDownRight, ArrowLeftRight, FileText, Calendar, Pencil, X, Check } from 'lucide-react';
 
-export function TransactionList() {
+export function TransactionList({ showNotes = false }) {
   const { transactions, filteredTransactions: timeFilteredTransactions, categories, accounts, currency, deleteTransaction, editTransaction, timeRange } = useExpense();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -166,7 +166,7 @@ export function TransactionList() {
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>• {acc.name}</span>
                       {isTransfer && <span className="badge" style={{ background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: '0.65rem' }}>Transfer</span>}
                     </div>
-                    {tx.notes && (
+                    {showNotes && tx.notes && (
                       <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px', wordBreak: 'break-word' }}>
                         <span style={{ opacity: 0.7 }}>📝</span>
                         <span>{tx.notes}</span>
