@@ -84,34 +84,11 @@ export function AccountsBar() {
     setShowAddModal(false);
   };
 
-  const getNextDates = (sDay, dDay, offset) => {
-    if (!sDay || !dDay) return null;
-    const now = new Date();
-    
-    // Find next statement date
-    let stmtDate = new Date(now.getFullYear(), now.getMonth(), sDay);
-    if (stmtDate < now) {
-      stmtDate = new Date(now.getFullYear(), now.getMonth() + 1, sDay);
-    }
-    
-    // Find next due date (based on statement date)
-    let dDate = new Date(stmtDate.getFullYear(), stmtDate.getMonth() + (offset || 1), dDay);
-    
-    // If due date has passed this month, show next month's
-    if (dDate < now) {
-       dDate = new Date(dDate.getFullYear(), dDate.getMonth() + 1, dDay);
-    }
-
-    const diffDays = Math.ceil((dDate - now) / (1000 * 60 * 60 * 24));
-    
-    return {
-      stmtStr: stmtDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-      dueStr: dDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-      diffDays,
-      isDueSoon: diffDays <= 5 && diffDays >= 0,
-      isOverdue: diffDays < 0
-    };
-  };
+  const sortedAccounts = [...accounts].sort((a, b) => {
+    if (a.type === 'card' && b.type !== 'card') return 1;
+    if (a.type !== 'card' && b.type === 'card') return -1;
+    return 0;
+  });
 
   return (
     <div style={{ marginBottom: '24px' }}>
@@ -132,7 +109,7 @@ export function AccountsBar() {
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px'
       }}>
-        {accounts.map((acc) => {
+        {sortedAccounts.map((acc) => {
           const Icon = getAccountIcon(acc.type);
           const isCard = acc.type === 'card';
           const isNegative = acc.balance < 0;
@@ -141,8 +118,6 @@ export function AccountsBar() {
           const usedDebt = Math.abs(acc.balance);
           const availableCredit = limit > 0 ? Math.max(0, limit - usedDebt) : 0;
           const usedPercent = limit > 0 ? Math.min(100, Math.round((usedDebt / limit) * 100)) : 0;
-          
-          const billing = isCard ? getNextDates(acc.statementDay, acc.dueDay, acc.dueMonthOffset) : null;
 
           return (
             <div key={acc.id} className="glass-card" style={{ borderRadius: '16px', borderLeft: `4px solid ${acc.color || '#6366f1'}`, position: 'relative' }}>
@@ -170,16 +145,6 @@ export function AccountsBar() {
                   <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', marginBottom: '6px' }}>
                     <div style={{ width: `${usedPercent}%`, height: '100%', background: usedPercent > 80 ? '#f43f5e' : '#06b6d4' }} />
                   </div>
-                  
-                  {billing && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-dim)', background: 'rgba(0,0,0,0.2)', padding: '6px 8px', borderRadius: '6px', marginTop: '6px' }}>
-                       <span>Stmt: {billing.stmtStr}</span>
-                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: billing.isDueSoon ? '#f43f5e' : billing.isOverdue ? '#f43f5e' : '#f59e0b', fontWeight: (billing.isDueSoon || billing.isOverdue) ? '700' : 'normal' }}>
-                         {(billing.isDueSoon || billing.isOverdue) && <AlertCircle size={10} />}
-                         Due: {billing.dueStr} ({billing.isOverdue ? 'Overdue!' : `${billing.diffDays}d`})
-                       </span>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'capitalize', marginTop: '4px' }}>
