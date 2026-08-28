@@ -140,6 +140,23 @@ async function runMigrations(sql) {
     } catch (e) {}
     await sql`INSERT INTO app_vaults (id, name, passcode, is_admin) VALUES ('vault_admin', 'Admin Vault', ${adminPass}, TRUE) ON CONFLICT (id) DO NOTHING;`;
   }
+
+  // 6. Fix category colors (migration to ensure distinct beautiful colors)
+  try {
+    const allCategories = await sql`SELECT id FROM categories ORDER BY name ASC;`;
+    const distinctColors = [
+      '#f43f5e', '#06b6d4', '#f59e0b', '#8b5cf6', '#10b981', '#ec4899', 
+      '#14b8a6', '#3b82f6', '#f97316', '#6366f1', '#eab308', '#84cc16'
+    ];
+    let colorIndex = 0;
+    for (const cat of allCategories) {
+      const newColor = distinctColors[colorIndex % distinctColors.length];
+      await sql`UPDATE categories SET color = ${newColor} WHERE id = ${cat.id};`;
+      colorIndex++;
+    }
+  } catch (e) {
+    console.error('Failed to fix colors', e);
+  }
 }
 
 async function ensureTablesExist(sql) {
