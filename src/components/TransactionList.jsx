@@ -153,21 +153,21 @@ export function TransactionList({ showNotes = false }) {
             }
 
             return (
-              <div key={tx.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-light)', borderRadius: '16px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', transition: 'all 0.2s ease' }}>
+              <div key={tx.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-light)', borderRadius: '16px', padding: '14px 16px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', transition: 'all 0.2s ease' }}>
                 {/* Left */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: iconBg, border: `1px solid ${iconBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', minWidth: 0, flex: 1 }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: iconBg, border: `1px solid ${iconBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
                     {isTransfer ? <ArrowLeftRight size={18} color="#6366f1" /> : isIncome ? <ArrowUpRight size={18} color="#10b981" /> : <ArrowDownRight size={18} color="#f43f5e" />}
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <h4 style={{ fontSize: '0.92rem', fontWeight: '700', marginBottom: '3px', wordBreak: 'break-word' }}>{tx.description}</h4>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px', lineHeight: '1.2' }}>{tx.description}</h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '2px' }}>
                       <span className="badge" style={{ background: `${cat.color}20`, color: cat.color, border: `1px solid ${cat.color}40`, padding: '2px 8px', fontSize: '0.7rem' }}>{cat.name}</span>
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>• {acc.name}</span>
                       {isTransfer && <span className="badge" style={{ background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: '0.65rem' }}>Transfer</span>}
                     </div>
                     {showNotes && tx.notes && (
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'flex-start', gap: '6px', wordBreak: 'break-word', lineHeight: '1.4' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '6px', display: 'flex', alignItems: 'flex-start', gap: '6px', lineHeight: '1.4' }}>
                         <span style={{ opacity: 0.6, fontSize: '0.8rem', marginTop: '1px' }}>📝</span>
                         <span>{tx.notes}</span>
                       </div>
@@ -176,16 +176,16 @@ export function TransactionList({ showNotes = false }) {
                 </div>
 
                 {/* Right */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div className="font-heading" style={{ fontSize: '1.02rem', fontWeight: '800', color: amtColor, whiteSpace: 'nowrap', display: 'inline-block' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
+                  <div style={{ textAlign: 'right' }}>
+                    <div className="font-heading" style={{ fontSize: '1.05rem', fontWeight: '800', color: amtColor, whiteSpace: 'nowrap' }}>
                       {amtPrefix}{currency}{tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', marginTop: '4px', whiteSpace: 'nowrap' }}>
                       <Calendar size={10} /> {tx.date}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {!isTransfer && (
                       <button onClick={() => startEdit(tx)} className="btn-secondary" title="Edit" style={{ padding: '6px', color: '#6366f1', border: 'none', borderRadius: '8px' }}>
                         <Pencil size={13} />
