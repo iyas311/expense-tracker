@@ -64,6 +64,7 @@ export function AnalyticsDashboard() {
                   <Tooltip
                     formatter={(val) => [`${currency}${val.toFixed(2)}`, 'Spent']}
                     contentStyle={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
+                    itemStyle={{ color: '#f8fafc' }}
                   />
                   <Legend verticalAlign="bottom" height={36} iconType="circle" />
                 </PieChart>
@@ -88,6 +89,7 @@ export function AnalyticsDashboard() {
                 <Tooltip
                   formatter={(val) => [`${currency}${val.toFixed(2)}`, 'Amount']}
                   contentStyle={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
+                  itemStyle={{ color: '#f8fafc' }}
                 />
                 <Legend verticalAlign="bottom" height={36} />
                 <Bar dataKey="Income" fill="#10b981" radius={[8, 8, 0, 0]} />

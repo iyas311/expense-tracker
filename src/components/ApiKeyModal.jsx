@@ -215,6 +215,26 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
               </div>
             </div>
 
+            {/* Theme Selection */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '6px' }}>
+                App Theme
+              </label>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  const isLight = document.documentElement.classList.toggle('light-theme');
+                  localStorage.setItem('et_theme', isLight ? 'light' : 'dark');
+                  setSavedSuccess(true);
+                  setTimeout(() => setSavedSuccess(false), 2000);
+                }}
+                style={{ width: '100%', padding: '10px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                Toggle Dark/Light Mode
+              </button>
+            </div>
+
             {/* System Diagnostics */}
             <div style={{ marginBottom: '20px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
               <button
