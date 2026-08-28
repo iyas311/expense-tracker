@@ -57,6 +57,11 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
 body {
   background: var(--bg-dark);
   color: var(--text-main);
