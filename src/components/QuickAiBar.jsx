@@ -158,7 +158,7 @@ export function QuickAiBar({ onOpenManualAdd }) {
         padding: '8px 12px 8px 16px',
         boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-end',
         gap: '12px',
         position: 'relative',
         transition: 'border-color 0.2s, box-shadow 0.2s'
@@ -174,7 +174,8 @@ export function QuickAiBar({ onOpenManualAdd }) {
           borderRadius: '10px',
           background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(6, 182, 212, 0.2))',
           border: '1px solid rgba(6, 182, 212, 0.3)',
-          flexShrink: 0
+          flexShrink: 0,
+          marginBottom: '2px'
         }}>
           {isLoading ? (
             <Loader2 size={16} className="animate-spin" color="#06b6d4" />
@@ -184,7 +185,7 @@ export function QuickAiBar({ onOpenManualAdd }) {
         </div>
 
         {/* Input Form */}
-        <form onSubmit={handleAiSubmit} style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+        <form onSubmit={handleAiSubmit} style={{ flex: 1, display: 'flex' }}>
           <textarea
             value={naturalInput}
             onChange={(e) => {
@@ -208,20 +209,21 @@ export function QuickAiBar({ onOpenManualAdd }) {
               border: 'none',
               outline: 'none',
               color: '#f8fafc',
-              fontSize: '0.92rem',
+              fontSize: '0.95rem',
               fontWeight: '500',
               fontFamily: 'inherit',
               resize: 'none',
               overflow: 'hidden',
-              minHeight: '24px',
-              paddingTop: '2px',
-              lineHeight: '1.4'
+              minHeight: '36px',
+              maxHeight: '120px',
+              padding: '6px 4px 6px 4px',
+              lineHeight: '1.5'
             }}
           />
         </form>
 
         {/* Action Controls Cluster */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', flexShrink: 0, marginBottom: '2px' }}>
           {/* Receipt Scanner Button */}
           <label
             title="Scan Receipt Photo"

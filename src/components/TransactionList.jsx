@@ -167,8 +167,8 @@ export function TransactionList({ showNotes = false }) {
                       {isTransfer && <span className="badge" style={{ background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: '0.65rem' }}>Transfer</span>}
                     </div>
                     {showNotes && tx.notes && (
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px', wordBreak: 'break-word' }}>
-                        <span style={{ opacity: 0.7 }}>📝</span>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'flex-start', gap: '6px', wordBreak: 'break-word', lineHeight: '1.4' }}>
+                        <span style={{ opacity: 0.6, fontSize: '0.8rem', marginTop: '1px' }}>📝</span>
                         <span>{tx.notes}</span>
                       </div>
                     )}
