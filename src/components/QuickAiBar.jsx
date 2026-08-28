@@ -185,7 +185,7 @@ export function QuickAiBar({ onOpenManualAdd }) {
         </div>
 
         {/* Input Form */}
-        <form onSubmit={handleAiSubmit} style={{ flex: 1, display: 'flex' }}>
+        <form onSubmit={handleAiSubmit} style={{ flex: 1, width: '100%' }}>
           <textarea
             value={naturalInput}
             onChange={(e) => {
@@ -205,6 +205,7 @@ export function QuickAiBar({ onOpenManualAdd }) {
             rows={1}
             style={{
               width: '100%',
+              display: 'block',
               background: 'transparent',
               border: 'none',
               outline: 'none',
