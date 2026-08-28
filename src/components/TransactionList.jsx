@@ -57,8 +57,8 @@ export function TransactionList({ showNotes = false }) {
         </div>
 
         {/* Filters */}
-        <div className="hide-scrollbar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch', width: '100%', maxWidth: '680px', paddingBottom: '4px' }}>
-          <div style={{ position: 'relative', flexShrink: 0, width: '180px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', paddingBottom: '4px' }}>
+          <div style={{ position: 'relative', flex: '1 1 160px', minWidth: '140px' }}>
             <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input
               type="text" className="glass-input"
