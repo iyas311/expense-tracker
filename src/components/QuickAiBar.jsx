@@ -200,7 +200,7 @@ export function QuickAiBar({ onOpenManualAdd }) {
                 e.target.style.height = 'auto';
               }
             }}
-            placeholder={`Log expense: e.g. "Paid ${currency}450 for lunch on credit card"...`}
+            placeholder={`e.g. "Paid ${currency}450 for lunch"...`}
             disabled={isLoading}
             rows={1}
             style={{
