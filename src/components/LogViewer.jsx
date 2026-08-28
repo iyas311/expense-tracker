@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, RefreshCw, Trash2, Activity, Cpu, AlertTriangle, CheckCircle, MessageSquare, Clock } from 'lucide-react';
+import { useExpense } from '../context/ExpenseContext';
 
 export function LogViewer({ isOpen, onClose }) {
+  const { authFetch } = useExpense();
   const [activeTab, setActiveTab] = useState('prompts'); // 'prompts' | 'logs'
   const [logs, setLogs] = useState([]);
   const [prompts, setPrompts] = useState([]);
@@ -10,11 +12,7 @@ export function LogViewer({ isOpen, onClose }) {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'getLogs', payload: {} })
-      });
+      const res = await authFetch('getLogs');
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs || []);
@@ -29,11 +27,7 @@ export function LogViewer({ isOpen, onClose }) {
   const fetchPrompts = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'getPromptHistory', payload: {} })
-      });
+      const res = await authFetch('getPromptHistory');
       if (res.ok) {
         const data = await res.json();
         setPrompts(data.history || []);
@@ -47,22 +41,14 @@ export function LogViewer({ isOpen, onClose }) {
 
   const clearLogs = async () => {
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'clearLogs', payload: {} })
-      });
+      await authFetch('clearLogs');
       setLogs([]);
     } catch (e) {}
   };
 
   const clearPrompts = async () => {
     try {
-      await fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'clearPromptHistory', payload: {} })
-      });
+      await authFetch('clearPromptHistory');
       setPrompts([]);
     } catch (e) {}
   };

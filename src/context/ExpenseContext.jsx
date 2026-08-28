@@ -543,7 +543,8 @@ export function ExpenseProvider({ children }) {
       updateSubscription,
       deleteSubscription,
       clearAllData,
-      exportData
+      exportData,
+      authFetch
     }}>
       {children}
     </ExpenseContext.Provider>

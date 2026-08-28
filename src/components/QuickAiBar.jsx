@@ -4,7 +4,7 @@ import { parseNaturalLanguageTransaction, parseReceiptImage } from '../services/
 import { Sparkles, Camera, Plus, Loader2, CornerDownLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export function QuickAiBar({ onOpenManualAdd }) {
-  const { categories, accounts, apiKey, groqApiKey, addTransactions, addTransfer, addDebt, settleDebt, debts, currency } = useExpense();
+  const { categories, accounts, apiKey, groqApiKey, addTransactions, addTransfer, addDebt, settleDebt, debts, currency, authFetch } = useExpense();
   const [naturalInput, setNaturalInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState(null); // { type: 'success' | 'error', message: string }
@@ -94,11 +94,8 @@ export function QuickAiBar({ onOpenManualAdd }) {
         
         setNaturalInput('');
 
-        fetch('/api/data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'addPromptHistory', payload: { text: promptText, txCount: validOps.length } })
-        }).catch(() => {});
+        authFetch('addPromptHistory', { text: promptText, txCount: validOps.length })
+          .catch(() => {});
 
         setStatus({
           type: 'success',
