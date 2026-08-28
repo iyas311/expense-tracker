@@ -74,8 +74,7 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
               { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
               { id: 'transactions', label: 'Transactions', icon: Receipt },
               { id: 'budgets', label: 'Budgets', icon: PieChart },
-              { id: 'subscriptions', label: 'Bills & Debts', icon: Repeat },
-              ...(currentVault?.isAdmin ? [{ id: 'admin', label: 'Users', icon: Lock }] : [])
+              { id: 'subscriptions', label: 'Bills & Debts', icon: Repeat }
             ].map(item => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;

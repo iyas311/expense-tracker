@@ -89,7 +89,12 @@ function MainApp() {
       </main>
 
       <TransactionModal isOpen={isManualModalOpen} onClose={() => setIsManualModalOpen(false)} />
-      <ApiKeyModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} onOpenLogs={() => { setIsSettingsOpen(false); setIsLogViewerOpen(true); }} />
+      <ApiKeyModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        onOpenLogs={() => { setIsSettingsOpen(false); setIsLogViewerOpen(true); }} 
+        onOpenAdmin={() => { setIsSettingsOpen(false); setActiveTab('admin'); }} 
+      />
       <AiChatbotModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
       <LogViewer isOpen={isLogViewerOpen} onClose={() => setIsLogViewerOpen(false)} />
     </div>

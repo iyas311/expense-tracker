@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useExpense } from '../context/ExpenseContext';
 import { Sparkles, ExternalLink, Check, X, Activity, Lock, Loader2 } from 'lucide-react';
 
-export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
+export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
   const {
     apiKey, setApiKey,
     groqApiKey, setGroqApiKey,
@@ -235,8 +235,18 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs }) {
               </button>
             </div>
 
-            {/* System Diagnostics */}
-            <div style={{ marginBottom: '20px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            {/* System Diagnostics & Admin */}
+            <div style={{ marginBottom: '20px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {currentVault?.isAdmin && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => onOpenAdmin && onOpenAdmin()}
+                  style={{ width: '100%', color: '#10b981', borderColor: 'rgba(16,185,129,0.3)', padding: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.82rem' }}
+                >
+                  <Lock size={16} /> Manage Users & Vaults
+                </button>
+              )}
               <button
                 type="button"
                 className="btn-secondary"
