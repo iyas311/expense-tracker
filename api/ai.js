@@ -50,11 +50,11 @@ Example Output format:
     "operation": "transaction",
     "amount": 240,
     "type": "expense",
-    "description": "Clean item name",
+    "description": "Short main heading only (e.g. 'Creatinine test')",
     "category": "Match best category",
     "account": "Match best account",
     "date": "YYYY-MM-DD",
-    "notes": "Optional extra remarks"
+    "notes": "Put location/extra context here (e.g. 'at Edakulam lab')"
   },
   {
     "operation": "transfer",
