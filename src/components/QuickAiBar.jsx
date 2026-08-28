@@ -185,12 +185,23 @@ export function QuickAiBar({ onOpenManualAdd }) {
 
         {/* Input Form */}
         <form onSubmit={handleAiSubmit} style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-          <input
-            type="text"
+          <textarea
             value={naturalInput}
-            onChange={(e) => setNaturalInput(e.target.value)}
+            onChange={(e) => {
+              setNaturalInput(e.target.value);
+              e.target.style.height = 'auto';
+              e.target.style.height = (e.target.scrollHeight) + 'px';
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleAiSubmit(e);
+                e.target.style.height = 'auto';
+              }
+            }}
             placeholder={`Log expense: e.g. "Paid ${currency}450 for lunch on credit card"...`}
             disabled={isLoading}
+            rows={1}
             style={{
               width: '100%',
               background: 'transparent',
@@ -199,7 +210,12 @@ export function QuickAiBar({ onOpenManualAdd }) {
               color: '#f8fafc',
               fontSize: '0.92rem',
               fontWeight: '500',
-              fontFamily: 'inherit'
+              fontFamily: 'inherit',
+              resize: 'none',
+              overflow: 'hidden',
+              minHeight: '24px',
+              paddingTop: '2px',
+              lineHeight: '1.4'
             }}
           />
         </form>
