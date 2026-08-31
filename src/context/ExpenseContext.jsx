@@ -513,14 +513,18 @@ export function ExpenseProvider({ children }) {
   const getFilteredTransactions = () => {
     const todayStr = new Date().toISOString().split('T')[0];
     const now = new Date();
+    const currentMonthStr = now.toISOString().slice(0, 7);
+    
     return transactions.filter(t => {
+      const txMonth = t.budgetMonth || t.date.slice(0, 7);
+      
       if (timeRange === 'today') return t.date === todayStr;
       if (timeRange === 'this_week') {
         const diffDays = Math.floor((now - new Date(t.date)) / (1000 * 60 * 60 * 24));
         return diffDays >= 0 && diffDays <= 7;
       }
-      if (timeRange === 'this_month') return t.date.startsWith(now.toISOString().slice(0, 7));
-      if (timeRange === 'custom_month') return t.date.startsWith(selectedMonth);
+      if (timeRange === 'this_month') return txMonth === currentMonthStr;
+      if (timeRange === 'custom_month') return txMonth === selectedMonth;
       if (timeRange === 'custom_date') return t.date === selectedDate;
       return true;
     });

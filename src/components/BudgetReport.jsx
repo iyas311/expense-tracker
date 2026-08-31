@@ -18,7 +18,10 @@ export function BudgetReport() {
     if (d.toISOString().slice(0, 7) <= now) setReportMonth(d.toISOString().slice(0, 7));
   };
 
-  const monthTxns = transactions.filter(t => t.date.startsWith(reportMonth) && t.type === 'expense');
+  const monthTxns = transactions.filter(t => {
+    const txMonth = t.budgetMonth || t.date.slice(0, 7);
+    return txMonth === reportMonth && t.type === 'expense';
+  });
 
   const getCategorySpent = (catId) =>
     monthTxns.filter(t => t.categoryId === catId).reduce((s, t) => s + t.amount, 0);
