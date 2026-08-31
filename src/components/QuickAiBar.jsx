@@ -19,7 +19,7 @@ export function QuickAiBar({ onOpenManualAdd }) {
 
     try {
       const parsedArray = await parseNaturalLanguageTransaction(promptText, categories, accounts, apiKey, groqApiKey);
-      const validOps = (parsedArray || []).filter(p => p.amount > 0);
+      const validOps = (parsedArray || []).filter(p => (p.amount > 0) || (p.totalAmount > 0));
 
       if (validOps.length > 0) {
         const transactionsToLog = [];
