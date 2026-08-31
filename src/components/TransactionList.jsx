@@ -94,7 +94,7 @@ export function TransactionList({ showNotes = false }) {
           {displayTransactions.map((tx) => {
             const cat = getCategory(tx.categoryId);
             const acc = getAccount(tx.accountId);
-            const isTransfer = tx.type === 'transfer';
+            const isTransfer = tx.type.startsWith('transfer');
             const isIncome = tx.type === 'income';
             const isEditing = editingId === tx.id;
 
@@ -105,7 +105,7 @@ export function TransactionList({ showNotes = false }) {
               ? 'rgba(99,102,241,0.3)'
               : isIncome ? 'rgba(16,185,129,0.3)' : 'rgba(244,63,94,0.3)';
             const amtColor = isTransfer ? '#6366f1' : isIncome ? '#10b981' : '#f43f5e';
-            const amtPrefix = isTransfer ? '⇄' : isIncome ? '+' : '-';
+            const amtPrefix = isTransfer ? (tx.type === 'transfer_in' ? '+' : tx.type === 'transfer_out' ? '-' : '⇄') : isIncome ? '+' : '-';
 
             if (isEditing) {
               return (

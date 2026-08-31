@@ -317,8 +317,8 @@ export function ExpenseProvider({ children }) {
     const transferId = `tfr-${Date.now()}`;
     const vId = currentVault?.id || 'vault_admin';
     setTransactions(prev => [
-      { id: `tx-out-${Date.now()}`, date: transferDate, description: 'Transfer Out', amount: parsedAmount, type: 'transfer', categoryId: null, accountId: fromAccountId, notes: notes || '', transferId, vaultId: vId },
-      { id: `tx-in-${Date.now() + 1}`, date: transferDate, description: 'Transfer In', amount: parsedAmount, type: 'income', categoryId: null, accountId: toAccountId, notes: notes || '', transferId, vaultId: vId },
+      { id: `tx-out-${Date.now()}`, date: transferDate, description: 'Transfer Out', amount: parsedAmount, type: 'transfer_out', categoryId: null, accountId: fromAccountId, notes: notes || '', transferId, vaultId: vId },
+      { id: `tx-in-${Date.now() + 1}`, date: transferDate, description: 'Transfer In', amount: parsedAmount, type: 'transfer_in', categoryId: null, accountId: toAccountId, notes: notes || '', transferId, vaultId: vId },
       ...prev
     ]);
     setAccounts(prev => prev.map(acc => {

@@ -161,6 +161,14 @@ async function runMigrations(sql) {
   } catch (e) {
     console.error('Failed to fix colors', e);
   }
+
+  // 7. Fix existing transfers (migrate 'income' to 'transfer_in' and 'transfer' to 'transfer_out')
+  try {
+    await sql`UPDATE transactions SET type = 'transfer_in' WHERE type = 'income' AND transfer_id IS NOT NULL;`;
+    await sql`UPDATE transactions SET type = 'transfer_out' WHERE type = 'transfer' AND transfer_id IS NOT NULL;`;
+  } catch (e) {
+    console.error('Failed to migrate old transfers', e);
+  }
 }
 
 async function ensureTablesExist(sql) {
@@ -268,8 +276,8 @@ async function getComputedAccounts(sql, vaultId) {
   `;
   const txSums = await sql`
     SELECT account_id,
-      SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income_sum,
-      SUM(CASE WHEN type = 'expense' THEN COALESCE(bank_amount, amount) ELSE 0 END) as expense_sum
+      SUM(CASE WHEN type IN ('income', 'transfer_in') THEN amount ELSE 0 END) as income_sum,
+      SUM(CASE WHEN type IN ('expense', 'transfer_out', 'transfer') THEN COALESCE(bank_amount, amount) ELSE 0 END) as expense_sum
     FROM transactions
     WHERE vault_id = ${vaultId}
     GROUP BY account_id;
@@ -510,11 +518,11 @@ export default async function handler(req, res) {
         const txInId = `tx-in-${Date.now() + 1}`;
         await sql`
           INSERT INTO transactions (id, date, description, amount, type, category_id, account_id, notes, transfer_id, vault_id)
-          VALUES (${txOutId}, ${date}, ${'Transfer Out'}, ${amount}, ${'transfer'}, ${null}, ${fromAccountId}, ${notes || ''}, ${transferId}, ${vaultId});
+          VALUES (${txOutId}, ${date}, ${'Transfer Out'}, ${amount}, ${'transfer_out'}, ${null}, ${fromAccountId}, ${notes || ''}, ${transferId}, ${vaultId});
         `;
         await sql`
           INSERT INTO transactions (id, date, description, amount, type, category_id, account_id, notes, transfer_id, vault_id)
-          VALUES (${txInId}, ${date}, ${'Transfer In'}, ${amount}, ${'income'}, ${null}, ${toAccountId}, ${notes || ''}, ${transferId}, ${vaultId});
+          VALUES (${txInId}, ${date}, ${'Transfer In'}, ${amount}, ${'transfer_in'}, ${null}, ${toAccountId}, ${notes || ''}, ${transferId}, ${vaultId});
         `;
         return res.status(200).json({ success: true, transferId });
       }
