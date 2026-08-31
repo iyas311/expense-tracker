@@ -11,22 +11,22 @@ export function TransactionModal({ isOpen, onClose }) {
   const [categoryId, setCategoryId] = useState(categories[0]?.id || 'cat-1');
   const [accountId, setAccountId] = useState(accounts[0]?.id || 'acc-1');
   const [toAccountId, setToAccountId] = useState(accounts[1]?.id || 'acc-2');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const descRef = useRef(null);
   // Budget month override (for salary)
   const getDefaultBudgetMonth = (dateStr) => {
-    const d = new Date(dateStr || new Date().toISOString().split('T')[0]);
+    const d = new Date(dateStr || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
     const day = d.getDate();
     const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
     if (day >= daysInMonth - 4) { // last 5 days
       const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-      return next.toISOString().slice(0, 7);
+      return new Date(next.getTime() - next.getTimezoneOffset() * 60000).toISOString().slice(0, 7);
     }
-    return d.toISOString().slice(0, 7);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 7);
   };
-  const [budgetMonth, setBudgetMonth] = useState(() => getDefaultBudgetMonth(new Date().toISOString().split('T')[0]));
+  const [budgetMonth, setBudgetMonth] = useState(() => getDefaultBudgetMonth(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]));
   // Split expense state
   const [isSplit, setIsSplit] = useState(false);
   const [totalPaid, setTotalPaid] = useState('');

@@ -26,7 +26,7 @@ export function AiChatbotModal({ isOpen, onClose }) {
     setInputQuestion('');
     setIsAsking(true);
 
-    const currentMonth = new Date().toISOString().slice(0, 7);
+    const currentMonth = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 7);
     const monthlySpending = {};
     transactions.filter(t => t.type === 'expense' && t.date.startsWith(currentMonth)).forEach(t => {
       const cat = categories.find(c => c.id === t.categoryId)?.name || 'Other';

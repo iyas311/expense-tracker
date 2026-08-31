@@ -43,7 +43,7 @@ export function SubscriptionsTracker() {
       categoryId,
       accountId,
       billingCycle,
-      nextDueDate: nextDueDate || new Date().toISOString().split('T')[0]
+      nextDueDate: nextDueDate || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
     });
 
     setName('');
@@ -60,7 +60,7 @@ export function SubscriptionsTracker() {
       type: 'expense',
       categoryId: sub.categoryId,
       accountId: sub.accountId,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
       notes: `Manual 1-Click Pay for ${sub.billingCycle} bill.`
     });
 
@@ -73,7 +73,7 @@ export function SubscriptionsTracker() {
     } else {
       d.setDate(d.getDate() + 7);
     }
-    updateSubscription(sub.id, d.toISOString().split('T')[0]);
+    updateSubscription(sub.id, new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]);
 
     // Show feedback
     setPaidFeedback(prev => ({ ...prev, [sub.id]: true }));

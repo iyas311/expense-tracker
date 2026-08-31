@@ -41,7 +41,7 @@ export function DebtTracker() {
       amount: parseFloat(form.amount),
       direction: form.direction,
       reason: form.reason.trim(),
-      dateCreated: new Date().toISOString().split('T')[0],
+      dateCreated: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
       dueDate: form.dueDate || null,
       notes: form.notes.trim()
     });
@@ -53,7 +53,7 @@ export function DebtTracker() {
         type: form.direction === 'lent' ? 'expense' : 'income',
         categoryId: categories.find(c => c.type === (form.direction === 'lent' ? 'expense' : 'income'))?.id || categories[0]?.id,
         accountId: form.accountId,
-        date: new Date().toISOString().split('T')[0],
+        date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
         notes: form.reason ? `Debt creation: ${form.reason.trim()}` : 'Debt creation'
       });
     }

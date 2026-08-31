@@ -4,18 +4,18 @@ import { TrendingDown, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight } fr
 
 export function BudgetReport() {
   const { categories, transactions, currency } = useExpense();
-  const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [reportMonth, setReportMonth] = useState(() => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 7));
 
   const prevMonth = () => {
     const d = new Date(reportMonth + '-01');
     d.setMonth(d.getMonth() - 1);
-    setReportMonth(d.toISOString().slice(0, 7));
+    setReportMonth(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 7));
   };
   const nextMonth = () => {
     const d = new Date(reportMonth + '-01');
     d.setMonth(d.getMonth() + 1);
-    const now = new Date().toISOString().slice(0, 7);
-    if (d.toISOString().slice(0, 7) <= now) setReportMonth(d.toISOString().slice(0, 7));
+    const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 7);
+    if (new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 7) <= now) setReportMonth(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 7));
   };
 
   const monthTxns = transactions.filter(t => {

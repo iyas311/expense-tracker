@@ -53,7 +53,7 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
           description: desc.charAt(0).toUpperCase() + desc.slice(1),
           categoryId: matchedCategory ? matchedCategory.id : categories[0]?.id || 'cat-1',
           accountId: matchedAccount ? matchedAccount.id : accounts[0]?.id || 'acc-1',
-          date: p.date || new Date().toISOString().split('T')[0],
+          date: p.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
           notes: (p.notes || '').toString().trim()
         };
       }
@@ -75,7 +75,7 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
           amount: parseFloat(p.amount) || 0,
           fromAccountId: fromAcc ? fromAcc.id : accounts[0]?.id || 'acc-1',
           toAccountId: toAcc ? toAcc.id : accounts[1]?.id || 'acc-2',
-          date: p.date || new Date().toISOString().split('T')[0],
+          date: p.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
           notes: (p.notes || '').toString().trim()
         };
       }
@@ -93,7 +93,7 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
           personName: p.personName || 'Unknown',
           reason: p.reason || '',
           accountId: matchedAccount ? matchedAccount.id : accounts[0]?.id || 'acc-1',
-          date: p.date || new Date().toISOString().split('T')[0],
+          date: p.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
           notes: (p.notes || '').toString().trim()
         };
       }
@@ -118,7 +118,7 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
           description: desc.charAt(0).toUpperCase() + desc.slice(1),
           categoryId: matchedCategory ? matchedCategory.id : categories[0]?.id || 'cat-1',
           accountId: matchedAccount ? matchedAccount.id : accounts[0]?.id || 'acc-1',
-          date: p.date || new Date().toISOString().split('T')[0],
+          date: p.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
           notes: (p.notes || '').toString().trim(),
           splits: Array.isArray(p.splits) ? p.splits.map(s => ({ personName: s.personName || 'Friend', amount: parseFloat(s.amount) || 0 })) : []
         };
@@ -232,7 +232,7 @@ Rules:
 - For 'split_expense': yourShare = totalAmount / number_of_people. splits array contains each OTHER person's share (not yours).
 - For 'category', match best from: [${categoryNames}] or invent a logical one.
 - For 'direction' in debts: "lent" means the user gave money to someone (people owe user). "borrowed" means user took money (user owes people).
-- date: default to current date: ${new Date().toISOString().split('T')[0]} if unspecified.
+- date: default to current date: ${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]} if unspecified.
 
 User text: "${textInput}"`;
 
@@ -339,7 +339,7 @@ Rules:
 - For 'split_expense': yourShare = totalAmount / number_of_people. splits array contains each OTHER person's share (not yours).
 - For 'category', match best from: [${categoryNames}] or invent a logical one.
 - For 'direction' in debts: "lent" means the user gave money to someone (people owe user). "borrowed" means user took money (user owes people).
-- date: default to current date: ${new Date().toISOString().split('T')[0]} if unspecified.
+- date: default to current date: ${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]} if unspecified.
 
 User text: "${textInput}"`;
 
@@ -381,7 +381,7 @@ export async function parseReceiptImage(base64Image, categories = [], accounts =
           type: 'expense',
           description: parsed.merchant || parsed.description || 'Receipt Purchase',
           category: parsed.category,
-          date: parsed.date || new Date().toISOString().split('T')[0]
+          date: parsed.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
         }, categories, accounts);
       }
     }
@@ -436,7 +436,7 @@ JSON format:
     type: 'expense',
     description: parsed.merchant || parsed.description || 'Receipt Purchase',
     category: parsed.category,
-    date: parsed.date || new Date().toISOString().split('T')[0]
+    date: parsed.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
   }, categories, accounts);
 }
 
@@ -543,7 +543,7 @@ function formatParsedTransaction(parsed, categories, accounts) {
     description: cleanDescription.charAt(0).toUpperCase() + cleanDescription.slice(1),
     categoryId: matchedCategory ? matchedCategory.id : 'cat-1',
     accountId: matchedAccount ? matchedAccount.id : 'acc-1',
-    date: parsed.date || new Date().toISOString().split('T')[0],
+    date: parsed.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
     notes: (parsed.notes || '').toString().trim()
   };
 }
@@ -552,7 +552,7 @@ function formatParsedTransaction(parsed, categories, accounts) {
  * Intelligent local regex fallback parser — handles multiple transactions
  */
 function fallbackLocalParser(input, categories, accounts) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
   const defaultAccountId = accounts[0]?.id || 'acc-1';
   const defaultCategoryId = categories[0]?.id || 'cat-1';
 

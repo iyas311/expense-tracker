@@ -41,8 +41,8 @@ export function ExpenseProvider({ children }) {
 
   // Time filter
   const [timeRange, setTimeRange] = useState('this_month');
-  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 7));
+  const [selectedDate, setSelectedDate] = useState(() => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
 
   // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
@@ -237,7 +237,7 @@ export function ExpenseProvider({ children }) {
   const addTransaction = async (newTx) => {
     const formatted = {
       id: `tx-${Date.now()}`,
-      date: newTx.date || new Date().toISOString().split('T')[0],
+      date: newTx.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
       description: newTx.description || 'Transaction',
       amount: parseFloat(newTx.amount) || 0,
       type: newTx.type || 'expense',
@@ -269,7 +269,7 @@ export function ExpenseProvider({ children }) {
     const now = Date.now();
     const formatted = txList.map((newTx, i) => ({
       id: `tx-${now + i}`,
-      date: newTx.date || new Date().toISOString().split('T')[0],
+      date: newTx.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
       description: newTx.description || 'Transaction',
       amount: parseFloat(newTx.amount) || 0,
       type: newTx.type || 'expense',
@@ -320,7 +320,7 @@ export function ExpenseProvider({ children }) {
   // ─── Transfer ────────────────────────────────────────────────────────────────
   const addTransfer = async ({ fromAccountId, toAccountId, amount, date, notes }) => {
     const parsedAmount = parseFloat(amount) || 0;
-    const transferDate = date || new Date().toISOString().split('T')[0];
+    const transferDate = date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
     const transferId = `tfr-${Date.now()}`;
     const vId = currentVault?.id || 'vault_admin';
     setTransactions(prev => [
@@ -412,7 +412,7 @@ export function ExpenseProvider({ children }) {
       amount: parseFloat(debtData.amount) || 0,
       direction: debtData.direction || 'lent',
       reason: debtData.reason || '',
-      dateCreated: debtData.dateCreated || new Date().toISOString().split('T')[0],
+      dateCreated: debtData.dateCreated || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
       dueDate: debtData.dueDate || null,
       status: 'pending',
       settledAmount: 0,
@@ -437,7 +437,7 @@ export function ExpenseProvider({ children }) {
         type: 'income',
         categoryId: categories.find(c => c.type === 'income')?.id || categories[0]?.id,
         accountId: receivedAccountId,
-        date: new Date().toISOString().split('T')[0],
+        date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
         notes: debt.reason ? `Settlement: ${debt.reason}` : 'Debt settlement'
       });
     } else if (receivedAccountId && debt && debt.direction === 'borrowed') {
@@ -448,7 +448,7 @@ export function ExpenseProvider({ children }) {
         type: 'expense',
         categoryId: categories.find(c => c.type === 'expense')?.id || categories[0]?.id,
         accountId: receivedAccountId,
-        date: new Date().toISOString().split('T')[0],
+        date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
         notes: debt.reason ? `Settlement: ${debt.reason}` : 'Debt settlement'
       });
     }
@@ -474,7 +474,7 @@ export function ExpenseProvider({ children }) {
       categoryId: subData.categoryId || categories[0]?.id,
       accountId: subData.accountId || accounts[0]?.id,
       billingCycle: subData.billingCycle || 'monthly',
-      nextDueDate: subData.nextDueDate || new Date().toISOString().split('T')[0],
+      nextDueDate: subData.nextDueDate || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
       vaultId: vId
     };
     setSubscriptions(prev => [...prev, newSub]);
@@ -511,7 +511,7 @@ export function ExpenseProvider({ children }) {
 
   // ─── Filtered Transactions ───────────────────────────────────────────────────
   const getFilteredTransactions = () => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
     const now = new Date();
     const currentMonthStr = now.toISOString().slice(0, 7);
     
@@ -588,7 +588,7 @@ export function ExpenseProvider({ children }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `expensia_${currentVault?.name || 'vault'}_${timeRange}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `expensia_${currentVault?.name || 'vault'}_${timeRange}_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
