@@ -49,108 +49,142 @@ export function DebtTracker() {
     setShowAddModal(false);
   };
 
-  const handleSettle = (debt) => {
+  // Group debts by person name (case-insensitive)
+  const groupByPerson = (debtList) => {
+    const map = {};
+    for (const d of debtList) {
+      const key = d.personName.trim().toLowerCase();
+      if (!map[key]) map[key] = { personName: d.personName, debts: [] };
+      map[key].debts.push(d);
+    }
+    return Object.values(map);
+  };
+
+  const lentGroups = groupByPerson(lentDebts);
+  const borrowedGroups = groupByPerson(borrowedDebts);
+
+  const [expandedPerson, setExpandedPerson] = useState(null);
+  const [settlingGroupPerson, setSettlingGroupPerson] = useState(null);
+
+  const handleSettleGroup = (groupDebts, direction) => {
     const partial = parseFloat(settleInput);
     const accountId = settleAccountId || accounts[0]?.id;
-    if (settleInput && partial > 0) {
-      const newSettled = (debt.settledAmount || 0) + partial;
+    let remaining = partial || groupDebts.reduce((s, d) => s + (d.amount - (d.settledAmount || 0)), 0);
+
+    for (const debt of groupDebts) {
+      if (remaining <= 0) break;
+      const debtRemaining = debt.amount - (debt.settledAmount || 0);
+      if (debtRemaining <= 0) continue;
+      const toSettle = Math.min(remaining, debtRemaining);
+      const newSettled = (debt.settledAmount || 0) + toSettle;
       const status = newSettled >= debt.amount ? 'settled' : 'partial';
-      settleDebt(debt.id, Math.min(newSettled, debt.amount), status, debt.direction === 'lent' ? accountId : null);
-    } else {
-      settleDebt(debt.id, debt.amount, 'settled', debt.direction === 'lent' ? accountId : null);
+      settleDebt(debt.id, newSettled, status, direction === 'lent' ? accountId : null);
+      remaining -= toSettle;
     }
-    setSettlingId(null);
+    setSettlingGroupPerson(null);
     setSettleInput('');
     setSettleAccountId('');
   };
 
-  const DebtCard = ({ debt }) => {
-    const remaining = debt.amount - (debt.settledAmount || 0);
-    const days = getDaysInfo(debt.dueDate);
-    const isOverdue = days !== null && days < 0;
-    const isDueSoon = days !== null && days >= 0 && days <= 3;
-    const isSettling = settlingId === debt.id;
-    const isLent = debt.direction === 'lent';
+  const PersonGroup = ({ group, direction }) => {
+    const totalRemaining = group.debts.reduce((s, d) => s + Math.max(0, d.amount - (d.settledAmount || 0)), 0);
+    const isLent = direction === 'lent';
+    const isExpanded = expandedPerson === group.personName.toLowerCase();
+    const isSettling = settlingGroupPerson === group.personName.toLowerCase();
+    const hasPartial = group.debts.some(d => d.status === 'partial');
 
     return (
       <div style={{
         background: 'rgba(255,255,255,0.03)',
         border: `1px solid ${isLent ? 'rgba(16,185,129,0.25)' : 'rgba(244,63,94,0.25)'}`,
-        borderRadius: '14px', padding: '14px 16px'
+        borderRadius: '14px', overflow: 'hidden'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+        {/* Person header row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 16px', gap: '10px' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{debt.personName}</span>
-              {debt.status === 'partial' && (
-                <span style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '700' }}>PARTIAL</span>
-              )}
-              {isOverdue && (
-                <span style={{ background: 'rgba(244,63,94,0.2)', color: '#f43f5e', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                  <AlertCircle size={10} /> {Math.abs(days)}d overdue
+              <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{group.personName}</span>
+              {group.debts.length > 1 && (
+                <span style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', padding: '2px 7px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '700' }}>
+                  {group.debts.length} entries
                 </span>
               )}
-              {isDueSoon && (
-                <span style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                  <Clock size={10} /> Due in {days}d
-                </span>
+              {hasPartial && (
+                <span style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 7px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '700' }}>PARTIAL</span>
               )}
             </div>
-            {debt.reason && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>{debt.reason}</div>}
-            {debt.dueDate && !isOverdue && !isDueSoon && (
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                Due: {debt.dueDate} {days !== null ? `(${days}d)` : ''}
-              </div>
-            )}
-            {debt.settledAmount > 0 && (
-              <div style={{ fontSize: '0.72rem', color: '#10b981', marginTop: '2px' }}>
-                Paid {currency}{debt.settledAmount.toFixed(0)} · Remaining: {currency}{remaining.toFixed(0)}
-              </div>
-            )}
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+              {group.debts.map(d => d.reason).filter(Boolean).join(' · ') || (isLent ? 'Lent' : 'Borrowed')}
+            </div>
           </div>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-            <div style={{ fontWeight: '800', fontSize: '1rem', color: isLent ? '#10b981' : '#f43f5e' }}>
-              {currency}{remaining.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-            </div>
+            <span style={{ fontWeight: '800', fontSize: '1rem', color: isLent ? '#10b981' : '#f43f5e' }}>
+              {currency}{totalRemaining.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+            </span>
             <button
-              onClick={() => { setSettlingId(isSettling ? null : debt.id); setSettleInput(''); }}
+              onClick={() => { setSettlingGroupPerson(isSettling ? null : group.personName.toLowerCase()); setSettleInput(''); setSettleAccountId(''); }}
               className="btn-secondary"
               style={{ padding: '5px 8px', fontSize: '0.72rem', borderRadius: '8px', color: '#10b981' }}
             >
               <Check size={13} />
             </button>
-            <button
-              onClick={() => deleteDebt(debt.id)}
-              className="btn-secondary"
-              style={{ padding: '5px', borderRadius: '8px', color: 'var(--text-dim)' }}
-            >
-              <Trash2 size={13} />
-            </button>
+            {group.debts.length > 1 && (
+              <button
+                onClick={() => setExpandedPerson(isExpanded ? null : group.personName.toLowerCase())}
+                className="btn-secondary"
+                style={{ padding: '5px', borderRadius: '8px', color: 'var(--text-dim)' }}
+              >
+                {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Expandable individual entries */}
+        {isExpanded && (
+          <div style={{ borderTop: `1px solid ${isLent ? 'rgba(16,185,129,0.15)' : 'rgba(244,63,94,0.15)'}`, padding: '8px 16px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {group.debts.map(d => {
+              const rem = d.amount - (d.settledAmount || 0);
+              return (
+                <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', gap: '8px', padding: '5px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ color: 'var(--text-main)' }}>{d.reason || d.dateCreated}</span>
+                    {d.dateCreated && <span style={{ color: 'var(--text-dim)', marginLeft: '6px' }}>· {d.dateCreated}</span>}
+                    {d.settledAmount > 0 && <span style={{ color: '#10b981', marginLeft: '6px' }}>· paid {currency}{d.settledAmount.toFixed(0)}</span>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                    <span style={{ fontWeight: '700', color: isLent ? '#10b981' : '#f43f5e' }}>{currency}{rem.toFixed(0)}</span>
+                    <button onClick={() => deleteDebt(d.id)} className="btn-secondary" style={{ padding: '3px', borderRadius: '6px', color: 'var(--text-dim)' }}>
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Settle panel */}
         {isSettling && (
-          <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ borderTop: `1px solid ${isLent ? 'rgba(16,185,129,0.15)' : 'rgba(244,63,94,0.15)'}`, padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <input
                 type="number"
                 className="glass-input"
                 style={{ flex: 1, fontSize: '0.85rem', padding: '6px 10px' }}
-                placeholder={`Full: ${currency}${remaining} or partial amount`}
+                placeholder={`Full: ${currency}${totalRemaining.toFixed(0)} or partial`}
                 value={settleInput}
                 onChange={e => setSettleInput(e.target.value)}
               />
               <button
-                onClick={() => handleSettle(debt)}
+                onClick={() => handleSettleGroup(group.debts, direction)}
                 className="btn-gradient"
                 style={{ padding: '6px 12px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
               >
                 {settleInput ? 'Partial' : 'Full'} Paid ✓
               </button>
             </div>
-            {debt.direction === 'lent' && (
+            {isLent && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Received in:</span>
                 <select
@@ -212,25 +246,25 @@ export function DebtTracker() {
         {!collapsed && (
           <>
             {/* People owe you */}
-            {lentDebts.length > 0 && (
+            {lentGroups.length > 0 && (
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#10b981', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  💰 People owe you ({lentDebts.length})
+                  💰 People owe you ({lentGroups.length} {lentGroups.length === 1 ? 'person' : 'people'})
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {lentDebts.map(d => <DebtCard key={d.id} debt={d} />)}
+                  {lentGroups.map(g => <PersonGroup key={g.personName} group={g} direction="lent" />)}
                 </div>
               </div>
             )}
 
             {/* You owe people */}
-            {borrowedDebts.length > 0 && (
+            {borrowedGroups.length > 0 && (
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#f43f5e', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  💳 You owe ({borrowedDebts.length})
+                  💳 You owe ({borrowedGroups.length} {borrowedGroups.length === 1 ? 'person' : 'people'})
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {borrowedDebts.map(d => <DebtCard key={d.id} debt={d} />)}
+                  {borrowedGroups.map(g => <PersonGroup key={g.personName} group={g} direction="borrowed" />)}
                 </div>
               </div>
             )}
