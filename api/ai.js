@@ -43,6 +43,7 @@ Types of operations you can extract:
 2. "transfer": Moving money between accounts or paying a credit card bill from a bank account.
 3. "debt_add": When the user lends money TO someone, or borrows money FROM someone.
 4. "debt_settle": When a person pays the user back, or the user pays a person back.
+5. "split_expense": When the user paid a shared bill for friends and expects to be paid back (e.g. "paid 300 for dinner, split 3 ways with Rahul and Sai").
 
 Example Output format:
 [
@@ -82,6 +83,20 @@ Example Output format:
     "account": "Match best account",
     "date": "YYYY-MM-DD",
     "notes": ""
+  },
+  {
+    "operation": "split_expense",
+    "totalAmount": 300,
+    "yourShare": 100,
+    "description": "Dinner",
+    "category": "Match best category",
+    "account": "Match best account",
+    "date": "YYYY-MM-DD",
+    "notes": "",
+    "splits": [
+      { "personName": "Rahul", "amount": 100 },
+      { "personName": "Sai", "amount": 100 }
+    ]
   }
 ]
 
@@ -89,6 +104,7 @@ Rules:
 - For 'account', 'fromAccount', 'toAccount', match best from: [${accountNames}].
 - IMPORTANT: For ANY debt operation (debt_add or debt_settle), if the user does NOT explicitly mention an account, you MUST default the account to "Slice Savings".
 - For standard 'transaction', if the account is unspecified, default to "Kotak Bank".
+- For 'split_expense': yourShare = totalAmount / number_of_people. splits array contains each OTHER person's share (not yours).
 - For 'category', match best from: [${categoryNames}] or invent a logical one.
 - For 'direction' in debts: "lent" means the user gave money to someone (people owe user). "borrowed" means user took money (user owes people).
 - date: default to current date: ${new Date().toISOString().split('T')[0]} if unspecified.

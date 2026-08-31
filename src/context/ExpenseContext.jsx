@@ -237,12 +237,15 @@ export function ExpenseProvider({ children }) {
       categoryId: newTx.categoryId || categories[0]?.id || 'cat-1',
       accountId: newTx.accountId || accounts[0]?.id || 'acc-1',
       notes: newTx.notes || '',
-      vaultId: currentVault?.id || 'vault_admin'
+      vaultId: currentVault?.id || 'vault_admin',
+      budgetMonth: newTx.budgetMonth || null,
+      bankAmount: newTx.bankAmount ? parseFloat(newTx.bankAmount) : null
     };
+    const bankDelta = formatted.bankAmount || formatted.amount;
     setTransactions(prev => [formatted, ...prev]);
     setAccounts(prev => prev.map(acc => {
       if (acc.id === formatted.accountId) {
-        const delta = formatted.type === 'income' ? formatted.amount : -formatted.amount;
+        const delta = formatted.type === 'income' ? formatted.amount : -bankDelta;
         return { ...acc, balance: Math.round((acc.balance + delta) * 100) / 100 };
       }
       return acc;
@@ -415,8 +418,22 @@ export function ExpenseProvider({ children }) {
     } catch (e) {}
   };
 
-  const settleDebt = async (id, settledAmount, status = 'settled') => {
+  const settleDebt = async (id, settledAmount, status = 'settled', receivedAccountId = null) => {
+    const debt = debts.find(d => d.id === id);
     setDebts(prev => prev.map(d => d.id === id ? { ...d, settledAmount: parseFloat(settledAmount) || d.amount, status } : d));
+    // If friend paid us back (lent direction) and we have an account to credit, create an income transaction
+    if (receivedAccountId && debt && debt.direction === 'lent') {
+      const amt = parseFloat(settledAmount) || debt.amount;
+      await addTransaction({
+        description: `${debt.personName} paid back`,
+        amount: amt,
+        type: 'income',
+        categoryId: categories.find(c => c.type === 'income')?.id || categories[0]?.id,
+        accountId: receivedAccountId,
+        date: new Date().toISOString().split('T')[0],
+        notes: debt.reason ? `Settlement: ${debt.reason}` : 'Debt settlement'
+      });
+    }
     try {
       await authFetch('settleDebt', { id, settledAmount, status });
     } catch (e) {}

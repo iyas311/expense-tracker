@@ -86,6 +86,33 @@ export function QuickAiBar({ onOpenManualAdd }) {
               console.warn("Could not find matching debt for settlement:", op.personName);
             }
           }
+          else if (op.operation === 'split_expense') {
+            // Log full bank deduction with only your share for budget
+            transactionsToLog.push({
+              amount: op.yourShare,
+              bankAmount: op.totalAmount,
+              type: 'expense',
+              description: op.description,
+              categoryId: op.categoryId,
+              accountId: op.accountId,
+              date: op.date,
+              notes: op.notes
+            });
+            // Create debt for each friend
+            for (const s of op.splits) {
+              if (s.personName && s.amount > 0) {
+                addDebt({
+                  personName: s.personName,
+                  amount: s.amount,
+                  direction: 'lent',
+                  reason: op.description,
+                  dateCreated: op.date,
+                  dueDate: null,
+                  notes: op.notes
+                });
+              }
+            }
+          }
         }
 
         if (transactionsToLog.length > 0) {

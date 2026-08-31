@@ -102,6 +102,10 @@ async function runMigrations(sql) {
     );`;
   } catch (e) {}
 
+  // Split expense and salary budget_month support
+  try { await sql`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS bank_amount NUMERIC(12,2) DEFAULT NULL;`; } catch (e) {}
+  try { await sql`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS budget_month VARCHAR(7) DEFAULT NULL;`; } catch (e) {}
+
   // 3. Settings and Logs tables
   try {
     await sql`CREATE TABLE IF NOT EXISTS app_settings (key VARCHAR(64) PRIMARY KEY, value TEXT NOT NULL);`;
@@ -265,7 +269,7 @@ async function getComputedAccounts(sql, vaultId) {
   const txSums = await sql`
     SELECT account_id,
       SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income_sum,
-      SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense_sum
+      SUM(CASE WHEN type = 'expense' THEN COALESCE(bank_amount, amount) ELSE 0 END) as expense_sum
     FROM transactions
     WHERE vault_id = ${vaultId}
     GROUP BY account_id;
@@ -305,7 +309,7 @@ async function getVaultData(sql, vaultId) {
   `;
   const accounts = await getComputedAccounts(sql, vaultId);
   const rawTransactions = await sql`
-    SELECT id, date, description, amount, type, category_id as "categoryId", account_id as "accountId", notes, transfer_id as "transferId"
+    SELECT id, date, description, amount, type, category_id as "categoryId", account_id as "accountId", notes, transfer_id as "transferId", budget_month as "budgetMonth", bank_amount as "bankAmount"
     FROM transactions
     WHERE vault_id = ${vaultId}
     ORDER BY date DESC, created_at DESC;
@@ -327,7 +331,7 @@ async function getVaultData(sql, vaultId) {
   for (const row of rawSettings) settings[row.key] = row.value;
 
   const categories = rawCategories.map(c => ({ ...c, budgetCap: parseFloat(c.budgetCap) || 0, isAutoBudget: Boolean(c.isAutoBudget) }));
-  const transactions = rawTransactions.map(t => ({ ...t, amount: parseFloat(t.amount) || 0 }));
+  const transactions = rawTransactions.map(t => ({ ...t, amount: parseFloat(t.amount) || 0, bankAmount: t.bankAmount ? parseFloat(t.bankAmount) : null }));
   const subscriptions = rawSubscriptions.map(s => ({ ...s, amount: parseFloat(s.amount) || 0 }));
 
   return { categories, accounts, transactions, subscriptions, settings, debts };
@@ -472,10 +476,10 @@ export default async function handler(req, res) {
 
       // ─── ADD TRANSACTION ─────────────────────────────────────────────────────
       if (action === 'addTransaction') {
-        const { id, date, description, amount, type, categoryId, accountId, notes, transferId } = payload;
+        const { id, date, description, amount, type, categoryId, accountId, notes, transferId, budgetMonth, bankAmount } = payload;
         await sql`
-          INSERT INTO transactions (id, date, description, amount, type, category_id, account_id, notes, transfer_id, vault_id)
-          VALUES (${id}, ${date}, ${description}, ${amount}, ${type}, ${categoryId || null}, ${accountId}, ${notes || ''}, ${transferId || null}, ${vaultId});
+          INSERT INTO transactions (id, date, description, amount, type, category_id, account_id, notes, transfer_id, vault_id, budget_month, bank_amount)
+          VALUES (${id}, ${date}, ${description}, ${amount}, ${type}, ${categoryId || null}, ${accountId}, ${notes || ''}, ${transferId || null}, ${vaultId}, ${budgetMonth || null}, ${bankAmount || null});
         `;
         return res.status(200).json({ success: true });
       }

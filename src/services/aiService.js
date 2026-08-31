@@ -98,6 +98,32 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
         };
       }
 
+      // It's a split expense
+      if (p.operation === 'split_expense') {
+        let matchedAccount = null;
+        if (p.account) {
+          const aiAcc = p.account.toLowerCase();
+          matchedAccount = accounts.find(a => aiAcc.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(aiAcc));
+        }
+        let matchedCategory = null;
+        if (p.category) {
+          const aiCat = p.category.toLowerCase();
+          matchedCategory = categories.find(c => aiCat.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(aiCat));
+        }
+        const desc = p.description || 'Shared expense';
+        return {
+          operation: 'split_expense',
+          totalAmount: parseFloat(p.totalAmount) || 0,
+          yourShare: parseFloat(p.yourShare) || 0,
+          description: desc.charAt(0).toUpperCase() + desc.slice(1),
+          categoryId: matchedCategory ? matchedCategory.id : categories[0]?.id || 'cat-1',
+          accountId: matchedAccount ? matchedAccount.id : accounts[0]?.id || 'acc-1',
+          date: p.date || new Date().toISOString().split('T')[0],
+          notes: (p.notes || '').toString().trim(),
+          splits: Array.isArray(p.splits) ? p.splits.map(s => ({ personName: s.personName || 'Friend', amount: parseFloat(s.amount) || 0 })) : []
+        };
+      }
+
       return null;
     }).filter(Boolean);
   };

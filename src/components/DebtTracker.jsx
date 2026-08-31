@@ -4,11 +4,12 @@ import { useExpense } from '../context/ExpenseContext';
 import { HandCoins, Plus, Check, Trash2, X, ChevronDown, ChevronUp, AlertCircle, Clock } from 'lucide-react';
 
 export function DebtTracker() {
-  const { debts, addDebt, settleDebt, deleteDebt, currency } = useExpense();
+  const { debts, addDebt, settleDebt, deleteDebt, currency, accounts } = useExpense();
   const [showAddModal, setShowAddModal] = useState(false);
   const [settlingId, setSettlingId] = useState(null);
   const [settleInput, setSettleInput] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+  const [settleAccountId, setSettleAccountId] = useState('');
 
   // Form state
   const [form, setForm] = useState({
@@ -50,15 +51,17 @@ export function DebtTracker() {
 
   const handleSettle = (debt) => {
     const partial = parseFloat(settleInput);
+    const accountId = settleAccountId || accounts[0]?.id;
     if (settleInput && partial > 0) {
       const newSettled = (debt.settledAmount || 0) + partial;
       const status = newSettled >= debt.amount ? 'settled' : 'partial';
-      settleDebt(debt.id, Math.min(newSettled, debt.amount), status);
+      settleDebt(debt.id, Math.min(newSettled, debt.amount), status, debt.direction === 'lent' ? accountId : null);
     } else {
-      settleDebt(debt.id, debt.amount, 'settled');
+      settleDebt(debt.id, debt.amount, 'settled', debt.direction === 'lent' ? accountId : null);
     }
     setSettlingId(null);
     setSettleInput('');
+    setSettleAccountId('');
   };
 
   const DebtCard = ({ debt }) => {
@@ -127,24 +130,42 @@ export function DebtTracker() {
           </div>
         </div>
 
-        {/* Partial settle row */}
+        {/* Settle panel */}
         {isSettling && (
-          <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input
-              type="number"
-              className="glass-input"
-              style={{ flex: 1, fontSize: '0.85rem', padding: '6px 10px' }}
-              placeholder={`Full: ${currency}${remaining} or partial amount`}
-              value={settleInput}
-              onChange={e => setSettleInput(e.target.value)}
-            />
-            <button
-              onClick={() => handleSettle(debt)}
-              className="btn-gradient"
-              style={{ padding: '6px 12px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
-            >
-              {settleInput ? 'Partial' : 'Full'} Settle
-            </button>
+          <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="number"
+                className="glass-input"
+                style={{ flex: 1, fontSize: '0.85rem', padding: '6px 10px' }}
+                placeholder={`Full: ${currency}${remaining} or partial amount`}
+                value={settleInput}
+                onChange={e => setSettleInput(e.target.value)}
+              />
+              <button
+                onClick={() => handleSettle(debt)}
+                className="btn-gradient"
+                style={{ padding: '6px 12px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+              >
+                {settleInput ? 'Partial' : 'Full'} Paid ✓
+              </button>
+            </div>
+            {debt.direction === 'lent' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Received in:</span>
+                <select
+                  className="glass-input"
+                  style={{ flex: 1, fontSize: '0.8rem', padding: '5px 8px' }}
+                  value={settleAccountId}
+                  onChange={e => setSettleAccountId(e.target.value)}
+                >
+                  <option value="">Select account (optional)</option>
+                  {accounts.filter(a => a.type !== 'card').map(a => (
+                    <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         )}
       </div>
