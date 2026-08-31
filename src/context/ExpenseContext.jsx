@@ -562,11 +562,15 @@ export function ExpenseProvider({ children }) {
     const budgetRemaining = totalBudgetCap - totalExpenses;
     const isOverBudget = budgetRemaining < 0;
 
+    let displayTime = timeRange.replace('_', ' ').toUpperCase();
+    if (timeRange === 'custom_date') displayTime = `DATE: ${selectedDate}`;
+    if (timeRange === 'custom_month') displayTime = `MONTH: ${selectedMonth}`;
+
     const reportLines = [
       '',
       '',
       '"--- FINANCIAL REPORT FOR SELECTED PERIOD ---"',
-      `"Time Period:","${timeRange.replace('_', ' ').toUpperCase()}"`,
+      `"Time Period:","${displayTime}"`,
       `"Total Income:","${currency}${totalIncome.toFixed(2)}"`,
       `"Total Expenses:","${currency}${totalExpenses.toFixed(2)}"`,
       `"Net Savings:","${currency}${(totalIncome - totalExpenses).toFixed(2)}"`,
@@ -579,7 +583,8 @@ export function ExpenseProvider({ children }) {
     ];
 
     const csvContent = [headers.join(','), ...rows, ...reportLines].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Prepend UTF-8 BOM (\uFEFF) so Excel correctly parses currency symbols like ₹
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
