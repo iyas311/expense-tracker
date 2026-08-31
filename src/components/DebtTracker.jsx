@@ -82,6 +82,7 @@ export function DebtTracker() {
       remaining -= toSettle;
     }
     setSettlingGroupPerson(null);
+    setSettlingId(null);
     setSettleInput('');
     setSettleAccountId('');
   };
@@ -114,7 +115,7 @@ export function DebtTracker() {
               )}
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-              {group.debts.map(d => d.reason).filter(Boolean).join(' · ') || (isLent ? 'Lent' : 'Borrowed')}
+              {group.debts.map(d => d.reason || (isLent ? 'Lent' : 'Borrowed')).join(' · ')}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
@@ -122,7 +123,7 @@ export function DebtTracker() {
               {currency}{totalRemaining.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
             </span>
             <button
-              onClick={() => { setSettlingGroupPerson(isSettling ? null : group.personName.toLowerCase()); setSettleInput(''); setSettleAccountId(''); }}
+              onClick={() => { setSettlingGroupPerson(isSettling ? null : group.personName.toLowerCase()); setSettlingId(null); setSettleInput(''); setSettleAccountId(''); }}
               className="btn-secondary"
               style={{ padding: '5px 8px', fontSize: '0.72rem', borderRadius: '8px', color: '#10b981' }}
             >
@@ -145,20 +146,67 @@ export function DebtTracker() {
           <div style={{ borderTop: `1px solid ${isLent ? 'rgba(16,185,129,0.15)' : 'rgba(244,63,94,0.15)'}`, padding: '8px 16px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {group.debts.map(d => {
               const rem = d.amount - (d.settledAmount || 0);
+              const formattedDate = d.dateCreated ? (typeof d.dateCreated === 'string' ? d.dateCreated.split('T')[0] : new Date(d.dateCreated).toISOString().split('T')[0]) : '';
+              const isThisSettling = settlingId === d.id;
+
               return (
-                <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', gap: '8px', padding: '5px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ color: 'var(--text-main)' }}>{d.reason || d.dateCreated}</span>
-                    {d.dateCreated && <span style={{ color: 'var(--text-dim)', marginLeft: '6px' }}>· {d.dateCreated}</span>}
-                    {d.settledAmount > 0 && <span style={{ color: '#10b981', marginLeft: '6px' }}>· paid {currency}{d.settledAmount.toFixed(0)}</span>}
+                <React.Fragment key={d.id}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', gap: '8px', padding: '5px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ color: 'var(--text-main)' }}>{d.reason || (isLent ? 'Lent' : 'Borrowed')}</span>
+                      {formattedDate && <span style={{ color: 'var(--text-dim)', marginLeft: '6px' }}>· {formattedDate}</span>}
+                      {d.settledAmount > 0 && <span style={{ color: '#10b981', marginLeft: '6px' }}>· paid {currency}{d.settledAmount.toFixed(0)}</span>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      <span style={{ fontWeight: '700', color: isLent ? '#10b981' : '#f43f5e' }}>{currency}{rem.toFixed(0)}</span>
+                      <button onClick={() => { setSettlingId(isThisSettling ? null : d.id); setSettlingGroupPerson(null); setSettleInput(''); setSettleAccountId(''); }} className="btn-secondary" style={{ padding: '3px 6px', borderRadius: '6px', color: '#10b981' }}>
+                        <Check size={11} />
+                      </button>
+                      <button onClick={() => deleteDebt(d.id)} className="btn-secondary" style={{ padding: '3px 6px', borderRadius: '6px', color: 'var(--text-dim)' }}>
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                    <span style={{ fontWeight: '700', color: isLent ? '#10b981' : '#f43f5e' }}>{currency}{rem.toFixed(0)}</span>
-                    <button onClick={() => deleteDebt(d.id)} className="btn-secondary" style={{ padding: '3px', borderRadius: '6px', color: 'var(--text-dim)' }}>
-                      <Trash2 size={11} />
-                    </button>
-                  </div>
-                </div>
+                  
+                  {/* Micro Settle Panel for individual debt */}
+                  {isThisSettling && (
+                    <div style={{ padding: '8px', marginTop: '-4px', marginBottom: '4px', background: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="number"
+                          className="glass-input"
+                          style={{ flex: 1, fontSize: '0.8rem', padding: '5px 8px' }}
+                          placeholder={`Full: ${currency}${rem.toFixed(0)} or partial`}
+                          value={settleInput}
+                          onChange={e => setSettleInput(e.target.value)}
+                        />
+                        <button
+                          onClick={() => handleSettleGroup([d], direction)}
+                          className="btn-gradient"
+                          style={{ padding: '5px 10px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                        >
+                          {settleInput ? 'Partial' : 'Full'} ✓
+                        </button>
+                      </div>
+                      {isLent && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>To:</span>
+                          <select
+                            className="glass-input"
+                            style={{ flex: 1, fontSize: '0.75rem', padding: '4px 6px' }}
+                            value={settleAccountId}
+                            onChange={e => setSettleAccountId(e.target.value)}
+                          >
+                            <option value="">Select account</option>
+                            {accounts.filter(a => a.type !== 'card').map(a => (
+                              <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </React.Fragment>
               );
             })}
           </div>
