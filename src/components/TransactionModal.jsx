@@ -289,18 +289,24 @@ export function TransactionModal({ isOpen, onClose }) {
 
             {/* Split Expense */}
             {type === 'expense' && (
-              <div>
+              <div style={{ marginTop: '8px' }}>
                 <button
                   type="button"
                   onClick={() => setIsSplit(s => !s)}
-                  className={isSplit ? 'btn-cyan' : 'btn-secondary'}
-                  style={{ fontSize: '0.82rem', padding: '7px 14px', borderRadius: '10px', width: '100%' }}
+                  style={{
+                    fontSize: '0.85rem', padding: '12px 14px', borderRadius: '12px', width: '100%',
+                    background: isSplit ? 'linear-gradient(135deg, rgba(6,182,212,0.15), rgba(59,130,246,0.15))' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${isSplit ? 'rgba(6,182,212,0.4)' : 'rgba(255,255,255,0.05)'}`,
+                    color: isSplit ? '#22d3ee' : 'var(--text-muted)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    fontWeight: '600', transition: 'all 0.2s ease', cursor: 'pointer'
+                  }}
                 >
-                  🤝 {isSplit ? 'Split Mode ON' : 'Split with friends'}
+                  🤝 {isSplit ? 'Split Mode Active (Tracking Friends)' : 'Split this bill with friends'}
                 </button>
                 {isSplit && (
-                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Enter the main amount above as the TOTAL bill, then add your friends' shares below:</div>
+                  <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', lineHeight: '1.4' }}>Enter the main amount above as the <strong style={{color:'#fff'}}>TOTAL bill</strong>, then add your friends' shares below:</div>
                     
                     {splits.map((s, i) => (
                       <div key={i} style={{ display: 'flex', gap: '6px' }}>

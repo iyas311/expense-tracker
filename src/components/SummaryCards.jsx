@@ -50,7 +50,7 @@ export function SummaryCards() {
           </span>
         </div>
 
-        <div className="hide-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch', paddingBottom: '4px' }}>
+        <div className="hide-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingBottom: '4px' }}>
           {[
             { id: 'today', label: 'Today' },
             { id: 'this_week', label: 'This Week' },
