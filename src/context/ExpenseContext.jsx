@@ -149,10 +149,11 @@ export function ExpenseProvider({ children }) {
           setCurrentVault({ id: data.user.vaultId, name: data.user.username + ' Vault', isAdmin: data.user.role === 'admin' });
           setIsLoggedIn(true);
           
-          if (data.categories?.length > 0) setCategories(data.categories);
-          if (data.accounts?.length > 0) setAccounts(data.accounts);
+          if (Array.isArray(data.categories)) setCategories(data.categories);
+          if (Array.isArray(data.accounts)) setAccounts(data.accounts);
           if (Array.isArray(data.transactions)) setTransactions(data.transactions);
           if (Array.isArray(data.subscriptions)) setSubscriptions(data.subscriptions);
+          if (Array.isArray(data.debts)) setDebts(data.debts);
           
           localStorage.setItem('et_vault_info', JSON.stringify({ id: data.user.vaultId, name: data.user.username + ' Vault', isAdmin: data.user.role === 'admin' }));
           
@@ -177,6 +178,12 @@ export function ExpenseProvider({ children }) {
   const logout = async () => {
     try { await authFetch('logout'); } catch (e) {}
     setIsLoggedIn(false);
+    setCurrentVault(null);
+    setTransactions([]);
+    setCategories([]);
+    setAccounts([]);
+    setSubscriptions([]);
+    setDebts([]);
     localStorage.removeItem('et_token');
     localStorage.removeItem('et_vault_info');
   };
