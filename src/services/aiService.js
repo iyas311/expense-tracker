@@ -160,13 +160,20 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
     try {
       const categoryNames = categories.map(c => c.name).join(', ');
       const accountNames = accounts.map(a => a.name).join(', ');
-      const prompt = `You are a financial transaction extractor. Analyze the user's text and extract transaction details.
+      const prompt = `You are a smart financial AI. Analyze the user's text and extract a list of financial operations.
 Return ONLY a raw JSON array of objects with NO markdown formatting, NO code blocks. Do not wrap the array in an object.
-If there are multiple transactions in the text, extract them all into the array.
+
+Types of operations you can extract:
+1. "transaction": Standard expense or income (buying things, receiving salary).
+2. "transfer": Moving money between accounts or paying a credit card bill from a bank account.
+3. "debt_add": When the user lends money TO someone, or borrows money FROM someone.
+4. "debt_settle": When a person pays the user back, or the user pays a person back.
+5. "split_expense": When the user paid a shared bill for friends and expects to be paid back (e.g. "paid 300 for dinner, split 3 ways with Rahul and Sai").
 
 Example Output format:
 [
   {
+    "operation": "transaction",
     "amount": 240,
     "type": "expense",
     "description": "Short main heading only (e.g. 'Creatinine test')",
@@ -174,17 +181,58 @@ Example Output format:
     "account": "Match best account",
     "date": "YYYY-MM-DD",
     "notes": "Put location/extra context here (e.g. 'at Edakulam lab')"
+  },
+  {
+    "operation": "transfer",
+    "amount": 5000,
+    "fromAccount": "Match best source account",
+    "toAccount": "Match best destination account",
+    "date": "YYYY-MM-DD",
+    "notes": ""
+  },
+  {
+    "operation": "debt_add",
+    "amount": 500,
+    "direction": "lent",  // "lent" (user gave money) or "borrowed" (user received money)
+    "personName": "Rahul",
+    "reason": "Lunch",
+    "account": "Match best account",
+    "date": "YYYY-MM-DD",
+    "notes": ""
+  },
+  {
+    "operation": "debt_settle",
+    "amount": 500,
+    "direction": "lent", // "lent" (someone returning money to user) or "borrowed" (user returning money to someone)
+    "personName": "Rahul",
+    "account": "Match best account",
+    "date": "YYYY-MM-DD",
+    "notes": ""
+  },
+  {
+    "operation": "split_expense",
+    "totalAmount": 300,
+    "yourShare": 100,
+    "description": "Dinner",
+    "category": "Match best category",
+    "account": "Match best account",
+    "date": "YYYY-MM-DD",
+    "notes": "",
+    "splits": [
+      { "personName": "Rahul", "amount": 100 },
+      { "personName": "Sai", "amount": 100 }
+    ]
   }
 ]
 
-Object Fields required:
-- amount: number
-- type: string ("expense" or "income")
-- description: string (clean merchant or item name ONLY, e.g. "Pepsi" or "Burger". Do NOT include words like "rs", "spent", "for", "costed")
-- category: string (match best from: [${categoryNames}] or invent a logical one)
-- account: string (match best from: [${accountNames}] or default "Bank Account")
-- date: YYYY-MM-DD (default to current date: ${new Date().toISOString().split('T')[0]} if unspecified)
-- notes: string (any additional context, purpose, person involved, payment method, remarks, e.g. "with Alex", "birthday treat", or empty string "" if none)
+Rules:
+- For 'account', 'fromAccount', 'toAccount', match best from: [${accountNames}].
+- IMPORTANT: For ANY debt operation (debt_add or debt_settle), if the user does NOT explicitly mention an account, you MUST default the account to "Slice Savings".
+- For standard 'transaction', if the account is unspecified, default to "Kotak Bank".
+- For 'split_expense': yourShare = totalAmount / number_of_people. splits array contains each OTHER person's share (not yours).
+- For 'category', match best from: [${categoryNames}] or invent a logical one.
+- For 'direction' in debts: "lent" means the user gave money to someone (people owe user). "borrowed" means user took money (user owes people).
+- date: default to current date: ${new Date().toISOString().split('T')[0]} if unspecified.
 
 User text: "${textInput}"`;
 
@@ -219,31 +267,79 @@ User text: "${textInput}"`;
     try {
       const categoryNames = categories.map(c => c.name).join(', ');
       const accountNames = accounts.map(a => a.name).join(', ');
-      const prompt = `You are a financial transaction extractor. Analyze the user's text and extract transaction details.
+      const prompt = `You are a smart financial AI. Analyze the user's text and extract a list of financial operations.
 Return ONLY a raw JSON array of objects with NO markdown formatting, NO code blocks. Do not wrap the array in an object.
-If there are multiple transactions in the text, extract them all into the array.
+
+Types of operations you can extract:
+1. "transaction": Standard expense or income (buying things, receiving salary).
+2. "transfer": Moving money between accounts or paying a credit card bill from a bank account.
+3. "debt_add": When the user lends money TO someone, or borrows money FROM someone.
+4. "debt_settle": When a person pays the user back, or the user pays a person back.
+5. "split_expense": When the user paid a shared bill for friends and expects to be paid back (e.g. "paid 300 for dinner, split 3 ways with Rahul and Sai").
 
 Example Output format:
 [
   {
+    "operation": "transaction",
     "amount": 240,
     "type": "expense",
-    "description": "Clean item name",
+    "description": "Short main heading only (e.g. 'Creatinine test')",
     "category": "Match best category",
     "account": "Match best account",
     "date": "YYYY-MM-DD",
-    "notes": "Optional extra remarks/context or empty string"
+    "notes": "Put location/extra context here (e.g. 'at Edakulam lab')"
+  },
+  {
+    "operation": "transfer",
+    "amount": 5000,
+    "fromAccount": "Match best source account",
+    "toAccount": "Match best destination account",
+    "date": "YYYY-MM-DD",
+    "notes": ""
+  },
+  {
+    "operation": "debt_add",
+    "amount": 500,
+    "direction": "lent",  // "lent" (user gave money) or "borrowed" (user received money)
+    "personName": "Rahul",
+    "reason": "Lunch",
+    "account": "Match best account",
+    "date": "YYYY-MM-DD",
+    "notes": ""
+  },
+  {
+    "operation": "debt_settle",
+    "amount": 500,
+    "direction": "lent", // "lent" (someone returning money to user) or "borrowed" (user returning money to someone)
+    "personName": "Rahul",
+    "account": "Match best account",
+    "date": "YYYY-MM-DD",
+    "notes": ""
+  },
+  {
+    "operation": "split_expense",
+    "totalAmount": 300,
+    "yourShare": 100,
+    "description": "Dinner",
+    "category": "Match best category",
+    "account": "Match best account",
+    "date": "YYYY-MM-DD",
+    "notes": "",
+    "splits": [
+      { "personName": "Rahul", "amount": 100 },
+      { "personName": "Sai", "amount": 100 }
+    ]
   }
 ]
 
-Object Fields required:
-- amount: number
-- type: string ("expense" or "income")
-- description: string (clean item or merchant name ONLY, e.g. "Pepsi" or "Burger")
-- category: string
-- account: string
-- date: string (YYYY-MM-DD)
-- notes: string (any additional context, purpose, person involved, payment method, remarks, e.g. "with Alex", "birthday treat", or empty string "" if none)
+Rules:
+- For 'account', 'fromAccount', 'toAccount', match best from: [${accountNames}].
+- IMPORTANT: For ANY debt operation (debt_add or debt_settle), if the user does NOT explicitly mention an account, you MUST default the account to "Slice Savings".
+- For standard 'transaction', if the account is unspecified, default to "Kotak Bank".
+- For 'split_expense': yourShare = totalAmount / number_of_people. splits array contains each OTHER person's share (not yours).
+- For 'category', match best from: [${categoryNames}] or invent a logical one.
+- For 'direction' in debts: "lent" means the user gave money to someone (people owe user). "borrowed" means user took money (user owes people).
+- date: default to current date: ${new Date().toISOString().split('T')[0]} if unspecified.
 
 User text: "${textInput}"`;
 
