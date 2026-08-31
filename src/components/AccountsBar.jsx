@@ -9,6 +9,9 @@ export function AccountsBar() {
   
   // Form State (used for both add and edit)
   const [editingId, setEditingId] = useState(null);
+  const [originalAcc, setOriginalAcc] = useState(null);
+  const [currentComputedBalance, setCurrentComputedBalance] = useState('');
+
   const [name, setName] = useState('');
   const [type, setType] = useState('bank');
   const [balance, setBalance] = useState('');
@@ -31,9 +34,11 @@ export function AccountsBar() {
 
   const openAdd = () => {
     setEditingId(null);
+    setOriginalAcc(null);
     setName('');
     setType('bank');
     setBalance('');
+    setCurrentComputedBalance('');
     setCreditLimit('');
     setColor('#06b6d4');
     setStatementDay('');
@@ -44,9 +49,11 @@ export function AccountsBar() {
 
   const openEdit = (acc) => {
     setEditingId(acc.id);
+    setOriginalAcc(acc);
     setName(acc.name);
     setType(acc.type);
     setBalance(acc.initialBalance || 0);
+    setCurrentComputedBalance(acc.balance || 0);
     setCreditLimit(acc.creditLimit || 0);
     setColor(acc.color || '#06b6d4');
     setStatementDay(acc.statementDay || '');
@@ -65,11 +72,24 @@ export function AccountsBar() {
     e.preventDefault();
     if (!name.trim()) return;
     
+    let finalInitialBalance = parseFloat(balance) || 0;
+    let finalCurrentBalance = parseFloat(balance) || 0;
+
+    if (editingId && originalAcc) {
+      const newCurrentStr = currentComputedBalance.toString();
+      if (newCurrentStr.trim() !== '') {
+        const newCurrentNum = parseFloat(currentComputedBalance) || 0;
+        const delta = newCurrentNum - originalAcc.balance;
+        finalInitialBalance = (originalAcc.initialBalance || 0) + delta;
+        finalCurrentBalance = newCurrentNum;
+      }
+    }
+    
     const payload = {
       name,
       type,
-      balance: parseFloat(balance) || 0,
-      initialBalance: parseFloat(balance) || 0,
+      balance: finalCurrentBalance,
+      initialBalance: finalInitialBalance,
       creditLimit: parseFloat(creditLimit) || 0,
       color,
       statementDay: statementDay ? parseInt(statementDay) : null,
@@ -184,9 +204,24 @@ export function AccountsBar() {
               </div>
 
               <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px' }}>{editingId ? 'Base / Initial Balance' : 'Initial Balance / Debt'}</label>
-                <input type="number" step="0.01" className="glass-input" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="0.00 (use negative for card debt)" />
-                {editingId && <div style={{ fontSize: '0.7rem', color: '#f59e0b', marginTop: '4px' }}>Note: Changing this shifts your total running balance.</div>}
+                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px' }}>
+                  {editingId ? 'Edit Current Balance (Auto-adjusts base)' : 'Initial Balance / Debt'}
+                </label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  className="glass-input" 
+                  value={editingId ? currentComputedBalance : balance} 
+                  onChange={(e) => {
+                    if (editingId) {
+                      setCurrentComputedBalance(e.target.value);
+                    } else {
+                      setBalance(e.target.value);
+                    }
+                  }} 
+                  placeholder="0.00 (use negative for card debt)" 
+                />
+                {editingId && <div style={{ fontSize: '0.7rem', color: '#10b981', marginTop: '4px' }}>Changing this mathematically shifts your underlying initial balance so everything adds up perfectly.</div>}
               </div>
 
               {type === 'card' && (
