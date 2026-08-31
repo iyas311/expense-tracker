@@ -507,25 +507,7 @@ export function ExpenseProvider({ children }) {
     } catch (e) {}
   };
 
-  // ─── Export CSV ──────────────────────────────────────────────────────────────
-  const exportData = () => {
-    const headers = ['Date', 'Type', 'Description', 'Amount', 'Category', 'Account', 'Notes'];
-    const rows = transactions.map(t => {
-      const cat = categories.find(c => c.id === t.categoryId)?.name || 'General';
-      const acc = accounts.find(a => a.id === t.accountId)?.name || 'Account';
-      return [t.date, t.type, `"${(t.description||'').replace(/"/g,'""')}"`, t.amount, `"${cat}"`, `"${acc}"`, `"${(t.notes||'').replace(/"/g,'""')}"`].join(',');
-    });
-    const csvContent = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `expensia_${currentVault?.name || 'vault'}_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
+
 
   // ─── Filtered Transactions ───────────────────────────────────────────────────
   const getFilteredTransactions = () => {
@@ -562,6 +544,51 @@ export function ExpenseProvider({ children }) {
       return d.direction === 'lent' ? s + remaining : s - remaining;
     }, 0);
   const netWorth = accountsNetWorth + debtNetWorth;
+
+  // ─── Export CSV (Timeline & Budget Report) ───────────────────────────────────
+  const exportData = () => {
+    // 1. Export filtered transactions
+    const headers = ['Date', 'Budget Month', 'Type', 'Description', 'Amount', 'Category', 'Account', 'Notes', 'Transaction ID'];
+    const rows = filteredTransactions.map(t => {
+      const cat = categories.find(c => c.id === t.categoryId)?.name || 'General';
+      const acc = accounts.find(a => a.id === t.accountId)?.name || 'Account';
+      const bMonth = t.budgetMonth || t.date.slice(0, 7);
+      return [t.date, bMonth, t.type, `"${(t.description||'').replace(/"/g,'""')}"`, t.amount, `"${cat}"`, `"${acc}"`, `"${(t.notes||'').replace(/"/g,'""')}"`, t.id].join(',');
+    });
+    
+    // 2. Budget status calculations
+    const expenseCategories = categories.filter(c => c.type === 'expense');
+    const totalBudgetCap = expenseCategories.reduce((s, c) => s + (parseFloat(c.budgetCap) || 0), 0);
+    const budgetRemaining = totalBudgetCap - totalExpenses;
+    const isOverBudget = budgetRemaining < 0;
+
+    const reportLines = [
+      '',
+      '',
+      '"--- FINANCIAL REPORT FOR SELECTED PERIOD ---"',
+      `"Time Period:","${timeRange.replace('_', ' ').toUpperCase()}"`,
+      `"Total Income:","${currency}${totalIncome.toFixed(2)}"`,
+      `"Total Expenses:","${currency}${totalExpenses.toFixed(2)}"`,
+      `"Net Savings:","${currency}${(totalIncome - totalExpenses).toFixed(2)}"`,
+      '',
+      '"--- BUDGET STATUS ---"',
+      `"Total Monthly Budget Cap:","${currency}${totalBudgetCap.toFixed(2)}"`,
+      `"Total Spent in Period:","${currency}${totalExpenses.toFixed(2)}"`,
+      `"Remaining Budget:","${currency}${budgetRemaining.toFixed(2)}"`,
+      `"Status:","${isOverBudget ? 'OVER BUDGET' : 'ON TRACK'}"`
+    ];
+
+    const csvContent = [headers.join(','), ...rows, ...reportLines].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `expensia_${currentVault?.name || 'vault'}_${timeRange}_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <ExpenseContext.Provider value={{
