@@ -4,7 +4,7 @@ import { useExpense } from '../context/ExpenseContext';
 import { HandCoins, Plus, Check, Trash2, X, ChevronDown, ChevronUp, AlertCircle, Clock } from 'lucide-react';
 
 export function DebtTracker() {
-  const { debts, addDebt, settleDebt, deleteDebt, currency, accounts } = useExpense();
+  const { debts, addDebt, settleDebt, deleteDebt, currency, accounts, addTransaction, categories } = useExpense();
   const [showAddModal, setShowAddModal] = useState(false);
   const [settlingId, setSettlingId] = useState(null);
   const [settleInput, setSettleInput] = useState('');
@@ -14,7 +14,7 @@ export function DebtTracker() {
   // Form state
   const [form, setForm] = useState({
     personName: '', amount: '', direction: 'lent',
-    reason: '', dueDate: '', notes: ''
+    reason: '', dueDate: '', notes: '', accountId: ''
   });
 
   const lentDebts = debts.filter(d => d.direction === 'lent' && d.status !== 'settled');
@@ -45,7 +45,20 @@ export function DebtTracker() {
       dueDate: form.dueDate || null,
       notes: form.notes.trim()
     });
-    setForm({ personName: '', amount: '', direction: 'lent', reason: '', dueDate: '', notes: '' });
+
+    if (form.accountId) {
+      addTransaction({
+        description: form.direction === 'lent' ? `Lent to ${form.personName.trim()}` : `Borrowed from ${form.personName.trim()}`,
+        amount: parseFloat(form.amount),
+        type: form.direction === 'lent' ? 'expense' : 'income',
+        categoryId: categories.find(c => c.type === (form.direction === 'lent' ? 'expense' : 'income'))?.id || categories[0]?.id,
+        accountId: form.accountId,
+        date: new Date().toISOString().split('T')[0],
+        notes: form.reason ? `Debt creation: ${form.reason.trim()}` : 'Debt creation'
+      });
+    }
+
+    setForm({ personName: '', amount: '', direction: 'lent', reason: '', dueDate: '', notes: '', accountId: '' });
     setShowAddModal(false);
   };
 
@@ -68,7 +81,7 @@ export function DebtTracker() {
 
   const handleSettleGroup = (groupDebts, direction) => {
     const partial = parseFloat(settleInput);
-    const accountId = settleAccountId || accounts[0]?.id;
+    const accountId = settleAccountId || '';
     let remaining = partial || groupDebts.reduce((s, d) => s + (d.amount - (d.settledAmount || 0)), 0);
 
     for (const debt of groupDebts) {
@@ -78,7 +91,7 @@ export function DebtTracker() {
       const toSettle = Math.min(remaining, debtRemaining);
       const newSettled = (debt.settledAmount || 0) + toSettle;
       const status = newSettled >= debt.amount ? 'settled' : 'partial';
-      settleDebt(debt.id, newSettled, status, direction === 'lent' ? accountId : null);
+      settleDebt(debt.id, newSettled, status, accountId);
       remaining -= toSettle;
     }
     setSettlingGroupPerson(null);
@@ -188,22 +201,22 @@ export function DebtTracker() {
                           {settleInput ? 'Partial' : 'Full'} ✓
                         </button>
                       </div>
-                      {isLent && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>To:</span>
-                          <select
-                            className="glass-input"
-                            style={{ flex: 1, fontSize: '0.75rem', padding: '4px 6px' }}
-                            value={settleAccountId}
-                            onChange={e => setSettleAccountId(e.target.value)}
-                          >
-                            <option value="">Select account</option>
-                            {accounts.filter(a => a.type !== 'card').map(a => (
-                              <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                          {isLent ? 'Received in:' : 'Paid from:'}
+                        </span>
+                        <select
+                          className="glass-input"
+                          style={{ flex: 1, fontSize: '0.75rem', padding: '4px 6px' }}
+                          value={settleAccountId}
+                          onChange={e => setSettleAccountId(e.target.value)}
+                        >
+                          <option value="">Select account</option>
+                          {accounts.filter(a => a.type !== 'card').map(a => (
+                            <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   )}
                 </React.Fragment>
@@ -232,22 +245,22 @@ export function DebtTracker() {
                 {settleInput ? 'Partial' : 'Full'} Paid ✓
               </button>
             </div>
-            {isLent && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Received in:</span>
-                <select
-                  className="glass-input"
-                  style={{ flex: 1, fontSize: '0.8rem', padding: '5px 8px' }}
-                  value={settleAccountId}
-                  onChange={e => setSettleAccountId(e.target.value)}
-                >
-                  <option value="">Select account (optional)</option>
-                  {accounts.filter(a => a.type !== 'card').map(a => (
-                    <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                {isLent ? 'Received in:' : 'Paid from:'}
+              </span>
+              <select
+                className="glass-input"
+                style={{ flex: 1, fontSize: '0.8rem', padding: '5px 8px' }}
+                value={settleAccountId}
+                onChange={e => setSettleAccountId(e.target.value)}
+              >
+                <option value="">Select account (optional)</option>
+                {accounts.filter(a => a.type !== 'card').map(a => (
+                  <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         )}
       </div>
@@ -415,6 +428,22 @@ export function DebtTracker() {
                 <input type="text" className="glass-input" value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                   placeholder="Any extra context" />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', color: 'var(--text-muted)' }}>
+                  {form.direction === 'lent' ? 'Paid from Account (creates expense transaction)' : 'Received in Account (creates income transaction)'}
+                </label>
+                <select
+                  className="glass-input"
+                  value={form.accountId}
+                  onChange={e => setForm(f => ({ ...f, accountId: e.target.value }))}
+                >
+                  <option value="">Do not log a transaction</option>
+                  {accounts.filter(a => a.type !== 'card').map(a => (
+                    <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>
+                  ))}
+                </select>
               </div>
 
               <button type="submit" className="btn-gradient" style={{

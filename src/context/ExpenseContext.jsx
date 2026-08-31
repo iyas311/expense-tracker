@@ -433,6 +433,17 @@ export function ExpenseProvider({ children }) {
         date: new Date().toISOString().split('T')[0],
         notes: debt.reason ? `Settlement: ${debt.reason}` : 'Debt settlement'
       });
+    } else if (receivedAccountId && debt && debt.direction === 'borrowed') {
+      const amt = parseFloat(settledAmount) || debt.amount;
+      await addTransaction({
+        description: `Paid back ${debt.personName}`,
+        amount: amt,
+        type: 'expense',
+        categoryId: categories.find(c => c.type === 'expense')?.id || categories[0]?.id,
+        accountId: receivedAccountId,
+        date: new Date().toISOString().split('T')[0],
+        notes: debt.reason ? `Settlement: ${debt.reason}` : 'Debt settlement'
+      });
     }
     try {
       await authFetch('settleDebt', { id, settledAmount, status });
