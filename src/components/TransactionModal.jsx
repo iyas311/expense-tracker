@@ -61,12 +61,31 @@ export function TransactionModal({ isOpen, onClose }) {
       addTransfer({ fromAccountId: accountId, toAccountId, amount: parseFloat(amount), date, notes });
     } else {
       if (!description.trim()) return;
-      const txAmount = parseFloat(amount);
+      
       const bMonth = type === 'income' ? budgetMonth : null;
       
-      if (isSplit && type === 'expense' && totalPaid && parseFloat(totalPaid) > txAmount) {
-        // Split expense: log full bank amount, but budget only gets my share (amount field)
-        addTransaction({ description, amount: txAmount, type, categoryId, accountId, date, notes, bankAmount: parseFloat(totalPaid), budgetMonth: null });
+      if (isSplit && type === 'expense') {
+        const totalBill = parseFloat(amount);
+        const friendsTotal = splits.reduce((sum, s) => sum + (parseFloat(s.share) || 0), 0);
+        const yourShare = totalBill - friendsTotal;
+        
+        if (friendsTotal <= 0 || yourShare < 0) {
+          return alert('Please enter valid friend shares that add up to less than or equal to the total bill.');
+        }
+
+        // Log full bank amount, but budget gets only my share
+        addTransaction({ 
+          description, 
+          amount: yourShare, // User's budget share
+          type, 
+          categoryId, 
+          accountId, 
+          date, 
+          notes, 
+          bankAmount: totalBill, // Actual bank deduction
+          budgetMonth: null 
+        });
+        
         // Add debts for each split friend
         splits.forEach(s => {
           if (s.name.trim() && parseFloat(s.share) > 0) {
@@ -81,6 +100,7 @@ export function TransactionModal({ isOpen, onClose }) {
           }
         });
       } else {
+        const txAmount = parseFloat(amount);
         addTransaction({ description, amount: txAmount, type, categoryId, accountId, date, notes, budgetMonth: bMonth });
       }
     }
@@ -276,22 +296,12 @@ export function TransactionModal({ isOpen, onClose }) {
                   className={isSplit ? 'btn-cyan' : 'btn-secondary'}
                   style={{ fontSize: '0.82rem', padding: '7px 14px', borderRadius: '10px', width: '100%' }}
                 >
-                  🤝 {isSplit ? 'Split Mode ON — your share entered above' : 'Split with friends'}
+                  🤝 {isSplit ? 'Split Mode ON' : 'Split with friends'}
                 </button>
                 {isSplit && (
                   <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Total bill paid by you</label>
-                      <input
-                        type="number"
-                        className="glass-input"
-                        placeholder={`Total bill (e.g. ${currency}300)`}
-                        value={totalPaid}
-                        onChange={e => setTotalPaid(e.target.value)}
-                        step="0.01"
-                      />
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Friends who owe you (their share):</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Enter the main amount above as the TOTAL bill, then add your friends' shares below:</div>
+                    
                     {splits.map((s, i) => (
                       <div key={i} style={{ display: 'flex', gap: '6px' }}>
                         <input
@@ -324,9 +334,9 @@ export function TransactionModal({ isOpen, onClose }) {
                     >
                       + Add friend
                     </button>
-                    {totalPaid && amount && (
+                    {amount && splits.some(s => s.share) && (
                       <div style={{ fontSize: '0.75rem', color: '#06b6d4', background: 'rgba(6,182,212,0.1)', padding: '8px 10px', borderRadius: '8px' }}>
-                        Bank deducted: {currency}{parseFloat(totalPaid).toFixed(0)} · Your budget: {currency}{parseFloat(amount).toFixed(0)} · Friends owe you: {currency}{(parseFloat(totalPaid) - parseFloat(amount)).toFixed(0)}
+                        Bank deducted: {currency}{parseFloat(amount || 0).toFixed(0)} · Your budget: {currency}{(parseFloat(amount || 0) - splits.reduce((sum, s) => sum + (parseFloat(s.share) || 0), 0)).toFixed(0)} · Friends owe you: {currency}{splits.reduce((sum, s) => sum + (parseFloat(s.share) || 0), 0).toFixed(0)}
                       </div>
                     )}
                   </div>
