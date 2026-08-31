@@ -57,7 +57,7 @@ export function TransactionModal({ isOpen, onClose }) {
     if (!amount || parseFloat(amount) <= 0) return;
 
     if (type === 'transfer') {
-      if (fromAccountId === toAccountId) return alert('Please select different accounts for transfer.');
+      if (accountId === toAccountId) return alert('Please select different accounts for transfer.');
       addTransfer({ fromAccountId: accountId, toAccountId, amount: parseFloat(amount), date, notes });
     } else {
       if (!description.trim()) return;
