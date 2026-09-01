@@ -543,6 +543,29 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
 
+      // ─── UPDATE CATEGORY ─────────────────────────────────────────────────────
+      if (action === 'updateCategory') {
+        const { id, name, type, budgetCap, isAutoBudget, color, icon } = payload;
+        await sql`
+          UPDATE categories
+          SET name=${name},
+              type=${type || 'expense'},
+              budget_cap=${parseFloat(budgetCap) || 0},
+              is_auto_budget=${isAutoBudget || false},
+              color=${color || '#8b5cf6'},
+              icon=${icon || 'Tag'}
+          WHERE id=${id} AND vault_id=${vaultId};
+        `;
+        return res.status(200).json({ success: true });
+      }
+
+      // ─── DELETE CATEGORY ─────────────────────────────────────────────────────
+      if (action === 'deleteCategory') {
+        const { id } = payload;
+        await sql`DELETE FROM categories WHERE id=${id} AND vault_id=${vaultId};`;
+        return res.status(200).json({ success: true });
+      }
+
       // ─── ADD ACCOUNT ─────────────────────────────────────────────────────────
       if (action === 'addAccount') {
         const { id, name, type, balance, creditLimit, color, icon, statementDay, dueDay, dueMonthOffset } = payload;

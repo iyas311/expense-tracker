@@ -367,6 +367,22 @@ export function ExpenseProvider({ children }) {
     } catch (e) {}
   };
 
+  const updateCategory = async (categoryData) => {
+    setCategories(prev => prev.map(c => c.id === categoryData.id ? { ...c, ...categoryData, budgetCap: parseFloat(categoryData.budgetCap) || 0 } : c));
+    try {
+      await authFetch('updateCategory', categoryData);
+      refreshCloudData();
+    } catch (e) {}
+  };
+
+  const deleteCategory = async (id) => {
+    setCategories(prev => prev.filter(c => c.id !== id));
+    try {
+      await authFetch('deleteCategory', { id });
+      refreshCloudData();
+    } catch (e) {}
+  };
+
   // ─── Accounts ────────────────────────────────────────────────────────────────
   const addAccount = async (accData) => {
     const vId = currentVault?.id || 'vault_admin';
@@ -619,7 +635,7 @@ export function ExpenseProvider({ children }) {
       setApiKey, setGroqApiKey, setCurrency,
       addTransaction, addTransactions, editTransaction, deleteTransaction,
       addTransfer,
-      addCategory, updateCategoryBudget,
+      addCategory, updateCategory, deleteCategory, updateCategoryBudget,
       addAccount, editAccount, deleteAccount,
       addDebt, updateDebt, settleDebt, deleteDebt,
       addSubscription,
