@@ -592,6 +592,23 @@ VALUES (${id}, ${name}, ${type}, ${bal}, ${bal}, ${creditLimit || 0}, ${color ||
         return res.status(200).json({ success: true });
       }
 
+      if (action === 'updateDebt') {
+        const { id, personName, amount, direction, reason, dueDate, notes, status, settledAmount } = payload;
+        await sql`
+          UPDATE app_debts
+          SET person_name=${personName},
+              amount=${parseFloat(amount) || 0},
+              direction=${direction || 'lent'},
+              reason=${reason || ''},
+              due_date=${dueDate || null},
+              notes=${notes || ''},
+              status=${status || 'pending'},
+              settled_amount=${settledAmount !== undefined ? parseFloat(settledAmount) : 0}
+          WHERE id=${id} AND vault_id=${vaultId};
+        `;
+        return res.status(200).json({ success: true });
+      }
+
       if (action === 'deleteDebt') {
         const { id } = payload;
         await sql`DELETE FROM app_debts WHERE id=${id} AND vault_id=${vaultId};`;

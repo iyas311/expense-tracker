@@ -1,21 +1,62 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useExpense } from '../context/ExpenseContext';
-import { HandCoins, Plus, Check, Trash2, X, ChevronDown, ChevronUp, AlertCircle, Clock } from 'lucide-react';
+import { HandCoins, Plus, Check, Trash2, X, ChevronDown, ChevronUp, AlertCircle, Clock, Edit2 } from 'lucide-react';
 
 export function DebtTracker() {
-  const { debts, addDebt, settleDebt, deleteDebt, currency, accounts, addTransaction, categories } = useExpense();
+  const { debts, addDebt, updateDebt, settleDebt, deleteDebt, currency, accounts, addTransaction, categories } = useExpense();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingDebt, setEditingDebt] = useState(null);
   const [settlingId, setSettlingId] = useState(null);
   const [settleInput, setSettleInput] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [settleAccountId, setSettleAccountId] = useState('');
 
-  // Form state
+  // Form state for Add
   const [form, setForm] = useState({
     personName: '', amount: '', direction: 'lent',
     reason: '', dueDate: '', notes: '', accountId: '', categoryId: ''
   });
+
+  // Form state for Edit
+  const [editForm, setEditForm] = useState({
+    personName: '', amount: '', direction: 'lent',
+    reason: '', dueDate: '', notes: '', settledAmount: ''
+  });
+
+  const handleOpenEdit = (debt) => {
+    setEditingDebt(debt);
+    setEditForm({
+      personName: debt.personName || '',
+      amount: debt.amount !== undefined ? debt.amount.toString() : '',
+      direction: debt.direction || 'lent',
+      reason: debt.reason || '',
+      dueDate: debt.dueDate ? debt.dueDate.split('T')[0] : '',
+      notes: debt.notes || '',
+      settledAmount: debt.settledAmount !== undefined ? debt.settledAmount.toString() : '0'
+    });
+  };
+
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    if (!editingDebt || !editForm.personName.trim() || !editForm.amount) return;
+    const newAmt = parseFloat(editForm.amount) || 0;
+    const newSettled = parseFloat(editForm.settledAmount) || 0;
+    const newStatus = newSettled >= newAmt && newAmt > 0 ? 'settled' : newSettled > 0 ? 'partial' : 'pending';
+
+    updateDebt({
+      id: editingDebt.id,
+      personName: editForm.personName.trim(),
+      amount: newAmt,
+      direction: editForm.direction,
+      reason: editForm.reason.trim(),
+      dueDate: editForm.dueDate || null,
+      notes: editForm.notes.trim(),
+      settledAmount: newSettled,
+      status: newStatus
+    });
+    setEditingDebt(null);
+  };
 
   const lentDebts = debts.filter(d => d.direction === 'lent' && d.status !== 'settled');
   const borrowedDebts = debts.filter(d => d.direction === 'borrowed' && d.status !== 'settled');
@@ -142,9 +183,20 @@ export function DebtTracker() {
               onClick={() => { setSettlingGroupPerson(isSettling ? null : group.personName.toLowerCase()); setSettlingId(null); setSettleInput(''); setSettleAccountId(''); }}
               className="btn-secondary"
               style={{ padding: '5px 8px', fontSize: '0.72rem', borderRadius: '8px', color: '#10b981' }}
+              title="Settle"
             >
               <Check size={13} />
             </button>
+            {group.debts.length === 1 && (
+              <button
+                onClick={() => handleOpenEdit(group.debts[0])}
+                className="btn-secondary"
+                style={{ padding: '5px 8px', fontSize: '0.72rem', borderRadius: '8px', color: 'var(--text-muted)' }}
+                title="Edit"
+              >
+                <Edit2 size={13} />
+              </button>
+            )}
             {group.debts.length > 1 && (
               <button
                 onClick={() => setExpandedPerson(isExpanded ? null : group.personName.toLowerCase())}
@@ -175,10 +227,13 @@ export function DebtTracker() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                       <span style={{ fontWeight: '700', color: isLent ? '#10b981' : '#f43f5e' }}>{currency}{rem.toFixed(0)}</span>
-                      <button onClick={() => { setSettlingId(isThisSettling ? null : d.id); setSettlingGroupPerson(null); setSettleInput(''); setSettleAccountId(''); }} className="btn-secondary" style={{ padding: '3px 6px', borderRadius: '6px', color: '#10b981' }}>
+                      <button onClick={() => { setSettlingId(isThisSettling ? null : d.id); setSettlingGroupPerson(null); setSettleInput(''); setSettleAccountId(''); }} className="btn-secondary" style={{ padding: '3px 6px', borderRadius: '6px', color: '#10b981' }} title="Settle">
                         <Check size={11} />
                       </button>
-                      <button onClick={() => deleteDebt(d.id)} className="btn-secondary" style={{ padding: '3px 6px', borderRadius: '6px', color: 'var(--text-dim)' }}>
+                      <button onClick={() => handleOpenEdit(d)} className="btn-secondary" style={{ padding: '3px 6px', borderRadius: '6px', color: 'var(--text-muted)' }} title="Edit">
+                        <Edit2 size={11} />
+                      </button>
+                      <button onClick={() => deleteDebt(d.id)} className="btn-secondary" style={{ padding: '3px 6px', borderRadius: '6px', color: 'var(--text-dim)' }} title="Delete">
                         <Trash2 size={11} />
                       </button>
                     </div>
@@ -343,7 +398,10 @@ export function DebtTracker() {
                       <span>{d.personName} · {d.reason || (d.direction === 'lent' ? 'lent' : 'borrowed')}</span>
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                         <span style={{ color: '#10b981' }}>{currency}{d.amount.toFixed(0)} ✓</span>
-                        <button onClick={() => deleteDebt(d.id)} className="btn-secondary" style={{ padding: '3px', borderRadius: '6px', color: 'var(--text-dim)' }}>
+                        <button onClick={() => handleOpenEdit(d)} className="btn-secondary" style={{ padding: '3px', borderRadius: '6px', color: 'var(--text-muted)' }} title="Edit">
+                          <Edit2 size={11} />
+                        </button>
+                        <button onClick={() => deleteDebt(d.id)} className="btn-secondary" style={{ padding: '3px', borderRadius: '6px', color: 'var(--text-dim)' }} title="Delete">
                           <Trash2 size={11} />
                         </button>
                       </div>
@@ -473,6 +531,95 @@ export function DebtTracker() {
                 background: form.direction === 'lent' ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#f43f5e,#e11d48)'
               }}>
                 {form.direction === 'lent' ? '💰 Log as Lent' : '💳 Log as Borrowed'}
+              </button>
+            </form>
+          </div>
+        </div>
+      , document.body)}
+
+      {/* Edit Debt Modal */}
+      {editingDebt && createPortal(
+        <div className="modal-overlay">
+          <div className="modal-content animate-fade-in" style={{ maxWidth: '420px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 className="font-heading">Edit Debt / IOU</h3>
+              <button className="btn-secondary" onClick={() => setEditingDebt(null)} style={{ padding: '6px' }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit}>
+              {/* Direction toggle */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+                {['lent', 'borrowed'].map(d => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setEditForm(f => ({ ...f, direction: d }))}
+                    style={{
+                      padding: '10px', borderRadius: '12px', border: 'none', cursor: 'pointer',
+                      fontWeight: '700', fontSize: '0.85rem',
+                      background: editForm.direction === d
+                        ? (d === 'lent' ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#f43f5e,#e11d48)')
+                        : 'rgba(255,255,255,0.06)',
+                      color: editForm.direction === d ? '#fff' : 'var(--text-muted)'
+                    }}
+                  >
+                    {d === 'lent' ? '💰 I Lent' : '💳 I Borrowed'}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', color: 'var(--text-muted)' }}>
+                    {editForm.direction === 'lent' ? 'Lent to' : 'Borrowed from'}
+                  </label>
+                  <input type="text" className="glass-input" value={editForm.personName}
+                    onChange={e => setEditForm(f => ({ ...f, personName: e.target.value }))}
+                    placeholder="Person's name" required />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', color: 'var(--text-muted)' }}>Total Amount ({currency})</label>
+                  <input type="number" step="0.01" className="glass-input" value={editForm.amount}
+                    onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))}
+                    placeholder="0.00" required />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', color: 'var(--text-muted)' }}>Already Paid ({currency})</label>
+                  <input type="number" step="0.01" className="glass-input" value={editForm.settledAmount}
+                    onChange={e => setEditForm(f => ({ ...f, settledAmount: e.target.value }))}
+                    placeholder="0.00" />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', color: 'var(--text-muted)' }}>Expected Return Date</label>
+                  <input type="date" className="glass-input" value={editForm.dueDate}
+                    onChange={e => setEditForm(f => ({ ...f, dueDate: e.target.value }))} />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', color: 'var(--text-muted)' }}>Reason / Purpose</label>
+                <input type="text" className="glass-input" value={editForm.reason}
+                  onChange={e => setEditForm(f => ({ ...f, reason: e.target.value }))}
+                  placeholder="e.g. Birthday gift, loan, split bill" />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', color: 'var(--text-muted)' }}>Notes (optional)</label>
+                <input type="text" className="glass-input" value={editForm.notes}
+                  onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Any extra context" />
+              </div>
+
+              <button type="submit" className="btn-gradient" style={{
+                width: '100%', padding: '13px',
+                background: 'linear-gradient(135deg,#6366f1,#8b5cf6)'
+              }}>
+                💾 Save Changes
               </button>
             </form>
           </div>

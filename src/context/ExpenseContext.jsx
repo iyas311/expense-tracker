@@ -462,6 +462,13 @@ export function ExpenseProvider({ children }) {
     } catch (e) {}
   };
 
+  const updateDebt = async (debtData) => {
+    setDebts(prev => prev.map(d => d.id === debtData.id ? { ...d, ...debtData, amount: parseFloat(debtData.amount) || d.amount } : d));
+    try {
+      await authFetch('updateDebt', debtData);
+    } catch (e) {}
+  };
+
   const deleteDebt = async (id) => {
     setDebts(prev => prev.filter(d => d.id !== id));
     try {
@@ -614,7 +621,7 @@ export function ExpenseProvider({ children }) {
       addTransfer,
       addCategory, updateCategoryBudget,
       addAccount, editAccount, deleteAccount,
-      addDebt, settleDebt, deleteDebt,
+      addDebt, updateDebt, settleDebt, deleteDebt,
       addSubscription,
       updateSubscription,
       deleteSubscription,
