@@ -428,25 +428,30 @@ export function ExpenseProvider({ children }) {
   const settleDebt = async (id, settledAmount, status = 'settled', receivedAccountId = null) => {
     const debt = debts.find(d => d.id === id);
     setDebts(prev => prev.map(d => d.id === id ? { ...d, settledAmount: parseFloat(settledAmount) || d.amount, status } : d));
+    
+    const debtCat = categories.find(c => /loan|debt/i.test(c.name));
+    const defaultExpenseCatId = debtCat?.id || categories.find(c => c.type === 'expense')?.id || categories[0]?.id;
+    const defaultIncomeCatId = debtCat?.id || categories.find(c => c.type === 'income')?.id || categories[0]?.id;
+
     // If friend paid us back (lent direction) and we have an account to credit, create an income transaction
     if (receivedAccountId && debt && debt.direction === 'lent') {
       const amt = parseFloat(settledAmount) || debt.amount;
       await addTransaction({
-        description: `${debt.personName} paid back`,
+        description: `${debt.personName} repaid loan`,
         amount: amt,
         type: 'income',
-        categoryId: categories.find(c => c.type === 'income')?.id || categories[0]?.id,
+        categoryId: defaultIncomeCatId,
         accountId: receivedAccountId,
         date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
-        notes: debt.reason ? `Settlement: ${debt.reason}` : 'Debt settlement'
+        notes: debt.reason ? `Debt repaid: ${debt.reason}` : 'Loan repayment'
       });
     } else if (receivedAccountId && debt && debt.direction === 'borrowed') {
       const amt = parseFloat(settledAmount) || debt.amount;
       await addTransaction({
-        description: `Paid back ${debt.personName}`,
+        description: `Repaid ${debt.personName}`,
         amount: amt,
         type: 'expense',
-        categoryId: categories.find(c => c.type === 'expense')?.id || categories[0]?.id,
+        categoryId: defaultExpenseCatId,
         accountId: receivedAccountId,
         date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
         notes: debt.reason ? `Settlement: ${debt.reason}` : 'Debt settlement'

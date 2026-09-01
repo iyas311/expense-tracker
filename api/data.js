@@ -145,7 +145,19 @@ async function runMigrations(sql) {
     await sql`INSERT INTO app_vaults (id, name, passcode, is_admin) VALUES ('vault_admin', 'Admin Vault', ${adminPass}, TRUE) ON CONFLICT (id) DO NOTHING;`;
   }
 
-
+  // 6. Ensure Loans & Debts category exists for vaults
+  try {
+    const vaults = await sql`SELECT DISTINCT vault_id FROM categories;`;
+    for (const v of vaults) {
+      if (!v.vault_id) continue;
+      const debtCat = await sql`SELECT id FROM categories WHERE vault_id = ${v.vault_id} AND (name ILIKE '%debt%' OR name ILIKE '%loan%');`;
+      if (debtCat.length === 0) {
+        await sql`INSERT INTO categories (id, name, type, budget_cap, is_auto_budget, color, icon, vault_id)
+          VALUES (${'cat-debt-' + v.vault_id}, 'Loans & Debts', 'expense', 0, FALSE, '#f59e0b', 'HandCoins', ${v.vault_id})
+          ON CONFLICT DO NOTHING;`;
+      }
+    }
+  } catch (e) {}
 }
 
 async function ensureTablesExist(sql) {
@@ -171,14 +183,17 @@ async function ensureTablesExist(sql) {
       credit_limit NUMERIC(12, 2) DEFAULT 0,
       color VARCHAR(32) DEFAULT '#06b6d4',
       icon VARCHAR(64) DEFAULT 'Landmark',
-      vault_id VARCHAR(64) DEFAULT 'vault_admin'
+      vault_id VARCHAR(64) DEFAULT 'vault_admin',
+      statement_day INT DEFAULT NULL,
+      due_day INT DEFAULT NULL,
+      due_month_offset INT DEFAULT 1
     );
   `;
   await sql`
     CREATE TABLE IF NOT EXISTS transactions (
       id VARCHAR(64) PRIMARY KEY,
-      date VARCHAR(32) NOT NULL,
-      description TEXT NOT NULL,
+      date DATE NOT NULL,
+      description VARCHAR(255) NOT NULL,
       amount NUMERIC(12, 2) NOT NULL,
       type VARCHAR(32) NOT NULL,
       category_id VARCHAR(64),
@@ -186,6 +201,8 @@ async function ensureTablesExist(sql) {
       notes TEXT,
       transfer_id VARCHAR(64),
       vault_id VARCHAR(64) DEFAULT 'vault_admin',
+      budget_month VARCHAR(7) DEFAULT NULL,
+      bank_amount NUMERIC(12,2) DEFAULT NULL,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
   `;
@@ -224,7 +241,8 @@ async function seedStarterCategories(sql, vaultId) {
     [`cat-4-${vaultId}`, 'Bills & Utilities', 'expense', 0, false, '#f59e0b', 'Zap'],
     [`cat-5-${vaultId}`, 'Entertainment', 'expense', 0, false, '#8b5cf6', 'Film'],
     [`cat-6-${vaultId}`, 'Shopping', 'expense', 0, false, '#ec4899', 'ShoppingBag'],
-    [`cat-7-${vaultId}`, 'Salary & Income', 'income', 0, false, '#10b981', 'DollarSign']
+    [`cat-7-${vaultId}`, 'Loans & Debts', 'expense', 0, false, '#f59e0b', 'HandCoins'],
+    [`cat-8-${vaultId}`, 'Salary & Income', 'income', 0, false, '#10b981', 'DollarSign']
   ];
   for (const [id, name, type, budgetCap, isAuto, color, icon] of defaults) {
     await sql`INSERT INTO categories (id, name, type, budget_cap, is_auto_budget, color, icon, vault_id) VALUES (${id}, ${name}, ${type}, ${budgetCap}, ${isAuto}, ${color}, ${icon}, ${vaultId}) ON CONFLICT DO NOTHING;`;

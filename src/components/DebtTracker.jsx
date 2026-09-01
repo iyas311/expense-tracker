@@ -14,7 +14,7 @@ export function DebtTracker() {
   // Form state
   const [form, setForm] = useState({
     personName: '', amount: '', direction: 'lent',
-    reason: '', dueDate: '', notes: '', accountId: ''
+    reason: '', dueDate: '', notes: '', accountId: '', categoryId: ''
   });
 
   const lentDebts = debts.filter(d => d.direction === 'lent' && d.status !== 'settled');
@@ -47,18 +47,21 @@ export function DebtTracker() {
     });
 
     if (form.accountId) {
+      const debtCat = categories.find(c => /loan|debt/i.test(c.name));
+      const targetCatId = form.categoryId || debtCat?.id || categories.find(c => c.type === (form.direction === 'lent' ? 'expense' : 'income'))?.id || categories[0]?.id;
+
       addTransaction({
         description: form.direction === 'lent' ? `Lent to ${form.personName.trim()}` : `Borrowed from ${form.personName.trim()}`,
         amount: parseFloat(form.amount),
         type: form.direction === 'lent' ? 'expense' : 'income',
-        categoryId: categories.find(c => c.type === (form.direction === 'lent' ? 'expense' : 'income'))?.id || categories[0]?.id,
+        categoryId: targetCatId,
         accountId: form.accountId,
         date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
         notes: form.reason ? `Debt creation: ${form.reason.trim()}` : 'Debt creation'
       });
     }
 
-    setForm({ personName: '', amount: '', direction: 'lent', reason: '', dueDate: '', notes: '', accountId: '' });
+    setForm({ personName: '', amount: '', direction: 'lent', reason: '', dueDate: '', notes: '', accountId: '', categoryId: '' });
     setShowAddModal(false);
   };
 
@@ -430,7 +433,7 @@ export function DebtTracker() {
                   placeholder="Any extra context" />
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: form.accountId ? '14px' : '20px' }}>
                 <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', color: 'var(--text-muted)' }}>
                   {form.direction === 'lent' ? 'Paid from Account (creates expense transaction)' : 'Received in Account (creates income transaction)'}
                 </label>
@@ -445,6 +448,25 @@ export function DebtTracker() {
                   ))}
                 </select>
               </div>
+
+              {form.accountId && (
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px', color: 'var(--text-muted)' }}>
+                    Category (default: Loans & Debts)
+                  </label>
+                  <select
+                    className="glass-input"
+                    value={form.categoryId || (categories.find(c => /loan|debt/i.test(c.name))?.id || categories.find(c => c.type === (form.direction === 'lent' ? 'expense' : 'income'))?.id || '')}
+                    onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
+                  >
+                    {categories.map(c => (
+                      <option key={c.id} value={c.id} style={{ background: '#0f172a' }}>
+                        {c.name} ({c.type})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <button type="submit" className="btn-gradient" style={{
                 width: '100%', padding: '13px',
