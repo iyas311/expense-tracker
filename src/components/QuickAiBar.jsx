@@ -176,15 +176,6 @@ export function QuickAiBar({ onOpenManualAdd }) {
 
   const [isFocused, setIsFocused] = useState(false);
 
-  const suggestions = [
-    { label: '☕ Coffee ₹150', text: `Spent ${currency}150 on coffee` },
-    { label: '🍕 Split ₹600 with Rahul', text: `Me and Rahul had lunch for ${currency}600, split equally` },
-    { label: '⛽ Fuel ₹500 from SBI', text: `Spent ${currency}500 for petrol from SBI Bank` },
-    { label: '⚡ Electric Bill ₹1200', text: `Paid ${currency}1200 electricity bill from Credit Card` },
-    { label: '💰 Salary ₹45000', text: `Received ${currency}45000 salary for this month` },
-    { label: '🔄 Transfer ₹2000', text: `Transferred ${currency}2000 from Savings to Credit Card` }
-  ];
-
   return (
     <div style={{ marginBottom: '20px' }}>
       {/* Main Command Bar Container */}
@@ -392,50 +383,6 @@ export function QuickAiBar({ onOpenManualAdd }) {
           )}
         </div>
       </div>
-
-      {/* Interactive Quick Suggestions Chips Carousel (Mobile-friendly) */}
-      {!naturalInput && !isLoading && (
-        <div style={{
-          display: 'flex',
-          gap: '6px',
-          marginTop: '8px',
-          overflowX: 'auto',
-          paddingBottom: '2px',
-          WebkitOverflowScrolling: 'touch'
-        }} className="hide-scrollbar">
-          {suggestions.map((s, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => setNaturalInput(s.text)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-                borderRadius: '20px',
-                padding: '4px 10px',
-                color: 'var(--text-muted)',
-                fontSize: '0.72rem',
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                flexShrink: 0,
-                transition: 'all 0.15s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(6, 182, 212, 0.1)';
-                e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.3)';
-                e.currentTarget.style.color = '#06b6d4';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)';
-                e.currentTarget.style.color = 'var(--text-muted)';
-              }}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Status Pill */}
       {status && (
