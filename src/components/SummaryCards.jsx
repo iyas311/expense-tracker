@@ -91,7 +91,7 @@ export function SummaryCards() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Zap size={16} color="#06b6d4" />
             <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)' }}>
-              Daily Safe-to-Spend
+              Spending Balance
             </span>
           </div>
 
@@ -119,18 +119,35 @@ export function SummaryCards() {
           </button>
         </div>
 
-        {/* Big Clean Metric */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '6px' }}>
-          <span className="font-heading" style={{ fontSize: '2.2rem', fontWeight: '900', color: '#06b6d4', letterSpacing: '-0.02em' }}>
-            {currency}{dailyAllowance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-          </span>
-          <span style={{ fontSize: '0.9rem', color: 'var(--text-dim)', fontWeight: '600' }}>/ day</span>
+        {/* Big Balance Metric & Smaller Spend Per Day Badge */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+            <span className="font-heading" style={{ fontSize: '2.2rem', fontWeight: '900', color: '#06b6d4', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+              {currency}{combinedSpendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+            </span>
+          </div>
+
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(6, 182, 212, 0.12)',
+            border: '1px solid rgba(6, 182, 212, 0.3)',
+            padding: '5px 12px',
+            borderRadius: '12px'
+          }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Safe Spend:</span>
+            <span style={{ fontSize: '0.95rem', fontWeight: '800', color: '#38bdf8' }}>
+              {currency}{dailyAllowance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontWeight: '600' }}>/ day</span>
+          </div>
         </div>
 
         {/* Simple context line */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
           <span>
-            Pool: <strong style={{ color: '#fff' }}>{currency}{combinedSpendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</strong> · {remainingDays} days left in {currentMonthName}
+            {remainingDays} days left in {currentMonthName}
           </span>
           {spentToday > 0 && (
             <span style={{ color: spentToday > dailyAllowance ? '#f43f5e' : '#10b981', fontWeight: '600' }}>
