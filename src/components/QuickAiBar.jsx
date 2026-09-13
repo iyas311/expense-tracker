@@ -174,21 +174,35 @@ export function QuickAiBar({ onOpenManualAdd }) {
     e.target.value = ''; // reset file input
   };
 
+  const [isFocused, setIsFocused] = useState(false);
+
+  const suggestions = [
+    { label: '☕ Coffee ₹150', text: `Spent ${currency}150 on coffee` },
+    { label: '🍕 Split ₹600 with Rahul', text: `Me and Rahul had lunch for ${currency}600, split equally` },
+    { label: '⛽ Fuel ₹500 from SBI', text: `Spent ${currency}500 for petrol from SBI Bank` },
+    { label: '⚡ Electric Bill ₹1200', text: `Paid ${currency}1200 electricity bill from Credit Card` },
+    { label: '💰 Salary ₹45000', text: `Received ${currency}45000 salary for this month` },
+    { label: '🔄 Transfer ₹2000', text: `Transferred ${currency}2000 from Savings to Credit Card` }
+  ];
+
   return (
-    <div style={{ marginBottom: '24px' }}>
+    <div style={{ marginBottom: '20px' }}>
       {/* Main Command Bar Container */}
       <div style={{
-        background: 'rgba(17, 24, 39, 0.75)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        borderRadius: '20px',
-        padding: '8px 12px 8px 16px',
-        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+        background: 'rgba(15, 23, 42, 0.85)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        border: `1.5px solid ${isFocused ? 'rgba(6, 182, 212, 0.7)' : 'rgba(255, 255, 255, 0.12)'}`,
+        borderRadius: '22px',
+        padding: '6px 8px 6px 12px',
+        boxShadow: isFocused 
+          ? '0 0 25px -2px rgba(6, 182, 212, 0.4), 0 10px 30px -10px rgba(0, 0, 0, 0.6)' 
+          : '0 8px 24px -6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
         display: 'flex',
-        alignItems: 'flex-end',
-        gap: '12px',
+        alignItems: 'center',
+        gap: '10px',
         position: 'relative',
-        transition: 'border-color 0.2s, box-shadow 0.2s'
+        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
       }}>
         
         {/* AI Brand Indicator */}
@@ -196,29 +210,33 @@ export function QuickAiBar({ onOpenManualAdd }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: '32px',
-          height: '32px',
-          borderRadius: '10px',
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(6, 182, 212, 0.2))',
-          border: '1px solid rgba(6, 182, 212, 0.3)',
+          width: '36px',
+          height: '36px',
+          borderRadius: '12px',
+          background: isFocused 
+            ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(99, 102, 241, 0.3))'
+            : 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(6, 182, 212, 0.15))',
+          border: `1px solid ${isFocused ? 'rgba(6, 182, 212, 0.5)' : 'rgba(6, 182, 212, 0.25)'}`,
           flexShrink: 0,
-          marginBottom: '2px'
+          transition: 'all 0.25s ease'
         }}>
           {isLoading ? (
-            <Loader2 size={16} className="animate-spin" color="#06b6d4" />
+            <Loader2 size={18} className="animate-spin" color="#06b6d4" />
           ) : (
-            <Sparkles size={16} color="#06b6d4" />
+            <Sparkles size={18} color="#06b6d4" />
           )}
         </div>
 
         {/* Input Form */}
-        <form onSubmit={handleAiSubmit} style={{ flex: 1, minWidth: 0, display: 'flex' }}>
+        <form onSubmit={handleAiSubmit} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center' }}>
           <textarea
             value={naturalInput}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             onChange={(e) => {
               setNaturalInput(e.target.value);
               e.target.style.height = 'auto';
-              e.target.style.height = (e.target.scrollHeight) + 'px';
+              e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -227,7 +245,7 @@ export function QuickAiBar({ onOpenManualAdd }) {
                 e.target.style.height = 'auto';
               }
             }}
-            placeholder={`e.g. "Paid ${currency}450 for lunch"...`}
+            placeholder={`Type anything: "Spent ${currency}450 on food"...`}
             disabled={isLoading}
             rows={1}
             style={{
@@ -237,22 +255,47 @@ export function QuickAiBar({ onOpenManualAdd }) {
               background: 'transparent',
               border: 'none',
               outline: 'none',
-              color: '#f8fafc',
-              fontSize: '0.95rem',
+              color: '#ffffff',
+              fontSize: '1rem',
               fontWeight: '500',
               fontFamily: 'inherit',
               resize: 'none',
-              overflow: 'hidden',
-              minHeight: '36px',
-              maxHeight: '120px',
-              padding: '6px 4px 6px 4px',
-              lineHeight: '1.5'
+              overflowY: 'auto',
+              minHeight: '26px',
+              maxHeight: '100px',
+              padding: '6px 2px',
+              lineHeight: '1.4',
+              caretColor: '#06b6d4'
             }}
           />
         </form>
 
+        {/* Clear Button (when user has typed) */}
+        {naturalInput.length > 0 && !isLoading && (
+          <button
+            type="button"
+            onClick={() => setNaturalInput('')}
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              flexShrink: 0,
+              padding: 0
+            }}
+          >
+            ✕
+          </button>
+        )}
+
         {/* Action Controls Cluster */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', flexShrink: 0, marginBottom: '2px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           {/* Receipt Scanner Button */}
           <label
             title="Scan Receipt Photo"
@@ -262,17 +305,18 @@ export function QuickAiBar({ onOpenManualAdd }) {
               justifyContent: 'center',
               width: '36px',
               height: '36px',
-              borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '12px',
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
               color: '#94a3b8',
               cursor: isLoading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              flexShrink: 0
             }}
             onMouseEnter={(e) => e.currentTarget.style.color = '#06b6d4'}
             onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
           >
-            <Camera size={17} />
+            <Camera size={18} />
             <input
               type="file"
               accept="image/*"
@@ -282,41 +326,10 @@ export function QuickAiBar({ onOpenManualAdd }) {
             />
           </label>
 
-          {/* Manual Form Button */}
-          <button
-            type="button"
-            onClick={onOpenManualAdd}
-            title="Manual Transaction Entry"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 12px',
-              borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              color: '#cbd5e1',
-              fontSize: '0.82rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.09)';
-              e.currentTarget.style.color = '#ffffff';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-              e.currentTarget.style.color = '#cbd5e1';
-            }}
-          >
-            <Plus size={15} />
-            <span className="hide-mobile">Add</span>
-          </button>
-
-          {/* Quick Submit Button (when user has typed) */}
-          {naturalInput.trim().length > 0 && (
+          {/* Quick Submit Button (when user typed) OR Manual Add Button */}
+          {naturalInput.trim().length > 0 ? (
             <button
+              type="button"
               onClick={handleAiSubmit}
               disabled={isLoading}
               className="btn-gradient"
@@ -324,28 +337,107 @@ export function QuickAiBar({ onOpenManualAdd }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                padding: '7px 14px',
-                borderRadius: '10px',
-                fontSize: '0.82rem',
+                padding: '8px 14px',
+                borderRadius: '12px',
+                fontSize: '0.85rem',
                 fontWeight: '700',
                 background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)',
-                boxShadow: '0 0 15px rgba(6, 182, 212, 0.35)'
+                boxShadow: '0 0 15px rgba(6, 182, 212, 0.4)',
+                border: 'none',
+                cursor: 'pointer',
+                flexShrink: 0
               }}
             >
               {isLoading ? (
-                <Loader2 size={15} className="animate-spin" />
+                <Loader2 size={16} className="animate-spin" />
               ) : (
                 <>
                   <span>Log</span>
-                  <CornerDownLeft size={13} style={{ opacity: 0.8 }} />
+                  <CornerDownLeft size={13} style={{ opacity: 0.9 }} />
                 </>
               )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenManualAdd}
+              title="Manual Transaction Entry"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '8px 12px',
+                borderRadius: '12px',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#cbd5e1',
+                fontSize: '0.82rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                e.currentTarget.style.color = '#cbd5e1';
+              }}
+            >
+              <Plus size={16} />
+              <span className="hide-mobile">Add</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Subtle Status Pill */}
+      {/* Interactive Quick Suggestions Chips Carousel (Mobile-friendly) */}
+      {!naturalInput && !isLoading && (
+        <div style={{
+          display: 'flex',
+          gap: '6px',
+          marginTop: '8px',
+          overflowX: 'auto',
+          paddingBottom: '2px',
+          WebkitOverflowScrolling: 'touch'
+        }} className="hide-scrollbar">
+          {suggestions.map((s, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setNaturalInput(s.text)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+                borderRadius: '20px',
+                padding: '4px 10px',
+                color: 'var(--text-muted)',
+                fontSize: '0.72rem',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(6, 182, 212, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.3)';
+                e.currentTarget.style.color = '#06b6d4';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)';
+                e.currentTarget.style.color = 'var(--text-muted)';
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Status Pill */}
       {status && (
         <div className="animate-fade-in" style={{
           marginTop: '8px',

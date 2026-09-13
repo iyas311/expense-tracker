@@ -366,3 +366,22 @@ button, select, .badge {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Mobile input zoom prevention & smooth scrolling */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents auto-zoom on iOS Safari */
+  }
+
+  .glass-card {
+    padding: 16px;
+    border-radius: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-container {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
