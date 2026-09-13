@@ -78,39 +78,7 @@ export function AnalyticsDashboard() {
   const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : 0;
   const netCashflow = totalIncome - totalExpenses;
 
-  // Custom Recharts Tooltips
-  const CustomPieTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      const pct = totalSpentInChart > 0 ? ((data.value / totalSpentInChart) * 100).toFixed(1) : 0;
-      return (
-        <div style={{
-          background: 'rgba(15, 23, 42, 0.95)',
-          border: `1px solid ${data.color || 'rgba(255,255,255,0.15)'}`,
-          backdropFilter: 'blur(12px)',
-          borderRadius: '12px',
-          padding: '8px 14px',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-          color: '#fff',
-          fontSize: '0.8rem'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: data.color, boxShadow: `0 0 8px ${data.color}` }} />
-            <span style={{ fontWeight: '700', color: '#f8fafc' }}>{data.name}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', color: 'var(--text-muted)' }}>
-            <span>Amount:</span>
-            <span style={{ fontWeight: '800', color: '#f43f5e' }}>{currency}{data.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', color: 'var(--text-muted)' }}>
-            <span>Share:</span>
-            <span style={{ fontWeight: '700', color: '#38bdf8' }}>{pct}%</span>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
+
 
   const CustomBarTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -210,20 +178,21 @@ export function AnalyticsDashboard() {
           ) : (
             <>
               {/* Donut Chart with Center Display */}
-              <div style={{ width: '100%', height: 190, position: 'relative', margin: '4px 0' }}>
+              <div style={{ width: '100%', height: 200, position: 'relative', margin: '4px 0' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={categoryData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={58}
-                      outerRadius={84}
+                      innerRadius={60}
+                      outerRadius={88}
                       paddingAngle={4}
                       cornerRadius={5}
                       dataKey="value"
                       stroke="rgba(15, 23, 42, 0.9)"
                       strokeWidth={2}
+                      onClick={(_, index) => setActiveIndex(prev => prev === index ? null : index)}
                       onMouseEnter={(_, index) => setActiveIndex(index)}
                       onMouseLeave={() => setActiveIndex(null)}
                     >
@@ -231,7 +200,7 @@ export function AnalyticsDashboard() {
                         <Cell
                           key={`cell-${index}`}
                           fill={entry.color}
-                          opacity={activeIndex === null || activeIndex === index ? 1 : 0.4}
+                          opacity={activeIndex === null || activeIndex === index ? 1 : 0.35}
                           style={{
                             transition: 'opacity 0.2s ease, transform 0.2s ease',
                             outline: 'none',
@@ -240,11 +209,10 @@ export function AnalyticsDashboard() {
                         />
                       ))}
                     </Pie>
-                    <Tooltip content={<CustomPieTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
                 
-                {/* Center text in Donut */}
+                {/* Center text in Donut (Clean & No Clutter) */}
                 <div style={{
                   position: 'absolute',
                   top: '50%',
@@ -254,22 +222,29 @@ export function AnalyticsDashboard() {
                   pointerEvents: 'none',
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  maxWidth: '105px'
                 }}>
                   <span style={{
                     fontSize: '0.62rem',
-                    color: 'var(--text-dim)',
+                    color: activeIndex !== null && categoryData[activeIndex] ? categoryData[activeIndex].color : 'var(--text-dim)',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    fontWeight: '700'
+                    letterSpacing: '0.06em',
+                    fontWeight: '700',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '95px'
                   }}>
-                    {activeIndex !== null && categoryData[activeIndex] ? categoryData[activeIndex].name : 'TOTAL SPENT'}
+                    {activeIndex !== null && categoryData[activeIndex] ? categoryData[activeIndex].name : 'TOTAL EXPENSES'}
                   </span>
                   <span style={{
-                    fontSize: '0.95rem',
+                    fontSize: '1.05rem',
                     fontWeight: '800',
-                    color: activeIndex !== null && categoryData[activeIndex] ? categoryData[activeIndex].color : '#f8fafc',
-                    marginTop: '2px'
+                    color: '#f8fafc',
+                    marginTop: '2px',
+                    letterSpacing: '-0.02em',
+                    lineHeight: '1.2'
                   }}>
                     {currency}{
                       activeIndex !== null && categoryData[activeIndex]
@@ -279,6 +254,19 @@ export function AnalyticsDashboard() {
                           : totalSpentInChart.toLocaleString('en-IN', { maximumFractionDigits: 0 })
                     }
                   </span>
+                  {activeIndex !== null && categoryData[activeIndex] && (
+                    <span style={{
+                      fontSize: '0.65rem',
+                      fontWeight: '700',
+                      color: categoryData[activeIndex].color,
+                      background: `${categoryData[activeIndex].color}22`,
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      marginTop: '3px'
+                    }}>
+                      {totalSpentInChart > 0 ? Math.round((categoryData[activeIndex].value / totalSpentInChart) * 100) : 0}%
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -294,10 +282,11 @@ export function AnalyticsDashboard() {
               }} className="hide-scrollbar">
                 {categoryData.map((item, idx) => {
                   const percent = totalSpentInChart > 0 ? Math.round((item.value / totalSpentInChart) * 100) : 0;
-                  const isHovered = activeIndex === idx;
+                  const isSelected = activeIndex === idx;
                   return (
                     <div
                       key={item.id || item.name}
+                      onClick={() => setActiveIndex(prev => prev === idx ? null : idx)}
                       onMouseEnter={() => setActiveIndex(idx)}
                       onMouseLeave={() => setActiveIndex(null)}
                       style={{
@@ -305,8 +294,8 @@ export function AnalyticsDashboard() {
                         flexDirection: 'column',
                         gap: '4px',
                         padding: '7px 10px',
-                        background: isHovered ? 'rgba(255, 255, 255, 0.07)' : 'rgba(255, 255, 255, 0.025)',
-                        border: `1px solid ${isHovered ? item.color + '55' : 'rgba(255, 255, 255, 0.05)'}`,
+                        background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.025)',
+                        border: `1px solid ${isSelected ? item.color : 'rgba(255, 255, 255, 0.05)'}`,
                         borderRadius: '10px',
                         transition: 'all 0.2s ease',
                         cursor: 'pointer'
