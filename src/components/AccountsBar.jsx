@@ -257,11 +257,68 @@ export function AccountsBar() {
               )}
 
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '4px' }}>Badge Theme Color</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {['#6366f1', '#06b6d4', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6'].map(c => (
-                    <div key={c} onClick={() => setColor(c)} style={{ width: '28px', height: '28px', borderRadius: '50%', background: c, cursor: 'pointer', border: color === c ? '2px solid #ffffff' : 'none' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>Badge Theme Color</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: color, fontWeight: '700' }}>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, display: 'inline-block' }} />
+                    {color}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {[
+                    '#8b5cf6', '#a855f7', '#7e22ce', '#6366f1', '#4f46e5', '#3730a3',
+                    '#ec4899', '#f43f5e', '#e11d48', '#be123c', '#fb7185', '#f472b6',
+                    '#06b6d4', '#0891b2', '#0284c7', '#38bdf8', '#3b82f6', '#2563eb',
+                    '#14b8a6', '#0d9488', '#10b981', '#059669', '#22c55e', '#16a34a',
+                    '#84cc16', '#eab308', '#f59e0b', '#d97706', '#f97316', '#ea580c',
+                    '#b45309', '#9a3412', '#78350f', '#64748b', '#475569', '#71717a'
+                  ].map(c => (
+                    <div
+                      key={c}
+                      onClick={() => setColor(c)}
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        background: c,
+                        cursor: 'pointer',
+                        border: color === c ? '3px solid #ffffff' : '1.5px solid rgba(255,255,255,0.1)',
+                        boxShadow: color === c ? `0 0 12px ${c}` : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    />
                   ))}
+                  {/* Custom Hex Color Picker */}
+                  <label
+                    title="Custom Color"
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid rgba(255,255,255,0.4)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <input
+                      type="color"
+                      value={color.startsWith('#') && color.length === 7 ? color : '#06b6d4'}
+                      onChange={(e) => setColor(e.target.value)}
+                      style={{
+                        position: 'absolute',
+                        opacity: 0,
+                        width: '100%',
+                        height: '100%',
+                        cursor: 'pointer'
+                      }}
+                    />
+                  </label>
                 </div>
               </div>
 

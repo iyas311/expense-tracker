@@ -25,8 +25,18 @@ export function BudgetCategoryManager() {
   });
 
   const colorPalette = [
-    '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4', 
-    '#3b82f6', '#7e22ce', '#4f46e5', '#14b8a6', '#84cc16', '#ea580c', '#e11d48', '#64748b'
+    // Purples & Indigo
+    '#8b5cf6', '#a855f7', '#7e22ce', '#6366f1', '#4f46e5', '#3730a3',
+    // Pinks, Roses & Corals
+    '#ec4899', '#f43f5e', '#e11d48', '#be123c', '#fb7185', '#f472b6',
+    // Cyans & Blues
+    '#06b6d4', '#0891b2', '#0284c7', '#38bdf8', '#3b82f6', '#2563eb',
+    // Teals, Greens & Emeralds
+    '#14b8a6', '#0d9488', '#10b981', '#059669', '#22c55e', '#16a34a',
+    // Limes, Yellows, Oranges & Ambers
+    '#84cc16', '#eab308', '#f59e0b', '#d97706', '#f97316', '#ea580c',
+    // Browns, Slates & Neutrals
+    '#b45309', '#9a3412', '#78350f', '#64748b', '#475569', '#71717a'
   ];
 
   // Calculate actual spending per category for selected period
@@ -336,8 +346,14 @@ export function BudgetCategoryManager() {
               )}
 
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-muted)' }}>Badge Color</label>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>Badge Color</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: editCatForm.color, fontWeight: '700' }}>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: editCatForm.color, display: 'inline-block' }} />
+                    {editCatForm.color}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                   {colorPalette.map(c => (
                     <div
                       key={c}
@@ -348,11 +364,43 @@ export function BudgetCategoryManager() {
                         borderRadius: '50%',
                         background: c,
                         cursor: 'pointer',
-                        border: editCatForm.color === c ? '3px solid #ffffff' : 'none',
-                        boxShadow: editCatForm.color === c ? `0 0 10px ${c}` : 'none'
+                        border: editCatForm.color === c ? '3px solid #ffffff' : '1.5px solid rgba(255,255,255,0.1)',
+                        boxShadow: editCatForm.color === c ? `0 0 12px ${c}` : 'none',
+                        transition: 'all 0.15s ease'
                       }}
                     />
                   ))}
+                  {/* Custom Hex Color Picker */}
+                  <label
+                    title="Custom Color"
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid rgba(255,255,255,0.4)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <input
+                      type="color"
+                      value={editCatForm.color.startsWith('#') && editCatForm.color.length === 7 ? editCatForm.color : '#8b5cf6'}
+                      onChange={(e) => setEditCatForm(f => ({ ...f, color: e.target.value }))}
+                      style={{
+                        position: 'absolute',
+                        opacity: 0,
+                        width: '100%',
+                        height: '100%',
+                        cursor: 'pointer'
+                      }}
+                    />
+                  </label>
                 </div>
               </div>
 
@@ -427,8 +475,14 @@ export function BudgetCategoryManager() {
               )}
 
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-muted)' }}>Category Badge Color</label>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>Category Badge Color</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: newCatColor, fontWeight: '700' }}>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: newCatColor, display: 'inline-block' }} />
+                    {newCatColor}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                   {colorPalette.map(c => (
                     <div
                       key={c}
@@ -439,11 +493,43 @@ export function BudgetCategoryManager() {
                         borderRadius: '50%',
                         background: c,
                         cursor: 'pointer',
-                        border: newCatColor === c ? '3px solid #ffffff' : 'none',
-                        boxShadow: newCatColor === c ? `0 0 10px ${c}` : 'none'
+                        border: newCatColor === c ? '3px solid #ffffff' : '1.5px solid rgba(255,255,255,0.1)',
+                        boxShadow: newCatColor === c ? `0 0 12px ${c}` : 'none',
+                        transition: 'all 0.15s ease'
                       }}
                     />
                   ))}
+                  {/* Custom Hex Color Picker */}
+                  <label
+                    title="Custom Color"
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid rgba(255,255,255,0.4)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <input
+                      type="color"
+                      value={newCatColor.startsWith('#') && newCatColor.length === 7 ? newCatColor : '#8b5cf6'}
+                      onChange={(e) => setNewCatColor(e.target.value)}
+                      style={{
+                        position: 'absolute',
+                        opacity: 0,
+                        width: '100%',
+                        height: '100%',
+                        cursor: 'pointer'
+                      }}
+                    />
+                  </label>
                 </div>
               </div>
 
