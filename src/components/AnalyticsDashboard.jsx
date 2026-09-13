@@ -312,8 +312,8 @@ export function AnalyticsDashboard() {
                             flexShrink: 0
                           }} />
                           <span style={{
-                            color: isHovered ? '#fff' : 'var(--text-main)',
-                            fontWeight: isHovered ? '700' : '500',
+                            color: isSelected ? '#fff' : 'var(--text-main)',
+                            fontWeight: isSelected ? '700' : '500',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis'
