@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useExpense } from '../context/ExpenseContext';
-import { Wallet, TrendingUp, TrendingDown, PiggyBank, ArrowUpRight, ArrowDownRight, Calendar, Zap, CheckCircle2 } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, PiggyBank, ArrowUpRight, ArrowDownRight, Calendar, Zap, SlidersHorizontal, Check, X } from 'lucide-react';
 
 export function SummaryCards() {
   const { currency, netWorth, totalIncome, totalExpenses, timeRange, setTimeRange, selectedMonth, setSelectedMonth, selectedDate, setSelectedDate, accounts, transactions } = useExpense();
+
+  const [showAccountsModal, setShowAccountsModal] = useState(false);
 
   // Selected Spending Accounts Pool (persisted in localStorage)
   const [spendingAccountIds, setSpendingAccountIds] = useState(() => {
@@ -11,11 +14,9 @@ export function SummaryCards() {
       const saved = localStorage.getItem('et_spending_accounts');
       if (saved) return JSON.parse(saved);
     } catch (e) {}
-    // Default: select non-card accounts (e.g. Kotak and SBI)
     return accounts.filter(a => a.type !== 'card').map(a => a.id);
   });
 
-  // Ensure default is set once accounts load if empty
   useEffect(() => {
     if (spendingAccountIds.length === 0 && accounts.length > 0) {
       const defaultIds = accounts.filter(a => a.type !== 'card').map(a => a.id);
@@ -40,7 +41,7 @@ export function SummaryCards() {
   const currentDay = now.getDate();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const remainingDays = Math.max(1, (daysInMonth - currentDay) + 1); // including today
-  const currentMonthName = now.toLocaleString('en-IN', { month: 'long' });
+  const currentMonthName = now.toLocaleString('en-IN', { month: 'short' });
 
   // Combined Spending Balance
   const activeSpendingAccounts = accounts.filter(a => spendingAccountIds.includes(a.id));
@@ -52,10 +53,6 @@ export function SummaryCards() {
   const spentToday = transactions
     .filter(t => spendingAccountIds.includes(t.accountId) && t.type === 'expense' && t.date === todayStr)
     .reduce((sum, t) => sum + t.amount, 0);
-
-  const remainingDailyToday = Math.max(0, dailyAllowance - spentToday);
-  const isOverDaily = dailyAllowance > 0 && spentToday > dailyAllowance;
-  const todaySpentPercent = dailyAllowance > 0 ? Math.min(100, Math.round((spentToday / dailyAllowance) * 100)) : 0;
 
   const getPeriodLabel = () => {
     switch (timeRange) {
@@ -76,154 +73,170 @@ export function SummaryCards() {
     }
   };
 
+  const selectedAccountNames = activeSpendingAccounts.map(a => a.name).join(' + ') || 'No accounts';
+
   return (
     <div style={{ marginBottom: '24px' }}>
       
-      {/* ─── 1. Combined Spending Pool & Daily Safe-to-Spend Allowance Card ─── */}
+      {/* ─── 1. Clean & Minimal Daily Safe-to-Spend Card ─── */}
       <div className="glass-card" style={{
         marginBottom: '16px',
-        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(6, 182, 212, 0.08) 100%)',
+        padding: '16px 20px',
+        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(6, 182, 212, 0.08) 100%)',
         border: '1px solid rgba(6, 182, 212, 0.25)',
-        boxShadow: '0 8px 30px -10px rgba(6, 182, 212, 0.2)',
-        position: 'relative',
-        overflow: 'hidden'
+        borderRadius: '20px'
       }}>
-        <div style={{
-          position: 'absolute',
-          top: '-30px',
-          right: '-30px',
-          width: '140px',
-          height: '140px',
-          background: 'radial-gradient(circle, rgba(6, 182, 212, 0.25) 0%, transparent 70%)',
-          pointerEvents: 'none'
-        }} />
-
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Zap size={18} color="#fff" />
-            </div>
-            <div>
-              <h3 className="font-heading" style={{ fontSize: '1.1rem', fontWeight: '800' }}>Daily Spending Allowance</h3>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Safe burn rate based on your selected spending accounts</p>
-            </div>
-          </div>
-
-          <span className="badge" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4', fontSize: '0.72rem' }}>
-            📅 {remainingDays} {remainingDays === 1 ? 'day' : 'days'} left in {currentMonthName}
-          </span>
-        </div>
-
-        {/* Main Stats Row */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '12px',
-          marginBottom: '14px'
-        }}>
-          {/* Daily Allowance */}
-          <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 14px', borderRadius: '14px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {/* Top bar: Title + Account Selector Trigger */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Zap size={16} color="#06b6d4" />
+            <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)' }}>
               Daily Safe-to-Spend
             </span>
-            <div className="font-heading" style={{ fontSize: '1.6rem', fontWeight: '900', color: '#06b6d4', marginTop: '4px' }}>
-              {currency}{dailyAllowance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-              <span style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-dim)', marginLeft: '4px' }}>/ day</span>
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-              Total divided by {remainingDays} remaining days
-            </div>
           </div>
 
-          {/* Combined Spending Balance */}
-          <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 14px', borderRadius: '14px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Combined Spending Balance
+          <button
+            type="button"
+            onClick={() => setShowAccountsModal(true)}
+            className="btn-secondary"
+            style={{
+              padding: '4px 10px',
+              fontSize: '0.72rem',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              color: '#38bdf8',
+              border: '1px solid rgba(6, 182, 212, 0.3)',
+              background: 'rgba(6, 182, 212, 0.1)'
+            }}
+            title="Choose which accounts are included in this daily pool"
+          >
+            <SlidersHorizontal size={12} />
+            <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {selectedAccountNames}
             </span>
-            <div className="font-heading" style={{ fontSize: '1.6rem', fontWeight: '900', color: combinedSpendingBalance >= 0 ? '#10b981' : '#f43f5e', marginTop: '4px' }}>
-              {currency}{combinedSpendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-              {activeSpendingAccounts.length} {activeSpendingAccounts.length === 1 ? 'account' : 'accounts'} selected in pool
-            </div>
-          </div>
+          </button>
         </div>
 
-        {/* Today's Spending Progress Meter */}
-        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '12px', marginBottom: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', marginBottom: '6px' }}>
-            <span style={{ color: 'var(--text-muted)' }}>
-              Today's Spending: <strong style={{ color: isOverDaily ? '#f43f5e' : '#fff' }}>{currency}{spentToday.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</strong>
-            </span>
-            <span style={{ fontWeight: '700', color: isOverDaily ? '#f43f5e' : '#10b981' }}>
-              {isOverDaily 
-                ? `Over by ${currency}${(spentToday - dailyAllowance).toFixed(0)}` 
-                : `${currency}${remainingDailyToday.toFixed(0)} remaining today`}
-            </span>
-          </div>
-          <div style={{ width: '100%', height: '7px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
-            <div style={{
-              width: `${Math.min(100, todaySpentPercent)}%`,
-              height: '100%',
-              background: isOverDaily ? '#f43f5e' : todaySpentPercent > 80 ? '#f59e0b' : '#06b6d4',
-              borderRadius: '4px',
-              transition: 'width 0.4s ease'
-            }} />
-          </div>
-        </div>
-
-        {/* Account Selector Chips */}
-        <div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'block', marginBottom: '6px' }}>
-            Tap accounts to include in your spending pool:
+        {/* Big Clean Metric */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '6px' }}>
+          <span className="font-heading" style={{ fontSize: '2.2rem', fontWeight: '900', color: '#06b6d4', letterSpacing: '-0.02em' }}>
+            {currency}{dailyAllowance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </span>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {accounts.map(acc => {
-              const isSelected = spendingAccountIds.includes(acc.id);
-              return (
-                <button
-                  key={acc.id}
-                  type="button"
-                  onClick={() => toggleSpendingAccount(acc.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '5px 10px',
-                    borderRadius: '10px',
-                    fontSize: '0.75rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    background: isSelected ? 'rgba(6, 182, 212, 0.18)' : 'rgba(255, 255, 255, 0.04)',
-                    border: `1px solid ${isSelected ? 'rgba(6, 182, 212, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
-                    color: isSelected ? '#38bdf8' : 'var(--text-dim)',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <span style={{
-                    width: '7px',
-                    height: '7px',
-                    borderRadius: '50%',
-                    background: acc.color || '#06b6d4'
-                  }} />
-                  <span>{acc.name}</span>
-                  <span style={{ opacity: 0.8, fontSize: '0.7rem' }}>({currency}{acc.balance.toLocaleString('en-IN', { maximumFractionDigits: 0 })})</span>
-                  {isSelected && <span>✓</span>}
-                </button>
-              );
-            })}
-          </div>
+          <span style={{ fontSize: '0.9rem', color: 'var(--text-dim)', fontWeight: '600' }}>/ day</span>
+        </div>
+
+        {/* Simple context line */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+          <span>
+            Pool: <strong style={{ color: '#fff' }}>{currency}{combinedSpendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</strong> · {remainingDays} days left in {currentMonthName}
+          </span>
+          {spentToday > 0 && (
+            <span style={{ color: spentToday > dailyAllowance ? '#f43f5e' : '#10b981', fontWeight: '600' }}>
+              Today: {currency}{spentToday.toLocaleString('en-IN', { maximumFractionDigits: 0 })} {spentToday > dailyAllowance ? '⚠️' : '✓'}
+            </span>
+          )}
         </div>
       </div>
+
+      {/* Account Selection Modal */}
+      {showAccountsModal && createPortal(
+        <div className="modal-overlay">
+          <div className="modal-content animate-fade-in" style={{ maxWidth: '380px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div>
+                <h3 className="font-heading" style={{ fontSize: '1.1rem' }}>Spending Accounts Pool</h3>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Choose which accounts fund your daily spending limit</p>
+              </div>
+              <button className="btn-secondary" onClick={() => setShowAccountsModal(false)} style={{ padding: '6px' }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '18px' }}>
+              {accounts.map(acc => {
+                const isSelected = spendingAccountIds.includes(acc.id);
+                return (
+                  <div
+                    key={acc.id}
+                    onClick={() => toggleSpendingAccount(acc.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      background: isSelected ? 'rgba(6, 182, 212, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                      border: `1px solid ${isSelected ? 'rgba(6, 182, 212, 0.4)' : 'rgba(255, 255, 255, 0.06)'}`,
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        background: acc.color || '#06b6d4'
+                      }} />
+                      <div>
+                        <div style={{ fontSize: '0.88rem', fontWeight: '700', color: '#fff' }}>{acc.name}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'capitalize' }}>{acc.type} account</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '0.88rem', fontWeight: '800', color: acc.balance >= 0 ? '#10b981' : '#f43f5e' }}>
+                        {currency}{acc.balance.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                      </span>
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '6px',
+                        background: isSelected ? '#06b6d4' : 'rgba(255, 255, 255, 0.08)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fff'
+                      }}>
+                        {isSelected && <Check size={13} strokeWidth={3} />}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Summary footer inside modal */}
+            <div style={{
+              background: 'rgba(0,0,0,0.2)',
+              padding: '10px 14px',
+              borderRadius: '12px',
+              marginBottom: '14px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontSize: '0.8rem'
+            }}>
+              <span style={{ color: 'var(--text-muted)' }}>Total Pool:</span>
+              <span style={{ fontWeight: '800', color: '#06b6d4' }}>
+                {currency}{combinedSpendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 0 })} ({currency}{dailyAllowance.toFixed(0)}/day)
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAccountsModal(false)}
+              className="btn-gradient"
+              style={{ width: '100%', padding: '10px' }}
+            >
+              Done
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ─── 2. Time View Filter Switcher Toolbar ─── */}
       <div style={{
