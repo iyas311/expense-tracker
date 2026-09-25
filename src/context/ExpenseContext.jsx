@@ -539,7 +539,13 @@ export function ExpenseProvider({ children }) {
 
   // ─── Filtered Transactions ───────────────────────────────────────────────────
   const getFilteredTransactions = () => {
-    const todayStr = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+    const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+    const todayStr = today.toISOString().split('T')[0];
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
     const now = new Date();
     const currentMonthStr = now.toISOString().slice(0, 7);
     
@@ -547,6 +553,7 @@ export function ExpenseProvider({ children }) {
       const txMonth = t.budgetMonth || t.date.slice(0, 7);
       
       if (timeRange === 'today') return t.date === todayStr;
+      if (timeRange === 'yesterday') return t.date === yesterdayStr;
       if (timeRange === 'this_week') {
         const diffDays = Math.floor((now - new Date(t.date)) / (1000 * 60 * 60 * 24));
         return diffDays >= 0 && diffDays <= 7;

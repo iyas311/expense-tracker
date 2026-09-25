@@ -57,6 +57,7 @@ export function SummaryCards() {
   const getPeriodLabel = () => {
     switch (timeRange) {
       case 'today': return 'Today\'s';
+      case 'yesterday': return 'Yesterday\'s';
       case 'this_week': return 'This Week\'s';
       case 'this_month': return 'This Month\'s';
       case 'all_time': return 'All Time';
@@ -279,6 +280,7 @@ export function SummaryCards() {
         <div className="hide-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingBottom: '4px' }}>
           {[
             { id: 'today', label: 'Today' },
+            { id: 'yesterday', label: 'Yesterday' },
             { id: 'this_week', label: 'This Week' },
             { id: 'this_month', label: 'This Month' },
             { id: 'all_time', label: 'All Time' },
