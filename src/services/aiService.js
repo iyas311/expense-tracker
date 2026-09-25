@@ -9,7 +9,7 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 /**
  * Parses natural language input into a structured expense transaction object
  */
-export async function parseNaturalLanguageTransaction(textInput, categories = [], accounts = [], apiKey = '', groqApiKey = '') {
+export async function parseNaturalLanguageTransaction(textInput, categories = [], accounts = [], apiKey = '', groqApiKey = '', preferredEngine = 'auto') {
   if (!textInput || !textInput.trim()) return null;
 
   const processParsed = (parsed) => {
@@ -131,11 +131,11 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
 
   // 1. First try Serverless Proxy /api/ai (100% Secret Server Keys)
   try {
-    console.log('[AI] Trying serverless /api/ai...');
+    console.log('[AI] Trying serverless /api/ai with preferredEngine:', preferredEngine);
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'parseText', textInput, categories, accounts })
+      body: JSON.stringify({ action: 'parseText', textInput, categories, accounts, preferredEngine })
     });
     console.log('[AI] /api/ai status:', res.status);
     if (res.ok) {
@@ -155,7 +155,7 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
   }
 
   // 2. Direct browser Gemini API key call
-  if (apiKey && apiKey.trim()) {
+  if (apiKey && apiKey.trim() && preferredEngine !== 'groq') {
     console.log('[AI] Trying browser Gemini key...');
     try {
       const categoryNames = categories.map(c => c.name).join(', ');
@@ -267,7 +267,7 @@ User text: "${textInput}"`;
   }
 
   // 3. Direct browser Groq API key call
-  if (groqApiKey && groqApiKey.trim()) {
+  if (groqApiKey && groqApiKey.trim() && preferredEngine !== 'gemini') {
     console.log('[AI] Trying browser Groq key...');
     try {
       const categoryNames = categories.map(c => c.name).join(', ');

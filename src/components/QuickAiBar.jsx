@@ -8,6 +8,13 @@ export function QuickAiBar({ onOpenManualAdd }) {
   const [naturalInput, setNaturalInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState(null); // { type: 'success' | 'error', message: string }
+  const [selectedEngine, setSelectedEngine] = useState(() => {
+    try {
+      return localStorage.getItem('et_quick_ai_engine') || 'auto';
+    } catch (e) {
+      return 'auto';
+    }
+  });
 
   const handleAiSubmit = async (e) => {
     e?.preventDefault();
@@ -15,10 +22,10 @@ export function QuickAiBar({ onOpenManualAdd }) {
 
     const promptText = naturalInput.trim();
     setIsLoading(true);
-    setStatus({ type: 'loading', message: 'Analyzing AI prompt...' });
+    setStatus({ type: 'loading', message: `Analyzing with AI (${selectedEngine === 'auto' ? 'Auto' : selectedEngine})...` });
 
     try {
-      const parsedArray = await parseNaturalLanguageTransaction(promptText, categories, accounts, apiKey, groqApiKey);
+      const parsedArray = await parseNaturalLanguageTransaction(promptText, categories, accounts, apiKey, groqApiKey, selectedEngine);
       const validOps = (parsedArray || []).filter(p => (p.amount > 0) || (p.totalAmount > 0));
 
       if (validOps.length > 0) {
@@ -186,6 +193,49 @@ export function QuickAiBar({ onOpenManualAdd }) {
 
   return (
     <div style={{ marginBottom: '20px' }}>
+      {/* Top Micro-Row: Title & Model Selector (Takes ZERO horizontal space from the input box) */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '6px',
+        padding: '0 4px',
+        fontSize: '0.74rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-muted)' }}>
+          <Sparkles size={12} color="#06b6d4" />
+          <span style={{ fontWeight: '600' }}>AI Expense Assistant</span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>Model:</span>
+          <select
+            value={selectedEngine}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedEngine(val);
+              try { localStorage.setItem('et_quick_ai_engine', val); } catch (err) {}
+            }}
+            style={{
+              background: 'rgba(15, 23, 42, 0.95)',
+              color: selectedEngine === 'gemini' ? '#a78bfa' : selectedEngine === 'groq' ? '#38bdf8' : '#34d399',
+              border: `1px solid ${selectedEngine === 'gemini' ? 'rgba(139, 92, 246, 0.4)' : selectedEngine === 'groq' ? 'rgba(6, 182, 212, 0.4)' : 'rgba(16, 185, 129, 0.3)'}`,
+              borderRadius: '8px',
+              padding: '2px 6px',
+              fontSize: '0.72rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              outline: 'none'
+            }}
+            title="Choose AI Parser Engine"
+          >
+            <option value="auto" style={{ background: '#0f172a', color: '#fff' }}>⚡ Auto (Fallback)</option>
+            <option value="gemini" style={{ background: '#0f172a', color: '#fff' }}>✨ Gemini 3.5</option>
+            <option value="groq" style={{ background: '#0f172a', color: '#fff' }}>⚡ Groq Llama</option>
+          </select>
+        </div>
+      </div>
+
       {/* Main Command Bar Container */}
       <div style={{
         background: 'rgba(15, 23, 42, 0.85)',
