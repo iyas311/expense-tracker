@@ -159,73 +159,84 @@ export function AiChatbotModal({ isOpen, onClose }) {
         
         {/* Chat Header */}
         <div style={{
-          padding: '14px 20px',
+          padding: '14px 18px',
           background: 'rgba(15, 22, 41, 0.98)',
           borderBottom: '1px solid var(--border-light)',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '10px'
+          flexDirection: 'column',
+          gap: '12px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
-              <Bot size={20} color="#fff" />
-            </div>
-            <div>
-              <h3 className="font-heading" style={{ fontSize: '1.05rem', margin: 0 }}>AI Financial Assistant</h3>
-              <p style={{ fontSize: '0.72rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} /> Live Financial Context Active
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {/* Model / Engine Switcher */}
-            <div style={{
-              display: 'flex',
-              background: 'rgba(255, 255, 255, 0.05)',
-              padding: '2px',
-              borderRadius: '10px',
-              border: '1px solid var(--border-light)'
-            }}>
-              {[
-                { id: 'auto', label: 'Auto' },
-                { id: 'gemini', label: '✨ Gemini' },
-                { id: 'groq', label: '⚡ Groq' }
-              ].map(engine => (
-                <button
-                  key={engine.id}
-                  onClick={() => setSelectedEngine(engine.id)}
-                  style={{
-                    padding: '4px 8px',
-                    fontSize: '0.72rem',
-                    fontWeight: '600',
-                    borderRadius: '8px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: selectedEngine === engine.id ? 'var(--btn-primary-bg, #06b6d4)' : 'transparent',
-                    color: selectedEngine === engine.id ? '#fff' : 'var(--text-muted)',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  {engine.label}
-                </button>
-              ))}
+          {/* Top Row: Title + Close Button */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <Bot size={20} color="#fff" />
+              </div>
+              <div>
+                <h3 className="font-heading" style={{ fontSize: '1.05rem', margin: 0 }}>AI Financial Assistant</h3>
+                <p style={{ fontSize: '0.72rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} /> Live Financial Context Active
+                </p>
+              </div>
             </div>
 
             <button className="btn-secondary" onClick={onClose} style={{ padding: '6px' }}>
               <X size={18} />
             </button>
+          </div>
+
+          {/* Dedicated Model / Engine Selector Strip */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'rgba(255, 255, 255, 0.04)',
+            padding: '4px 6px',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontWeight: '600', paddingLeft: '6px' }}>
+              Engine:
+            </span>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              {[
+                { id: 'auto', label: '⚡ Auto (Fallback)', activeBg: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)', color: '#fff' },
+                { id: 'gemini', label: '✨ Gemini 3.5', activeBg: '#8b5cf6', color: '#fff' },
+                { id: 'groq', label: '⚡ Groq Llama', activeBg: '#06b6d4', color: '#fff' }
+              ].map(engine => {
+                const isActive = selectedEngine === engine.id;
+                return (
+                  <button
+                    key={engine.id}
+                    type="button"
+                    onClick={() => setSelectedEngine(engine.id)}
+                    style={{
+                      padding: '5px 12px',
+                      fontSize: '0.72rem',
+                      fontWeight: isActive ? '700' : '500',
+                      borderRadius: '8px',
+                      border: isActive ? 'none' : '1px solid transparent',
+                      cursor: 'pointer',
+                      background: isActive ? engine.activeBg : 'transparent',
+                      color: isActive ? engine.color : 'var(--text-muted)',
+                      boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {engine.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
