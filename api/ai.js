@@ -41,7 +41,15 @@ export default async function handler(req, res) {
     // Helper: Call Gemini with fallback models
     const callGemini = async (prompt, inlineData = null) => {
       if (!geminiKey) return null;
-      const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
+      // Primary: gemini-3.5-flash-lite, Secondary: gemini-3.8-flash
+      const models = [
+        'gemini-3.5-flash-lite',
+        'gemini-3.8-flash',
+        'gemini-3.1-flash-lite',
+        'gemini-2.5-flash',
+        'gemini-flash-latest',
+        'gemini-1.5-flash'
+      ];
       let lastError = null;
 
       for (const model of models) {

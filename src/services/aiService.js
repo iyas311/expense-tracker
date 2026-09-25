@@ -236,23 +236,28 @@ Rules:
 
 User text: "${textInput}"`;
 
-      const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-      });
+      const geminiModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-flash-latest'];
+      for (const gModel of geminiModels) {
+        try {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { response_mime_type: 'application/json', temperature: 0.1 }
+            })
+          });
 
-      console.log('[AI] Browser Gemini status:', response.status);
-      if (response.ok) {
-        const data = await response.json();
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        console.log('[AI] Browser Gemini raw text:', rawText);
-        if (rawText) {
-          const cleanedText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-          const parsed = JSON.parse(cleanedText);
-          console.log('[AI] Browser Gemini parsed:', parsed);
-          return processParsed(parsed);
-        }
+          if (response.ok) {
+            const data = await response.json();
+            const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (rawText) {
+              const cleanedText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+              const parsed = JSON.parse(cleanedText);
+              return processParsed(parsed);
+            }
+          }
+        } catch (e) {}
       }
     } catch (err) {
       console.warn('[AI] Browser Gemini failed:', err.message);
