@@ -499,7 +499,7 @@ User question: "${question}"`;
  * Groq API Integration Helper
  */
 async function callGroqApi(prompt, groqApiKey) {
-  const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'qwen/qwen3.8-27b', 'openai/gpt-oss-120b'];
+  const models = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'qwen/qwen3.8-27b', 'openai/gpt-oss-120b'];
 
   for (const model of models) {
     try {

@@ -79,10 +79,10 @@ export default async function handler(req, res) {
     // Helper: Call Groq with top production models and fallback chain
     const callGroq = async (prompt) => {
       if (!groqKey) return null;
-      // Top models prioritized by performance and speed
+      // Primary: llama-3.1-8b-instant (ultra-low token overhead, fastest speed, highest free rate limits)
       const models = [
-        'llama-3.3-70b-versatile',
         'llama-3.1-8b-instant',
+        'llama-3.3-70b-versatile',
         'qwen/qwen3.8-27b',
         'openai/gpt-oss-120b',
         'openai/gpt-oss-20b',
