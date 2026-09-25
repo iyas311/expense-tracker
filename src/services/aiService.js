@@ -236,7 +236,7 @@ Rules:
 
 User text: "${textInput}"`;
 
-      const geminiModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-flash-latest'];
+      const geminiModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
       for (const gModel of geminiModels) {
         try {
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${apiKey}`, {
@@ -411,93 +411,145 @@ JSON format:
   "description": string
 }`;
 
-  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: mimeType, data: base64Data } }
-        ]
-      }]
-    })
-  });
+  const geminiModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+  for (const gModel of geminiModels) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: mimeType, data: base64Data } }
+            ]
+          }]
+        })
+      });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error?.message || 'Failed to scan receipt image.');
+      if (response.ok) {
+        const data = await response.json();
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawText) {
+          const cleanedText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanedText);
+          return formatParsedTransaction({
+            amount: parsed.amount,
+            type: 'expense',
+            description: parsed.merchant || parsed.description || 'Receipt Purchase',
+            category: parsed.category,
+            date: parsed.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
+          }, categories, accounts);
+        }
+      }
+    } catch (e) {}
   }
-
-  const data = await response.json();
-  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawText) throw new Error('Could not extract text from receipt.');
-
-  const cleanedText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-  const parsed = JSON.parse(cleanedText);
-  
-  return formatParsedTransaction({
-    amount: parsed.amount,
-    type: 'expense',
-    description: parsed.merchant || parsed.description || 'Receipt Purchase',
-    category: parsed.category,
-    date: parsed.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
-  }, categories, accounts);
+  throw new Error('Could not extract text from receipt.');
 }
 
 /**
  * Conversational AI Assistant
  */
-export async function askAiAssistant(question, contextData, apiKey = '', groqApiKey = '') {
+export async function askAiAssistant(question, contextData, apiKey = '', groqApiKey = '', preferredEngine = 'auto', chatHistory = []) {
   try {
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'chat', question, contextData })
+      body: JSON.stringify({ action: 'chat', question, contextData, apiKey, groqApiKey, preferredEngine, chatHistory })
     });
     if (res.ok) {
       const data = await res.json();
-      if (data.response) return data.response;
+      if (data.response) {
+        return {
+          response: data.response,
+          aiUsed: data.aiUsed || 'auto',
+          model: data.model || null
+        };
+      }
     }
   } catch (e) {}
 
-  if (apiKey && apiKey.trim()) {
-    try {
-      const prompt = `You are a friendly personal finance assistant in an expense tracker app.
+  // Direct Browser Fallbacks
+  const historyText = (chatHistory || [])
+    .slice(-6)
+    .map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text}`)
+    .join('\n');
+
+  const chatPrompt = `You are an expert personal financial advisor and assistant in an expense tracker app.
 Context summary of user's financial state:
 - Total Net Worth: ${contextData.netWorth}
 - Total Monthly Income: ${contextData.totalIncome}
 - Total Monthly Expenses: ${contextData.totalExpenses}
-- Account Balances: ${JSON.stringify(contextData.accounts)}
-- Recent 10 Transactions: ${JSON.stringify(contextData.recentTransactions)}
-- Category Budgets: ${JSON.stringify(contextData.budgets)}
+- Daily Spending Allowance: ${contextData.dailySafeSpend || 'N/A'} (Spent today: ${contextData.spentToday || 'N/A'})
+- Spending By Category: ${JSON.stringify(contextData.monthlySpendingByCategory || {})}
+- Category Budgets: ${JSON.stringify(contextData.categoryBudgets || {})}
+- Account Balances & Limits: ${JSON.stringify(contextData.accounts)}
+- Debts / IOUs: ${JSON.stringify(contextData.debts || [])}
+- Subscriptions: ${JSON.stringify(contextData.subscriptions || [])}
+- Recent Transactions: ${JSON.stringify(contextData.recentTransactions)}
+
+Recent Conversation:
+${historyText || 'No previous messages.'}
 
 User question: "${question}"
-Provide a helpful, encouraging, and concise response in 2-4 sentences.`;
+Provide a helpful, encouraging, accurate, and concise response in 2-4 sentences or clear bullet points quoting real figures from their data.`;
 
-      const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-      });
+  if (apiKey && apiKey.trim() && preferredEngine !== 'groq') {
+    const geminiModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+    for (const gModel of geminiModels) {
+      try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: chatPrompt }] }] })
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        return data?.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response.";
+        if (response.ok) {
+          const data = await response.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            return { response: text, aiUsed: 'gemini', model: gModel };
+          }
+        }
+      } catch (err) {}
+    }
+  }
+
+  if (groqApiKey && groqApiKey.trim() && preferredEngine !== 'gemini') {
+    try {
+      const groqModels = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'qwen/qwen3.8-27b'];
+      for (const model of groqModels) {
+        try {
+          const response = await fetch(GROQ_API_URL, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${groqApiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: 'user', content: chatPrompt }],
+              temperature: 0.2
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const text = data?.choices?.[0]?.message?.content;
+            if (text) {
+              return { response: text, aiUsed: 'groq', model };
+            }
+          }
+        } catch (e) {}
       }
     } catch (err) {}
   }
 
-  if (groqApiKey && groqApiKey.trim()) {
-    try {
-      const prompt = `You are a friendly personal finance assistant in an expense tracker app.
-User question: "${question}"`;
-      const groqResult = await callGroqApi(prompt, groqApiKey);
-      if (groqResult) return groqResult;
-    } catch (err) {}
-  }
-
-  return "Please set GEMINI_API_KEY / GROQ_API_KEY in Vercel environment variables or in app settings UI!";
+  return {
+    response: "Please set GEMINI_API_KEY / GROQ_API_KEY in Vercel environment variables or in app settings UI!",
+    aiUsed: 'none',
+    model: null
+  };
 }
 
 /**

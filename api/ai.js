@@ -23,7 +23,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { action, textInput, base64Image, question, contextData, categories, accounts, apiKey, groqApiKey } = req.body || {};
+    const { action, textInput, base64Image, question, contextData, categories, accounts, apiKey, groqApiKey, preferredEngine = 'auto', chatHistory = [] } = req.body || {};
 
     const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || apiKey;
     const groqKey = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY || groqApiKey;
@@ -38,17 +38,13 @@ export default async function handler(req, res) {
       });
     }
 
-    // Helper: Call Gemini with fallback models
+    // Helper: Call Gemini with exact models requested: 3.5 Flash Lite & 3.8 Flash
     const callGemini = async (prompt, inlineData = null, isJson = true) => {
       if (!geminiKey) return null;
-      // Primary: gemini-3.5-flash-lite, Secondary: gemini-3.8-flash
       const models = [
         'gemini-3.5-flash-lite',
         'gemini-3.8-flash',
-        'gemini-3.1-flash-lite',
-        'gemini-2.5-flash',
-        'gemini-flash-latest',
-        'gemini-1.5-flash'
+        'gemini-flash-latest'
       ];
       let lastError = null;
 
@@ -213,14 +209,14 @@ User text: "${textInput}"`;
 
       let lastError = null;
 
-      // Try Gemini first
-      if (geminiKey) {
+      // Try Gemini first (unless Groq explicitly chosen)
+      if (geminiKey && preferredEngine !== 'groq') {
         const t0 = Date.now();
         try {
           const resGem = await callGemini(prompt, null, true);
           if (resGem?.text) {
             await logAiUsage(action, 'gemini', Date.now() - t0, true);
-            return res.status(200).json({ rawJson: resGem.text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'gemini' });
+            return res.status(200).json({ rawJson: resGem.text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: `gemini (${resGem.model})` });
           }
         } catch (e) {
           lastError = e.message;
@@ -228,14 +224,14 @@ User text: "${textInput}"`;
         }
       }
 
-      // Try Groq fallback
-      if (groqKey) {
+      // Try Groq
+      if (groqKey && preferredEngine !== 'gemini') {
         const t0 = Date.now();
         try {
           const resGroq = await callGroq(prompt, true);
           if (resGroq?.text) {
             await logAiUsage(action, 'groq', Date.now() - t0, true);
-            return res.status(200).json({ rawJson: resGroq.text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'groq' });
+            return res.status(200).json({ rawJson: resGroq.text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: `groq (${resGroq.model})` });
           }
         } catch (e) {
           lastError = e.message;
@@ -270,7 +266,7 @@ JSON format:
         const resGem = await callGemini(prompt, { mime_type: mimeType, data: base64Data }, true);
         if (resGem?.text) {
           await logAiUsage(action, 'gemini', Date.now() - t0, true);
-          return res.status(200).json({ rawJson: resGem.text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'gemini' });
+          return res.status(200).json({ rawJson: resGem.text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: `gemini (${resGem.model})` });
         }
       } catch (e) {
         await logAiUsage(action, 'gemini', Date.now() - t0, false, e.message);
@@ -280,53 +276,69 @@ JSON format:
 
     // ─── 3. chat ────────────────────────────────────────────────────────────────
     if (action === 'chat') {
-      const prompt = `You are an expert personal finance advisor and assistant in an expense tracker app.
-The user is asking you a question about their finances. Use their exact real-time app data below to give accurate, personalized, and actionable advice:
+      const historyContext = (chatHistory || [])
+        .slice(-6)
+        .map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text}`)
+        .join('\n');
+
+      const prompt = `You are an expert personal financial advisor and assistant in an expense tracker app.
+Use the user's real-time financial data and recent conversation history to provide accurate, tailored, and actionable advice:
 
 User Financial State:
 - Net Worth: ${contextData?.netWorth || 'N/A'}
 - Monthly Income: ${contextData?.totalIncome || 'N/A'}
 - Monthly Expenses: ${contextData?.totalExpenses || 'N/A'}
 - Spending By Category: ${JSON.stringify(contextData?.monthlySpendingByCategory || {})}
+- Category Budgets & Caps: ${JSON.stringify(contextData?.categoryBudgets || {})}
+- Daily Spending Allowance: ${contextData?.dailySafeSpend || 'N/A'} (Spent today: ${contextData?.spentToday || 'N/A'})
 - Accounts & Credit Limits: ${JSON.stringify(contextData?.accounts || [])}
 - Active Debts & IOUs: ${JSON.stringify(contextData?.debts || [])}
 - Recurring Subscriptions: ${JSON.stringify(contextData?.subscriptions || [])}
 - Recent Transactions: ${JSON.stringify(contextData?.recentTransactions || [])}
 
-User question: "${question}"
+Recent Conversation:
+${historyContext || 'No previous messages.'}
+
+Current User Question: "${question}"
 
 Instructions:
-- Be clear, concise, and direct (2-4 sentences or clean bullet points).
-- Refer to their specific numbers, categories, debts, or accounts when answering.
-- Give constructive, practical financial advice.`;
+- Be clear, direct, and concise (2-4 sentences or clean bullet points).
+- Quote real numbers, category names, debts, or accounts from their data.
+- Offer actionable financial guidance.`;
 
-      if (geminiKey) {
+      let lastError = null;
+
+      // Gemini
+      if (geminiKey && preferredEngine !== 'groq') {
         const t0 = Date.now();
         try {
           const resGem = await callGemini(prompt, null, false);
           if (resGem?.text) {
             await logAiUsage(action, 'gemini', Date.now() - t0, true);
-            return res.status(200).json({ response: resGem.text, aiUsed: 'gemini' });
+            return res.status(200).json({ response: resGem.text, aiUsed: 'gemini', model: resGem.model });
           }
         } catch (e) {
+          lastError = e.message;
           await logAiUsage(action, 'gemini', Date.now() - t0, false, e.message);
         }
       }
 
-      if (groqKey) {
+      // Groq
+      if (groqKey && preferredEngine !== 'gemini') {
         const t0 = Date.now();
         try {
           const resGroq = await callGroq(prompt, false);
           if (resGroq?.text) {
             await logAiUsage(action, 'groq', Date.now() - t0, true);
-            return res.status(200).json({ response: resGroq.text, aiUsed: 'groq' });
+            return res.status(200).json({ response: resGroq.text, aiUsed: 'groq', model: resGroq.model });
           }
         } catch (e) {
+          lastError = e.message;
           await logAiUsage(action, 'groq', Date.now() - t0, false, e.message);
         }
       }
 
-      return res.status(400).json({ error: 'No server API key set' });
+      return res.status(400).json({ error: lastError || 'No server API key configured' });
     }
 
     return res.status(400).json({ error: 'Invalid action' });
