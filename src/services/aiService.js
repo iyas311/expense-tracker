@@ -499,23 +499,30 @@ User question: "${question}"`;
  * Groq API Integration Helper
  */
 async function callGroqApi(prompt, groqApiKey) {
-  const response = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${groqApiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'groq/compound-mini',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.2
-    })
-  });
+  const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'qwen/qwen3.8-27b', 'openai/gpt-oss-120b'];
 
-  if (response.ok) {
-    const data = await response.json();
-    const text = data?.choices?.[0]?.message?.content;
-    return text ? text.replace(/```json/g, '').replace(/```/g, '').trim() : null;
+  for (const model of models) {
+    try {
+      const response = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: 'json_object' },
+          temperature: 0.1
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data?.choices?.[0]?.message?.content;
+        if (text) return text.replace(/```json/g, '').replace(/```/g, '').trim();
+      }
+    } catch (e) {}
   }
   return null;
 }

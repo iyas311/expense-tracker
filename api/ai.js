@@ -52,7 +52,13 @@ export default async function handler(req, res) {
           const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts }] })
+            body: JSON.stringify({
+              contents: [{ parts }],
+              generationConfig: {
+                response_mime_type: 'application/json',
+                temperature: 0.1
+              }
+            })
           });
 
           if (resp.ok) {
@@ -70,10 +76,18 @@ export default async function handler(req, res) {
       throw new Error(`Gemini failed: ${lastError}`);
     };
 
-    // Helper: Call Groq with fallback models
+    // Helper: Call Groq with top production models and fallback chain
     const callGroq = async (prompt) => {
       if (!groqKey) return null;
-      const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
+      // Top models prioritized by performance and speed
+      const models = [
+        'llama-3.3-70b-versatile',
+        'llama-3.1-8b-instant',
+        'qwen/qwen3.8-27b',
+        'openai/gpt-oss-120b',
+        'openai/gpt-oss-20b',
+        'mixtral-8x7b-32768'
+      ];
       let lastError = null;
 
       for (const model of models) {
@@ -86,7 +100,9 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
               model,
-              messages: [{ role: 'user', content: prompt }]
+              messages: [{ role: 'user', content: prompt }],
+              response_format: { type: 'json_object' },
+              temperature: 0.1
             })
           });
 
