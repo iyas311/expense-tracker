@@ -23,13 +23,87 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { action, textInput, base64Image, question, contextData, categories, accounts } = req.body;
+    const { action, textInput, base64Image, question, contextData, categories, accounts, apiKey, groqApiKey } = req.body || {};
 
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-    const groqKey = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY || apiKey;
+    const groqKey = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY || groqApiKey;
 
-    const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-    const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+    // ─── 0. Status Check ────────────────────────────────────────────────────────
+    if (action === 'checkStatus') {
+      return res.status(200).json({
+        hasGeminiServerKey: !!(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
+        hasGroqServerKey: !!(process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY),
+        activeGemini: !!geminiKey,
+        activeGroq: !!groqKey
+      });
+    }
+
+    // Helper: Call Gemini with fallback models
+    const callGemini = async (prompt, inlineData = null) => {
+      if (!geminiKey) return null;
+      const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
+      let lastError = null;
+
+      for (const model of models) {
+        try {
+          const parts = [{ text: prompt }];
+          if (inlineData) parts.push({ inline_data: inlineData });
+
+          const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts }] })
+          });
+
+          if (resp.ok) {
+            const data = await resp.json();
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) return { text, model };
+          } else {
+            const errJson = await resp.json().catch(() => ({}));
+            lastError = errJson?.error?.message || `HTTP ${resp.status}`;
+          }
+        } catch (e) {
+          lastError = e.message;
+        }
+      }
+      throw new Error(`Gemini failed: ${lastError}`);
+    };
+
+    // Helper: Call Groq with fallback models
+    const callGroq = async (prompt) => {
+      if (!groqKey) return null;
+      const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
+      let lastError = null;
+
+      for (const model of models) {
+        try {
+          const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${groqKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: 'user', content: prompt }]
+            })
+          });
+
+          if (resp.ok) {
+            const data = await resp.json();
+            const text = data?.choices?.[0]?.message?.content;
+            if (text) return { text, model };
+          } else {
+            const errJson = await resp.json().catch(() => ({}));
+            lastError = errJson?.error?.message || `HTTP ${resp.status}`;
+          }
+        } catch (e) {
+          lastError = e.message;
+        }
+      }
+      throw new Error(`Groq failed: ${lastError}`);
+    };
 
     // ─── 1. parseText ───────────────────────────────────────────────────────────
     if (action === 'parseText') {
@@ -68,7 +142,7 @@ Example Output format:
   {
     "operation": "debt_add",
     "amount": 500,
-    "direction": "lent",  // "lent" (user gave money) or "borrowed" (user received money)
+    "direction": "lent",
     "personName": "Rahul",
     "reason": "Lunch",
     "account": "Match best account",
@@ -78,7 +152,7 @@ Example Output format:
   {
     "operation": "debt_settle",
     "amount": 500,
-    "direction": "lent", // "lent" (someone returning money to user) or "borrowed" (user returning money to someone)
+    "direction": "lent",
     "personName": "Rahul",
     "account": "Match best account",
     "date": "YYYY-MM-DD",
@@ -111,52 +185,40 @@ Rules:
 
 User text: "${textInput}"`;
 
-      // Try Gemini
+      let lastError = null;
+
+      // Try Gemini first
       if (geminiKey) {
         const t0 = Date.now();
         try {
-          const response = await fetch(`${GEMINI_URL}?key=${geminiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-          });
-          if (response.ok) {
-            const data = await response.json();
-            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              await logAiUsage(action, 'gemini', Date.now() - t0, true); // ← awaited
-              return res.status(200).json({ rawJson: text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'gemini' });
-            }
+          const resGem = await callGemini(prompt);
+          if (resGem?.text) {
+            await logAiUsage(action, 'gemini', Date.now() - t0, true);
+            return res.status(200).json({ rawJson: resGem.text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'gemini' });
           }
         } catch (e) {
-          await logAiUsage(action, 'gemini', Date.now() - t0, false, e.message); // ← awaited
+          lastError = e.message;
+          await logAiUsage(action, 'gemini', Date.now() - t0, false, e.message);
         }
       }
 
-      // Try Groq Fallback
+      // Try Groq fallback
       if (groqKey) {
         const t0 = Date.now();
         try {
-          const response = await fetch(GROQ_URL, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: 'compound-beta-mini', messages: [{ role: 'user', content: prompt }] })
-          });
-          if (response.ok) {
-            const data = await response.json();
-            const text = data?.choices?.[0]?.message?.content;
-            if (text) {
-              await logAiUsage(action, 'groq', Date.now() - t0, true); // ← awaited
-              return res.status(200).json({ rawJson: text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'groq' });
-            }
+          const resGroq = await callGroq(prompt);
+          if (resGroq?.text) {
+            await logAiUsage(action, 'groq', Date.now() - t0, true);
+            return res.status(200).json({ rawJson: resGroq.text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'groq' });
           }
         } catch (e) {
-          await logAiUsage(action, 'groq', Date.now() - t0, false, e.message); // ← awaited
+          lastError = e.message;
+          await logAiUsage(action, 'groq', Date.now() - t0, false, e.message);
         }
       }
 
-      await logAiUsage(action, 'none', 0, false, 'No API key configured'); // ← awaited
-      return res.status(400).json({ error: 'No API key configured on server' });
+      await logAiUsage(action, 'none', 0, false, lastError || 'No API key configured');
+      return res.status(400).json({ error: lastError || 'No API key configured on server. Please set GEMINI_API_KEY in Vercel environment variables.' });
     }
 
     // ─── 2. parseReceipt ────────────────────────────────────────────────────────
@@ -179,21 +241,13 @@ JSON format:
 
       const t0 = Date.now();
       try {
-        const response = await fetch(`${GEMINI_URL}?key=${geminiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64Data } }] }] })
-        });
-        if (response.ok) {
-          const data = await response.json();
-          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            await logAiUsage(action, 'gemini', Date.now() - t0, true); // ← awaited
-            return res.status(200).json({ rawJson: text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'gemini' });
-          }
+        const resGem = await callGemini(prompt, { mime_type: mimeType, data: base64Data });
+        if (resGem?.text) {
+          await logAiUsage(action, 'gemini', Date.now() - t0, true);
+          return res.status(200).json({ rawJson: resGem.text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'gemini' });
         }
       } catch (e) {
-        await logAiUsage(action, 'gemini', Date.now() - t0, false, e.message); // ← awaited
+        await logAiUsage(action, 'gemini', Date.now() - t0, false, e.message);
       }
       return res.status(500).json({ error: 'Failed to scan receipt image' });
     }
@@ -215,42 +269,26 @@ Provide a helpful, encouraging, and concise response in 2-4 sentences.`;
       if (geminiKey) {
         const t0 = Date.now();
         try {
-          const response = await fetch(`${GEMINI_URL}?key=${geminiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-          });
-          if (response.ok) {
-            const data = await response.json();
-            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              await logAiUsage(action, 'gemini', Date.now() - t0, true); // ← awaited
-              return res.status(200).json({ response: text, aiUsed: 'gemini' });
-            }
+          const resGem = await callGemini(prompt);
+          if (resGem?.text) {
+            await logAiUsage(action, 'gemini', Date.now() - t0, true);
+            return res.status(200).json({ response: resGem.text, aiUsed: 'gemini' });
           }
         } catch (e) {
-          await logAiUsage(action, 'gemini', Date.now() - t0, false, e.message); // ← awaited
+          await logAiUsage(action, 'gemini', Date.now() - t0, false, e.message);
         }
       }
 
       if (groqKey) {
         const t0 = Date.now();
         try {
-          const response = await fetch(GROQ_URL, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: 'compound-beta-mini', messages: [{ role: 'user', content: prompt }] })
-          });
-          if (response.ok) {
-            const data = await response.json();
-            const text = data?.choices?.[0]?.message?.content;
-            if (text) {
-              await logAiUsage(action, 'groq', Date.now() - t0, true); // ← awaited
-              return res.status(200).json({ response: text, aiUsed: 'groq' });
-            }
+          const resGroq = await callGroq(prompt);
+          if (resGroq?.text) {
+            await logAiUsage(action, 'groq', Date.now() - t0, true);
+            return res.status(200).json({ response: resGroq.text, aiUsed: 'groq' });
           }
         } catch (e) {
-          await logAiUsage(action, 'groq', Date.now() - t0, false, e.message); // ← awaited
+          await logAiUsage(action, 'groq', Date.now() - t0, false, e.message);
         }
       }
 

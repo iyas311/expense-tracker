@@ -609,6 +609,7 @@ function fallbackLocalParser(input, categories, accounts) {
     }
 
     results.push({
+      operation: 'transaction',
       amount,
       type: isIncomeSentence(text) ? 'income' : 'expense',
       description: description.charAt(0).toUpperCase() + description.slice(1),
@@ -621,6 +622,7 @@ function fallbackLocalParser(input, categories, accounts) {
 
   console.log('[AI] Local fallback produced:', results);
   return results.length > 0 ? results : [{
+    operation: 'transaction',
     amount: 0,
     type: 'expense',
     description: 'Expense Item',

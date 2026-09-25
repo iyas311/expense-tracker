@@ -25,8 +25,16 @@ export function QuickAiBar({ onOpenManualAdd }) {
         const transactionsToLog = [];
         
         for (const op of validOps) {
-          if (op.operation === 'transaction') {
-            transactionsToLog.push(op);
+          if (!op.operation || op.operation === 'transaction') {
+            transactionsToLog.push({
+              amount: op.amount,
+              type: op.type || 'expense',
+              description: op.description || 'Quick Transaction',
+              categoryId: op.categoryId || categories[0]?.id || 'cat-1',
+              accountId: op.accountId || accounts[0]?.id || 'acc-1',
+              date: op.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
+              notes: op.notes || ''
+            });
           } 
           else if (op.operation === 'transfer') {
             await addTransfer({
