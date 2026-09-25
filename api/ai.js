@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     }
 
     // Helper: Call Gemini with fallback models
-    const callGemini = async (prompt, inlineData = null) => {
+    const callGemini = async (prompt, inlineData = null, isJson = true) => {
       if (!geminiKey) return null;
       // Primary: gemini-3.5-flash-lite, Secondary: gemini-3.8-flash
       const models = [
@@ -57,16 +57,18 @@ export default async function handler(req, res) {
           const parts = [{ text: prompt }];
           if (inlineData) parts.push({ inline_data: inlineData });
 
+          const payload = {
+            contents: [{ parts }],
+            generationConfig: {
+              temperature: 0.2,
+              ...(isJson ? { response_mime_type: 'application/json' } : {})
+            }
+          };
+
           const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts }],
-              generationConfig: {
-                response_mime_type: 'application/json',
-                temperature: 0.1
-              }
-            })
+            body: JSON.stringify(payload)
           });
 
           if (resp.ok) {
@@ -85,7 +87,7 @@ export default async function handler(req, res) {
     };
 
     // Helper: Call Groq with top production models and fallback chain
-    const callGroq = async (prompt) => {
+    const callGroq = async (prompt, isJson = true) => {
       if (!groqKey) return null;
       // Primary: llama-3.1-8b-instant (ultra-low token overhead, fastest speed, highest free rate limits)
       const models = [
@@ -109,8 +111,8 @@ export default async function handler(req, res) {
             body: JSON.stringify({
               model,
               messages: [{ role: 'user', content: prompt }],
-              response_format: { type: 'json_object' },
-              temperature: 0.1
+              ...(isJson ? { response_format: { type: 'json_object' } } : {}),
+              temperature: 0.2
             })
           });
 
@@ -215,7 +217,7 @@ User text: "${textInput}"`;
       if (geminiKey) {
         const t0 = Date.now();
         try {
-          const resGem = await callGemini(prompt);
+          const resGem = await callGemini(prompt, null, true);
           if (resGem?.text) {
             await logAiUsage(action, 'gemini', Date.now() - t0, true);
             return res.status(200).json({ rawJson: resGem.text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'gemini' });
@@ -230,7 +232,7 @@ User text: "${textInput}"`;
       if (groqKey) {
         const t0 = Date.now();
         try {
-          const resGroq = await callGroq(prompt);
+          const resGroq = await callGroq(prompt, true);
           if (resGroq?.text) {
             await logAiUsage(action, 'groq', Date.now() - t0, true);
             return res.status(200).json({ rawJson: resGroq.text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'groq' });
@@ -265,7 +267,7 @@ JSON format:
 
       const t0 = Date.now();
       try {
-        const resGem = await callGemini(prompt, { mime_type: mimeType, data: base64Data });
+        const resGem = await callGemini(prompt, { mime_type: mimeType, data: base64Data }, true);
         if (resGem?.text) {
           await logAiUsage(action, 'gemini', Date.now() - t0, true);
           return res.status(200).json({ rawJson: resGem.text.replace(/```json/g, '').replace(/```/g, '').trim(), aiUsed: 'gemini' });
@@ -278,22 +280,30 @@ JSON format:
 
     // ─── 3. chat ────────────────────────────────────────────────────────────────
     if (action === 'chat') {
-      const prompt = `You are a friendly personal finance assistant in an expense tracker app.
-Context summary of user's financial state:
-- Total Net Worth: ${contextData.netWorth}
-- Total Monthly Income: ${contextData.totalIncome}
-- Total Monthly Expenses: ${contextData.totalExpenses}
-- Account Balances: ${JSON.stringify(contextData.accounts)}
-- Recent 10 Transactions: ${JSON.stringify(contextData.recentTransactions)}
-- Category Budgets: ${JSON.stringify(contextData.budgets)}
+      const prompt = `You are an expert personal finance advisor and assistant in an expense tracker app.
+The user is asking you a question about their finances. Use their exact real-time app data below to give accurate, personalized, and actionable advice:
+
+User Financial State:
+- Net Worth: ${contextData?.netWorth || 'N/A'}
+- Monthly Income: ${contextData?.totalIncome || 'N/A'}
+- Monthly Expenses: ${contextData?.totalExpenses || 'N/A'}
+- Spending By Category: ${JSON.stringify(contextData?.monthlySpendingByCategory || {})}
+- Accounts & Credit Limits: ${JSON.stringify(contextData?.accounts || [])}
+- Active Debts & IOUs: ${JSON.stringify(contextData?.debts || [])}
+- Recurring Subscriptions: ${JSON.stringify(contextData?.subscriptions || [])}
+- Recent Transactions: ${JSON.stringify(contextData?.recentTransactions || [])}
 
 User question: "${question}"
-Provide a helpful, encouraging, and concise response in 2-4 sentences.`;
+
+Instructions:
+- Be clear, concise, and direct (2-4 sentences or clean bullet points).
+- Refer to their specific numbers, categories, debts, or accounts when answering.
+- Give constructive, practical financial advice.`;
 
       if (geminiKey) {
         const t0 = Date.now();
         try {
-          const resGem = await callGemini(prompt);
+          const resGem = await callGemini(prompt, null, false);
           if (resGem?.text) {
             await logAiUsage(action, 'gemini', Date.now() - t0, true);
             return res.status(200).json({ response: resGem.text, aiUsed: 'gemini' });
@@ -306,7 +316,7 @@ Provide a helpful, encouraging, and concise response in 2-4 sentences.`;
       if (groqKey) {
         const t0 = Date.now();
         try {
-          const resGroq = await callGroq(prompt);
+          const resGroq = await callGroq(prompt, false);
           if (resGroq?.text) {
             await logAiUsage(action, 'groq', Date.now() - t0, true);
             return res.status(200).json({ response: resGroq.text, aiUsed: 'groq' });
