@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useExpense } from '../context/ExpenseContext';
-import { Sparkles, ExternalLink, Check, X, Activity, Lock, Loader2, Server, Key, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { Sparkles, ExternalLink, Check, X, Activity, Lock, Loader2, Server, Key, ChevronDown, ChevronUp, CheckCircle2, Download, FileText } from 'lucide-react';
 
 export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
   const {
     apiKey, setApiKey,
     groqApiKey, setGroqApiKey,
     currency, setCurrency,
-    currentVault, changePassword
+    currentVault, changePassword,
+    exportData, exportPdfStatement
   } = useExpense();
 
   const [keyInput, setKeyInput] = useState(apiKey);
@@ -314,6 +315,31 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Export & Reports */}
+            <div style={{ marginBottom: '20px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '8px', color: 'var(--text-muted)' }}>
+                Export & Reports
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => exportData && exportData()}
+                  style={{ padding: '8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  <Download size={14} /> Export CSV
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => exportPdfStatement && exportPdfStatement()}
+                  style={{ padding: '8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#38bdf8', borderColor: 'rgba(6,182,212,0.3)' }}
+                >
+                  <FileText size={14} /> PDF Statement
+                </button>
+              </div>
             </div>
 
             {/* System Diagnostics & Admin */}

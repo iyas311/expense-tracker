@@ -256,9 +256,64 @@ export function TransactionModal({ isOpen, onClose }) {
             </>
           )}
 
-          {/* Date */}
+          {/* Date with Today & Yesterday Shortcuts */}
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-muted)' }}>Date</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>Date</label>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                    setDate(today);
+                  }}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: '0.72rem',
+                    borderRadius: '6px',
+                    border: date === new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0] ? '1px solid #06b6d4' : '1px solid rgba(255,255,255,0.1)',
+                    background: date === new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0] ? 'rgba(6,182,212,0.2)' : 'rgba(255,255,255,0.04)',
+                    color: date === new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0] ? '#22d3ee' : 'var(--text-muted)',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+                    d.setDate(d.getDate() - 1);
+                    setDate(d.toISOString().split('T')[0]);
+                  }}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: '0.72rem',
+                    borderRadius: '6px',
+                    border: (() => {
+                      const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+                      d.setDate(d.getDate() - 1);
+                      return date === d.toISOString().split('T')[0] ? '1px solid #8b5cf6' : '1px solid rgba(255,255,255,0.1)';
+                    })(),
+                    background: (() => {
+                      const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+                      d.setDate(d.getDate() - 1);
+                      return date === d.toISOString().split('T')[0] ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.04)';
+                    })(),
+                    color: (() => {
+                      const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+                      d.setDate(d.getDate() - 1);
+                      return date === d.toISOString().split('T')[0] ? '#c084fc' : 'var(--text-muted)';
+                    })(),
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Yesterday
+                </button>
+              </div>
+            </div>
             <input type="date" className="glass-input" value={date} onChange={e => setDate(e.target.value)} />
           </div>
 

@@ -5,6 +5,7 @@ import {
   Lock,
   Settings,
   Download,
+  FileText,
   Bot,
   LayoutDashboard,
   Receipt,
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) {
-  const { logout, currency, netWorth, totalIncome, totalExpenses, exportData, isSyncing, refreshCloudData, currentVault } = useExpense();
+  const { logout, currency, netWorth, totalIncome, totalExpenses, exportData, exportPdfStatement, isSyncing, refreshCloudData, currentVault } = useExpense();
 
   return (
     <>
@@ -118,7 +119,7 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
               <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} color={isSyncing ? '#06b6d4' : 'currentColor'} />
             </button>
 
-            {/* Export Data */}
+            {/* Export CSV Data */}
             <button
               onClick={exportData}
               className="btn-secondary hide-mobile"
@@ -126,6 +127,16 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
               style={{ padding: '9px', borderRadius: '12px' }}
             >
               <Download size={18} />
+            </button>
+
+            {/* Export PDF Statement */}
+            <button
+              onClick={exportPdfStatement}
+              className="btn-secondary hide-mobile"
+              title="Print / Save PDF Statement"
+              style={{ padding: '9px', borderRadius: '12px', color: '#38bdf8' }}
+            >
+              <FileText size={18} />
             </button>
 
             {/* Settings Modal */}
