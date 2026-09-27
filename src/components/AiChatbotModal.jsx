@@ -153,18 +153,44 @@ export function AiChatbotModal({ isOpen, onClose }) {
     return null;
   };
 
-  // Formats Markdown bold (**text**) and bullet lists (* item) into clean styled elements
+  // Formats Markdown bold, italic, code, headings, and lists into clean styled elements
   const formatChatMessage = (text) => {
     if (!text) return null;
     const lines = text.split('\n');
     const elements = [];
-    let currentList = [];
+    let currentBulletList = [];
+    let currentNumberList = [];
 
-    const parseInline = (line) => {
-      const parts = line.split(/(\*\*.*?\*\*)/g);
+    const flushLists = (keyPrefix) => {
+      if (currentBulletList.length > 0) {
+        elements.push(<ul key={`ul-${keyPrefix}`} style={{ margin: '4px 0', padding: 0 }}>{currentBulletList}</ul>);
+        currentBulletList = [];
+      }
+      if (currentNumberList.length > 0) {
+        elements.push(<ol key={`ol-${keyPrefix}`} style={{ margin: '4px 0', padding: 0 }}>{currentNumberList}</ol>);
+        currentNumberList = [];
+      }
+    };
+
+    const parseInline = (str) => {
+      // Matches ***bold italic***, **bold**, *italic*, _italic_, `code`
+      const regex = /(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*[^*\n]+?\*|_[^_\n]+?_|`[^`\n]+?`)/g;
+      const parts = str.split(regex);
       return parts.map((part, i) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
+        if (part.startsWith('***') && part.endsWith('***') && part.length > 6) {
+          return <strong key={i} style={{ color: '#fff', fontWeight: '700', fontStyle: 'italic' }}>{part.slice(3, -3)}</strong>;
+        }
+        if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
           return <strong key={i} style={{ color: '#fff', fontWeight: '700' }}>{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+          return <em key={i} style={{ fontStyle: 'italic', color: '#cbd5e1' }}>{part.slice(1, -1)}</em>;
+        }
+        if (part.startsWith('_') && part.endsWith('_') && part.length > 2) {
+          return <em key={i} style={{ fontStyle: 'italic', color: '#cbd5e1' }}>{part.slice(1, -1)}</em>;
+        }
+        if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+          return <code key={i} style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 5px', borderRadius: '4px', fontSize: '0.84em' }}>{part.slice(1, -1)}</code>;
         }
         return part;
       });
@@ -172,33 +198,56 @@ export function AiChatbotModal({ isOpen, onClose }) {
 
     lines.forEach((line, lineIdx) => {
       const trimmed = line.trim();
+
+      // Heading 3 or 2
+      if (trimmed.startsWith('### ') || trimmed.startsWith('## ')) {
+        flushLists(lineIdx);
+        const headingText = trimmed.replace(/^#+\s+/, '');
+        elements.push(
+          <div key={lineIdx} style={{ fontWeight: '700', fontSize: '0.94rem', color: '#fff', marginTop: '8px', marginBottom: '4px' }}>
+            {parseInline(headingText)}
+          </div>
+        );
+        return;
+      }
+
+      // Bullet lists (* item or - item)
       if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
-        currentList.push(
+        if (currentNumberList.length > 0) flushLists(lineIdx);
+        currentBulletList.push(
           <li key={lineIdx} style={{ marginLeft: '16px', listStyleType: 'disc', marginBottom: '2px' }}>
             {parseInline(trimmed.slice(2))}
           </li>
         );
+        return;
+      }
+
+      // Numbered lists (1. item, 2. item)
+      const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+      if (numMatch) {
+        if (currentBulletList.length > 0) flushLists(lineIdx);
+        currentNumberList.push(
+          <li key={lineIdx} style={{ marginLeft: '16px', listStyleType: 'decimal', marginBottom: '2px' }}>
+            {parseInline(numMatch[2])}
+          </li>
+        );
+        return;
+      }
+
+      // Normal paragraph or empty line
+      flushLists(lineIdx);
+      if (trimmed === '') {
+        elements.push(<div key={lineIdx} style={{ height: '6px' }} />);
       } else {
-        if (currentList.length > 0) {
-          elements.push(<ul key={`ul-${lineIdx}`} style={{ margin: '4px 0', padding: 0 }}>{currentList}</ul>);
-          currentList = [];
-        }
-        if (trimmed === '') {
-          elements.push(<div key={lineIdx} style={{ height: '6px' }} />);
-        } else {
-          elements.push(
-            <div key={lineIdx} style={{ marginBottom: lineIdx === lines.length - 1 ? 0 : '4px' }}>
-              {parseInline(line)}
-            </div>
-          );
-        }
+        elements.push(
+          <div key={lineIdx} style={{ marginBottom: lineIdx === lines.length - 1 ? 0 : '4px' }}>
+            {parseInline(line)}
+          </div>
+        );
       }
     });
 
-    if (currentList.length > 0) {
-      elements.push(<ul key="ul-last" style={{ margin: '4px 0', padding: 0 }}>{currentList}</ul>);
-    }
-
+    flushLists('end');
     return elements;
   };
 
