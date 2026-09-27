@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     const callGemini = async (prompt, inlineData = null, isJson = true) => {
       if (!geminiKey) return null;
       const models = inlineData 
-        ? ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'] // First-class multimodal vision models
+        ? ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-flash-latest'] // Multi-tier multimodal vision models
         : ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
       let lastError = null;
 
@@ -72,6 +72,10 @@ export default async function handler(req, res) {
           } else {
             const errJson = await resp.json().catch(() => ({}));
             lastError = errJson?.error?.message || `HTTP ${resp.status}`;
+            // If high demand spike or rate limited, small delay before trying fallback model
+            if (resp.status === 429 || resp.status === 503 || (lastError && lastError.includes('demand'))) {
+              await new Promise(r => setTimeout(r, 300));
+            }
           }
         } catch (e) {
           lastError = e.message;
@@ -84,7 +88,7 @@ export default async function handler(req, res) {
     const callGroq = async (prompt, isJson = true, imageData = null) => {
       if (!groqKey) return null;
       const models = imageData 
-        ? ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview']
+        ? ['llama-3.2-11b-vision-preview']
         : ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'mixtral-8x7b-32768'];
       let lastError = null;
 
@@ -154,6 +158,23 @@ CRITICAL ACCOUNT MATCHING RULES:
    - For debt_add or debt_settle: default to "Slice Savings" (if available in list) or the first available account.
    - For standard transaction: default to "Kotak Bank" (if available in list) or the first available account.
 
+CRITICAL TRANSFER RULES:
+- When user transfers money between accounts (e.g. "transfer 100 from kotak to slice cc", "transfer 500 from axis to kotak"):
+  - operation: "transfer"
+  - amount: The numerical transfer amount
+  - fromAccount: The exact source account name from [${accountNames}]
+  - toAccount: The exact destination account name from [${accountNames}]
+  - date: "YYYY-MM-DD"
+  - notes: ""
+
+CRITICAL TYPO CORRECTIONS:
+- Intelligently correct common mobile phone typing errors:
+  - "korak" or "kotsk" -> "Kotak Bank"
+  - "axix" or "axiz" -> "Axis Bank" / "Axis CC"
+  - "slise" -> "Slice" / "Slice Savings" / "Slice CC"
+  - "sbi" -> "State Bank" or "SBI"
+- NEVER output "Axis" if user explicitly mentioned "slice". NEVER swap fromAccount and toAccount.
+
 CRITICAL SPLIT EXPENSE RULES:
 - When user paid a bill and split with friends (e.g. "spent 3k split between me, rahul, and rohit from slice" or "dinner 600 split 3 ways with amit"):
   - operation: "split_expense"
@@ -172,6 +193,14 @@ Types of operations:
 
 Output JSON Structure:
 [
+  {
+    "operation": "transfer",
+    "amount": 100,
+    "fromAccount": "Kotak Bank",
+    "toAccount": "Slice CC",
+    "date": "YYYY-MM-DD",
+    "notes": "Account transfer"
+  },
   {
     "operation": "split_expense",
     "totalAmount": 3000,

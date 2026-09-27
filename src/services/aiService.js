@@ -50,9 +50,15 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
 
       // 2. Transfer operation
       if (p.operation === 'transfer') {
-        const fromAcc = matchAccount(p.fromAccount, textInput, accounts, 'transaction');
-        let toAcc = matchAccount(p.toAccount, textInput, accounts, 'transaction');
-        if (toAcc.id === fromAcc.id) {
+        const fromHint = p.fromAccount || p.from || p.sourceAccount || p.from_account || p.source;
+        const toHint = p.toAccount || p.to || p.targetAccount || p.destinationAccount || p.to_account || p.destination;
+
+        // Pass specific hint as both hint and userText so matchAccount doesn't cross-match other bank names from full sentence
+        const fromAcc = matchAccount(fromHint, fromHint || textInput, accounts, 'transaction');
+        let toAcc = matchAccount(toHint, toHint || textInput, accounts, 'transaction');
+
+        // Only pick an alternative if destination was completely missing/unresolvable
+        if (toAcc.id === fromAcc.id && !toHint) {
           toAcc = accounts.find(a => a.id !== fromAcc.id) || accounts[1] || accounts[0];
         }
         return {
@@ -135,6 +141,11 @@ Available Categories: [${categoryNames}]
 CRITICAL ACCOUNT MATCHING:
 - Always scan text for bank names (e.g. "slice", "axis", "kotak", "cash").
 - Match "slice" to "Slice Savings", "axis" to "Axis Bank", "kotak" to "Kotak Bank".
+- Correct mobile typing errors: "korak" -> "Kotak Bank", "axix" -> "Axis Bank", "slise" -> "Slice".
+
+TRANSFER:
+- "transfer 100 from kotak to slice cc" ->
+  operation: "transfer", amount: 100, fromAccount: "Kotak Bank", toAccount: "Slice CC"
 
 SPLIT EXPENSE:
 - "spent 3k split between me, rahul, and rohit from slice" ->
@@ -183,6 +194,11 @@ Available Categories: [${categoryNames}]
 CRITICAL ACCOUNT MATCHING:
 - Always scan text for bank names (e.g. "slice", "axis", "kotak", "cash").
 - Match "slice" to "Slice Savings", "axis" to "Axis Bank", "kotak" to "Kotak Bank".
+- Correct mobile typing errors: "korak" -> "Kotak Bank", "axix" -> "Axis Bank", "slise" -> "Slice".
+
+TRANSFER:
+- "transfer 100 from kotak to slice cc" ->
+  operation: "transfer", amount: 100, fromAccount: "Kotak Bank", toAccount: "Slice CC"
 
 SPLIT EXPENSE:
 - "spent 3k split between me, rahul, and rohit from slice" ->
@@ -245,7 +261,7 @@ JSON format:
 
   // 2. Direct browser Gemini Vision
   if (apiKey && apiKey.trim()) {
-    const geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
+    const geminiModels = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-flash-latest'];
     for (const gModel of geminiModels) {
       try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${apiKey}`, {
@@ -283,7 +299,7 @@ JSON format:
   // 3. Direct browser Groq Vision
   if (groqApiKey && groqApiKey.trim()) {
     try {
-      const groqVisionModels = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
+      const groqVisionModels = ['llama-3.2-11b-vision-preview'];
       for (const gModel of groqVisionModels) {
         try {
           const response = await fetch(GROQ_API_URL, {
