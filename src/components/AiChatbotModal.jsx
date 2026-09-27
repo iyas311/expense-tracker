@@ -153,6 +153,55 @@ export function AiChatbotModal({ isOpen, onClose }) {
     return null;
   };
 
+  // Formats Markdown bold (**text**) and bullet lists (* item) into clean styled elements
+  const formatChatMessage = (text) => {
+    if (!text) return null;
+    const lines = text.split('\n');
+    const elements = [];
+    let currentList = [];
+
+    const parseInline = (line) => {
+      const parts = line.split(/(\*\*.*?\*\*)/g);
+      return parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={i} style={{ color: '#fff', fontWeight: '700' }}>{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+    };
+
+    lines.forEach((line, lineIdx) => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+        currentList.push(
+          <li key={lineIdx} style={{ marginLeft: '16px', listStyleType: 'disc', marginBottom: '2px' }}>
+            {parseInline(trimmed.slice(2))}
+          </li>
+        );
+      } else {
+        if (currentList.length > 0) {
+          elements.push(<ul key={`ul-${lineIdx}`} style={{ margin: '4px 0', padding: 0 }}>{currentList}</ul>);
+          currentList = [];
+        }
+        if (trimmed === '') {
+          elements.push(<div key={lineIdx} style={{ height: '6px' }} />);
+        } else {
+          elements.push(
+            <div key={lineIdx} style={{ marginBottom: lineIdx === lines.length - 1 ? 0 : '4px' }}>
+              {parseInline(line)}
+            </div>
+          );
+        }
+      }
+    });
+
+    if (currentList.length > 0) {
+      elements.push(<ul key="ul-last" style={{ margin: '4px 0', padding: 0 }}>{currentList}</ul>);
+    }
+
+    return elements;
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-content animate-fade-in" style={{ maxWidth: '560px', height: '640px', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
@@ -265,10 +314,9 @@ export function AiChatbotModal({ isOpen, onClose }) {
                   borderRadius: msg.sender === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
                   fontSize: '0.88rem',
                   lineHeight: '1.5',
-                  border: msg.sender === 'bot' ? '1px solid var(--border-light)' : 'none',
-                  whiteSpace: 'pre-wrap'
+                  border: msg.sender === 'bot' ? '1px solid var(--border-light)' : 'none'
                 }}>
-                  {msg.text}
+                  {msg.sender === 'bot' ? formatChatMessage(msg.text) : msg.text}
                 </div>
                 {msg.sender === 'bot' && getModelBadge(msg)}
               </div>
