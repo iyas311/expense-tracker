@@ -40,6 +40,24 @@ export function fallbackLocalParser(input, categories = [], accounts = []) {
 
   const isIncomeSentence = (text) => /\b(?:salary|income|received|earned|got paid)\b/i.test(text);
 
+  // Check if input is a transfer operation (e.g. transfer 100 from kotak to slice cc)
+  const tfrMatch = input.match(/\b(?:transfer|transferred|sent|send|move|moved)\b.*?(\d+(?:\.\d{1,2})?).*?\bfrom\b\s+([a-z0-9\s]+?)\s+\bto\b\s+([a-z0-9\s]+)/i);
+  if (tfrMatch) {
+    const amt = parseFloat(tfrMatch[1]) || 0;
+    const fromStr = tfrMatch[2].trim().toLowerCase();
+    const toStr = tfrMatch[3].trim().toLowerCase();
+    const fromAcc = accounts.find(a => (a.name || '').toLowerCase().includes(fromStr)) || accounts[0] || { id: defaultAccountId };
+    const toAcc = accounts.find(a => (a.name || '').toLowerCase().includes(toStr)) || accounts[1] || accounts[0] || { id: defaultAccountId };
+    return [{
+      operation: 'transfer',
+      amount: amt,
+      fromAccountId: fromAcc.id,
+      toAccountId: toAcc.id,
+      date: today,
+      notes: ''
+    }];
+  }
+
   // Split input into chunks at conjunctions that likely separate two expenses
   const chunks = input
     .split(/\b(?:and also|and then|also|then)\b/i)

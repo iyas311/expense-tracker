@@ -50,8 +50,17 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
 
       // 2. Transfer operation
       if (p.operation === 'transfer') {
-        const fromHint = p.fromAccount || p.from || p.sourceAccount || p.from_account || p.source;
-        const toHint = p.toAccount || p.to || p.targetAccount || p.destinationAccount || p.to_account || p.destination;
+        let fromHint = p.fromAccount || p.from || p.sourceAccount || p.from_account || p.source;
+        let toHint = p.toAccount || p.to || p.targetAccount || p.destinationAccount || p.to_account || p.destination;
+
+        // If either hint is missing from AI output, extract directly from text (e.g. from <A> to <B>)
+        if (!fromHint || !toHint) {
+          const tfrMatch = (textInput || '').match(/(?:from|debited\s+from)\s+([a-z0-9\s]+?)\s+(?:to|into|credited\s+to)\s+([a-z0-9\s]+)/i);
+          if (tfrMatch) {
+            if (!fromHint) fromHint = tfrMatch[1].trim();
+            if (!toHint) toHint = tfrMatch[2].trim();
+          }
+        }
 
         // Pass specific hint as both hint and userText so matchAccount doesn't cross-match other bank names from full sentence
         const fromAcc = matchAccount(fromHint, fromHint || textInput, accounts, 'transaction');

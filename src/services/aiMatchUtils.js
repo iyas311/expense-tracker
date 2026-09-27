@@ -1,5 +1,7 @@
+const STOP_WORDS = new Set(['bank', 'account', 'savings', 'credit', 'card', 'cc', 'wallet', 'main', 'default', 'pay', 'money', 'the', 'from', 'to', 'for', 'with', 'and']);
+
 /**
- * Smart Account Matcher with Keyword & Substring Scoring
+ * Smart Account Matcher with Distinctive Keyword & Token Scoring
  */
 export function matchAccount(hint, userText, accounts = [], defaultType = 'transaction') {
   if (!accounts || accounts.length === 0) return { id: 'acc-1', name: 'Default' };
@@ -7,30 +9,53 @@ export function matchAccount(hint, userText, accounts = [], defaultType = 'trans
   const cleanHint = (hint || '').toLowerCase().trim();
   const cleanText = (userText || '').toLowerCase().trim();
 
-  // 1. Check if userText explicitly mentioned any specific account keyword
-  for (const acc of accounts) {
-    const accKeywords = (acc.name || '').toLowerCase().split(/\s+/).filter(w => w.length > 2 && !['bank', 'account', 'savings'].includes(w));
-    for (const kw of accKeywords) {
-      if (cleanText.includes(kw)) {
-        return acc;
+  // Helper to extract distinctive tokens (excluding generic terms like 'card', 'credit', 'bank')
+  const getDistinctiveTokens = (str) => {
+    return str.split(/[^a-z0-9]+/).filter(w => w.length >= 2 && !STOP_WORDS.has(w));
+  };
+
+  // 1. Direct exact or full substring match on cleanHint (highest priority)
+  if (cleanHint) {
+    const exact = accounts.find(a => (a.name || '').toLowerCase() === cleanHint);
+    if (exact) return exact;
+
+    const sub = accounts.find(a => {
+      const aName = (a.name || '').toLowerCase();
+      return aName.includes(cleanHint) || cleanHint.includes(aName);
+    });
+    if (sub) return sub;
+
+    // Distinctive token scoring from cleanHint (e.g. "slice" or "axis" or "kotak")
+    const hintTokens = getDistinctiveTokens(cleanHint);
+    if (hintTokens.length > 0) {
+      let bestAcc = null;
+      let maxMatches = 0;
+      for (const acc of accounts) {
+        const accTokens = getDistinctiveTokens((acc.name || '').toLowerCase());
+        const matches = hintTokens.filter(t => accTokens.includes(t)).length;
+        if (matches > maxMatches) {
+          maxMatches = matches;
+          bestAcc = acc;
+        }
       }
+      if (bestAcc) return bestAcc;
     }
   }
 
-  // 2. Direct hint match from AI response
-  if (cleanHint) {
-    const found = accounts.find(a => {
-      const accName = (a.name || '').toLowerCase();
-      return accName === cleanHint || accName.includes(cleanHint) || cleanHint.includes(accName);
-    });
-    if (found) return found;
-
-    // Word token match (e.g. "slice" matches "Slice Savings")
-    const hintWords = cleanHint.split(/\s+/).filter(w => w.length > 2);
-    for (const hw of hintWords) {
-      const wordMatch = accounts.find(a => (a.name || '').toLowerCase().includes(hw));
-      if (wordMatch) return wordMatch;
+  // 2. Distinctive token match from userText (only distinctive brand tokens!)
+  const textTokens = getDistinctiveTokens(cleanText);
+  if (textTokens.length > 0) {
+    let bestAcc = null;
+    let maxMatches = 0;
+    for (const acc of accounts) {
+      const accTokens = getDistinctiveTokens((acc.name || '').toLowerCase());
+      const matches = textTokens.filter(t => accTokens.includes(t)).length;
+      if (matches > maxMatches) {
+        maxMatches = matches;
+        bestAcc = acc;
+      }
     }
+    if (bestAcc) return bestAcc;
   }
 
   // 3. Fallback defaults
