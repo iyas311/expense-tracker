@@ -141,7 +141,6 @@ Available Categories: [${categoryNames}]
 CRITICAL ACCOUNT MATCHING:
 - Always scan text for bank names (e.g. "slice", "axis", "kotak", "cash").
 - Match "slice" to "Slice Savings", "axis" to "Axis Bank", "kotak" to "Kotak Bank".
-- Correct mobile typing errors: "korak" -> "Kotak Bank", "axix" -> "Axis Bank", "slise" -> "Slice".
 
 TRANSFER:
 - "transfer 100 from kotak to slice cc" ->
@@ -194,7 +193,6 @@ Available Categories: [${categoryNames}]
 CRITICAL ACCOUNT MATCHING:
 - Always scan text for bank names (e.g. "slice", "axis", "kotak", "cash").
 - Match "slice" to "Slice Savings", "axis" to "Axis Bank", "kotak" to "Kotak Bank".
-- Correct mobile typing errors: "korak" -> "Kotak Bank", "axix" -> "Axis Bank", "slise" -> "Slice".
 
 TRANSFER:
 - "transfer 100 from kotak to slice cc" ->

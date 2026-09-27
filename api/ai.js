@@ -167,12 +167,6 @@ CRITICAL TRANSFER RULES:
   - date: "YYYY-MM-DD"
   - notes: ""
 
-CRITICAL TYPO CORRECTIONS:
-- Intelligently correct common mobile phone typing errors:
-  - "korak" or "kotsk" -> "Kotak Bank"
-  - "axix" or "axiz" -> "Axis Bank" / "Axis CC"
-  - "slise" -> "Slice" / "Slice Savings" / "Slice CC"
-  - "sbi" -> "State Bank" or "SBI"
 - NEVER output "Axis" if user explicitly mentioned "slice". NEVER swap fromAccount and toAccount.
 
 CRITICAL SPLIT EXPENSE RULES:
