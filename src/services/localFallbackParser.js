@@ -1,0 +1,92 @@
+/**
+ * Intelligent local regex fallback parser — handles single & multiple transactions offline
+ */
+export function fallbackLocalParser(input, categories = [], accounts = []) {
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+  const defaultAccountId = accounts[0]?.id || 'acc-1';
+  const defaultCategoryId = categories[0]?.id || 'cat-1';
+
+  const getCategoryId = (text) => {
+    for (const cat of categories) {
+      if (text.includes((cat.name || '').toLowerCase())) return cat.id;
+    }
+    if (/\b(?:food|dinner|lunch|breakfast|coffee|pizza|restaurant|pepsi|burger|coke|drink|snack|eat|ate|protta|dosa|idli|biriyani|chai|tea)\b/i.test(text)) {
+      return categories.find(c => /food|dining|restaurant/i.test(c.name))?.id || defaultCategoryId;
+    }
+    if (/\b(?:grocer|supermarket|vegetable|fruit|milk)\b/i.test(text)) {
+      return categories.find(c => /grocer|market/i.test(c.name))?.id || defaultCategoryId;
+    }
+    if (/\b(?:uber|gas|fuel|cab|ride|auto|taxi|train|bus|petrol)\b/i.test(text)) {
+      return categories.find(c => /transport|travel/i.test(c.name))?.id || defaultCategoryId;
+    }
+    if (/\b(?:bill|electricity|water|wifi|recharge|internet|power)\b/i.test(text)) {
+      return categories.find(c => /bill|util/i.test(c.name))?.id || defaultCategoryId;
+    }
+    if (/\b(?:movie|netflix|game|cinema|show)\b/i.test(text)) {
+      return categories.find(c => /entertain/i.test(c.name))?.id || defaultCategoryId;
+    }
+    return defaultCategoryId;
+  };
+
+  const getAccountId = (text) => {
+    for (const acc of accounts) {
+      if (text.includes((acc.name || '').toLowerCase())) return acc.id;
+    }
+    if (/\b(?:card|credit|debit|upi|gpay|phonepay|paytm)\b/i.test(text)) {
+      return accounts.find(a => /card|credit|debit/i.test(a.name))?.id || defaultAccountId;
+    }
+    return defaultAccountId;
+  };
+
+  const isIncomeSentence = (text) => /\b(?:salary|income|received|earned|got paid)\b/i.test(text);
+
+  // Split input into chunks at conjunctions that likely separate two expenses
+  const chunks = input
+    .split(/\b(?:and also|and then|also|then)\b/i)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const results = [];
+
+  for (const chunk of chunks) {
+    const text = chunk.toLowerCase();
+
+    // Find amount in this chunk
+    const amountMatch = text.match(/(?:[\$₹€£]\s*)?(\d+(?:\.\d{1,2})?)/);
+    const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+
+    // Build description: remove amount, currency words, filler words
+    let description = chunk
+      .replace(/(?:[\$₹€£]\s*)?\d+(?:\.\d{1,2})?/g, ' ')
+      .replace(/\b(?:spent|paid|received|earned|costed|cost|for|via|with|on|at|using|me|i|had|have|rs|inr|usd|bucks|dollars|rupees|a|an|the|it|was|is)\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!description || description.length < 2) {
+      description = isIncomeSentence(text) ? 'Income' : 'Expense Item';
+    }
+
+    results.push({
+      operation: 'transaction',
+      amount,
+      type: isIncomeSentence(text) ? 'income' : 'expense',
+      description: description.charAt(0).toUpperCase() + description.slice(1),
+      categoryId: getCategoryId(text),
+      accountId: getAccountId(text),
+      date: today,
+      notes: ''
+    });
+  }
+
+  console.log('[AI] Local fallback produced:', results);
+  return results.length > 0 ? results : [{
+    operation: 'transaction',
+    amount: 0,
+    type: 'expense',
+    description: 'Expense Item',
+    categoryId: defaultCategoryId,
+    accountId: defaultAccountId,
+    date: today,
+    notes: ''
+  }];
+}
