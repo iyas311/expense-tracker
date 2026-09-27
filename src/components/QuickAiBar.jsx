@@ -158,6 +158,42 @@ export function QuickAiBar({ onOpenManualAdd }) {
   };
 
 
+  // Automatic client-side image compression for fast & error-free OCR uploads
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const maxDim = 1600;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
   const handleReceiptUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -165,28 +201,24 @@ export function QuickAiBar({ onOpenManualAdd }) {
     setIsLoading(true);
     setStatus({ type: 'loading', message: 'Extracting details from receipt image...' });
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const base64Image = reader.result;
-        const parsed = await parseReceiptImage(base64Image, categories, accounts, apiKey);
-        if (parsed) {
-          addTransaction(parsed);
-          setStatus({
-            type: 'success',
-            message: `Receipt logged: ${currency}${parsed.amount} at ${parsed.description}`
-          });
-          setTimeout(() => setStatus(null), 4000);
-        }
-      } catch (err) {
-        setStatus({ type: 'error', message: err.message || 'Failed to scan receipt.' });
+    try {
+      const base64Image = await compressImage(file);
+      const parsed = await parseReceiptImage(base64Image, categories, accounts, apiKey, groqApiKey);
+      if (parsed) {
+        addTransaction(parsed);
+        setStatus({
+          type: 'success',
+          message: `Receipt logged: ${currency}${parsed.amount} at ${parsed.description}`
+        });
         setTimeout(() => setStatus(null), 4000);
-      } finally {
-        setIsLoading(false);
       }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = ''; // reset file input
+    } catch (err) {
+      setStatus({ type: 'error', message: err.message || 'Failed to scan receipt.' });
+      setTimeout(() => setStatus(null), 4000);
+    } finally {
+      setIsLoading(false);
+      e.target.value = ''; // reset file input
+    }
   };
 
   const [isFocused, setIsFocused] = useState(false);

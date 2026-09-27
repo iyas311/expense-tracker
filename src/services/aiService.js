@@ -7,6 +7,74 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 /**
+ * Smart Account Matcher with Keyword & Substring Scoring
+ */
+function matchAccount(hint, userText, accounts = [], defaultType = 'transaction') {
+  if (!accounts || accounts.length === 0) return { id: 'acc-1', name: 'Default' };
+  
+  const cleanHint = (hint || '').toLowerCase().trim();
+  const cleanText = (userText || '').toLowerCase().trim();
+
+  // 1. Check if userText explicitly mentioned any specific account keyword
+  for (const acc of accounts) {
+    const accKeywords = acc.name.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !['bank', 'account', 'savings'].includes(w));
+    for (const kw of accKeywords) {
+      if (cleanText.includes(kw)) {
+        return acc;
+      }
+    }
+  }
+
+  // 2. Direct hint match from AI response
+  if (cleanHint) {
+    const found = accounts.find(a => {
+      const accName = a.name.toLowerCase();
+      return accName === cleanHint || accName.includes(cleanHint) || cleanHint.includes(accName);
+    });
+    if (found) return found;
+
+    // Word token match (e.g. "slice" matches "Slice Savings")
+    const hintWords = cleanHint.split(/\s+/).filter(w => w.length > 2);
+    for (const hw of hintWords) {
+      const wordMatch = accounts.find(a => a.name.toLowerCase().includes(hw));
+      if (wordMatch) return wordMatch;
+    }
+  }
+
+  // 3. Fallback defaults
+  if (defaultType === 'debt') {
+    const sliceAcc = accounts.find(a => a.name.toLowerCase().includes('slice'));
+    if (sliceAcc) return sliceAcc;
+  }
+  const kotakAcc = accounts.find(a => a.name.toLowerCase().includes('kotak'));
+  if (kotakAcc) return kotakAcc;
+
+  return accounts[0];
+}
+
+/**
+ * Smart Category Matcher
+ */
+function matchCategory(hint, descText, categories = [], type = 'expense') {
+  if (!categories || categories.length === 0) return { id: 'cat-1', name: 'General' };
+  const cleanHint = (hint || '').toLowerCase().trim();
+  const cleanDesc = (descText || '').toLowerCase().trim();
+
+  if (cleanHint) {
+    const found = categories.find(c => {
+      const cName = c.name.toLowerCase();
+      return cName === cleanHint || cName.includes(cleanHint) || cleanHint.includes(cName);
+    });
+    if (found) return found;
+  }
+
+  const foundDesc = categories.find(c => cleanDesc.includes(c.name.toLowerCase()));
+  if (foundDesc) return foundDesc;
+
+  return categories.find(c => c.type === type) || categories[0];
+}
+
+/**
  * Parses natural language input into a structured expense transaction object
  */
 export async function parseNaturalLanguageTransaction(textInput, categories = [], accounts = [], apiKey = '', groqApiKey = '', preferredEngine = 'auto') {
@@ -27,97 +95,70 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
     }
 
     return arr.map(p => {
-      // It's a regular transaction
+      // 1. Regular transaction
       if (!p.operation || p.operation === 'transaction') {
         const desc = p.description || 'Expense';
-        const searchDesc = desc.toLowerCase();
-        let matchedCategory = categories.find(c => searchDesc.includes(c.name.toLowerCase()));
-        if (!matchedCategory && p.category) {
-          const aiCat = p.category.toLowerCase();
-          matchedCategory = categories.find(c => aiCat.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(aiCat));
-        }
-
-        let matchedAccount = null;
-        if (p.account) {
-          const aiAcc = p.account.toLowerCase();
-          matchedAccount = accounts.find(a => aiAcc.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(aiAcc));
-        }
-        if (!matchedAccount) {
-          matchedAccount = accounts.find(a => searchDesc.includes(a.name.toLowerCase()));
-        }
+        const matchedCategory = matchCategory(p.category, desc, categories, p.type === 'income' ? 'income' : 'expense');
+        const matchedAccount = matchAccount(p.account, textInput, accounts, 'transaction');
 
         return {
           operation: 'transaction',
           amount: parseFloat(p.amount) || 0,
           type: p.type === 'income' ? 'income' : 'expense',
           description: desc.charAt(0).toUpperCase() + desc.slice(1),
-          categoryId: matchedCategory ? matchedCategory.id : categories[0]?.id || 'cat-1',
-          accountId: matchedAccount ? matchedAccount.id : accounts[0]?.id || 'acc-1',
+          categoryId: matchedCategory.id,
+          accountId: matchedAccount.id,
           date: p.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
           notes: (p.notes || '').toString().trim()
         };
       }
 
-      // It's a transfer operation
+      // 2. Transfer operation
       if (p.operation === 'transfer') {
-        let fromAcc = null;
-        let toAcc = null;
-        if (p.fromAccount) {
-          const aiFrom = p.fromAccount.toLowerCase();
-          fromAcc = accounts.find(a => aiFrom.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(aiFrom));
-        }
-        if (p.toAccount) {
-          const aiTo = p.toAccount.toLowerCase();
-          toAcc = accounts.find(a => aiTo.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(aiTo));
+        const fromAcc = matchAccount(p.fromAccount, textInput, accounts, 'transaction');
+        let toAcc = matchAccount(p.toAccount, textInput, accounts, 'transaction');
+        if (toAcc.id === fromAcc.id) {
+          toAcc = accounts.find(a => a.id !== fromAcc.id) || accounts[1] || accounts[0];
         }
         return {
           operation: 'transfer',
           amount: parseFloat(p.amount) || 0,
-          fromAccountId: fromAcc ? fromAcc.id : accounts[0]?.id || 'acc-1',
-          toAccountId: toAcc ? toAcc.id : accounts[1]?.id || 'acc-2',
+          fromAccountId: fromAcc.id,
+          toAccountId: toAcc.id,
           date: p.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
           notes: (p.notes || '').toString().trim()
         };
       }
 
-      // It's a debt operation
+      // 3. Debt operation (add or settle)
       if (p.operation === 'debt_add' || p.operation === 'debt_settle') {
-        let matchedAccount = null;
-        const aiAcc = (p.account || 'Slice Savings').toLowerCase();
-        matchedAccount = accounts.find(a => aiAcc.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(aiAcc));
+        const matchedAccount = matchAccount(p.account, textInput, accounts, 'debt');
         
         return {
           operation: p.operation,
           amount: parseFloat(p.amount) || 0,
           direction: p.direction === 'borrowed' ? 'borrowed' : 'lent',
-          personName: p.personName || 'Unknown',
-          reason: p.reason || '',
-          accountId: matchedAccount ? matchedAccount.id : accounts[0]?.id || 'acc-1',
+          personName: p.personName || 'Friend',
+          reason: p.reason || p.description || '',
+          accountId: matchedAccount.id,
           date: p.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
           notes: (p.notes || '').toString().trim()
         };
       }
 
-      // It's a split expense
+      // 4. Split expense
       if (p.operation === 'split_expense') {
-        let matchedAccount = null;
-        if (p.account) {
-          const aiAcc = p.account.toLowerCase();
-          matchedAccount = accounts.find(a => aiAcc.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(aiAcc));
-        }
-        let matchedCategory = null;
-        if (p.category) {
-          const aiCat = p.category.toLowerCase();
-          matchedCategory = categories.find(c => aiCat.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(aiCat));
-        }
-        const desc = p.description || 'Shared expense';
+        const desc = p.description || 'Shared Expense';
+        const matchedCategory = matchCategory(p.category, desc, categories, 'expense');
+        const matchedAccount = matchAccount(p.account, textInput, accounts, 'transaction');
+        
         return {
           operation: 'split_expense',
           totalAmount: parseFloat(p.totalAmount) || 0,
           yourShare: parseFloat(p.yourShare) || 0,
           description: desc.charAt(0).toUpperCase() + desc.slice(1),
-          categoryId: matchedCategory ? matchedCategory.id : categories[0]?.id || 'cat-1',
-          accountId: matchedAccount ? matchedAccount.id : accounts[0]?.id || 'acc-1',
+          categoryId: matchedCategory.id,
+          accountId: matchedAccount.id,
           date: p.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
           notes: (p.notes || '').toString().trim(),
           splits: Array.isArray(p.splits) ? p.splits.map(s => ({ personName: s.personName || 'Friend', amount: parseFloat(s.amount) || 0 })) : []
@@ -160,83 +201,24 @@ export async function parseNaturalLanguageTransaction(textInput, categories = []
     try {
       const categoryNames = categories.map(c => c.name).join(', ');
       const accountNames = accounts.map(a => a.name).join(', ');
-      const prompt = `You are a smart financial AI. Analyze the user's text and extract a list of financial operations.
-Return ONLY a raw JSON array of objects with NO markdown formatting, NO code blocks. Do not wrap the array in an object.
+      const prompt = `You are an expert financial transaction parser AI.
+Analyze the user's text and extract a list of financial operations.
+Return ONLY a raw JSON array of objects with NO markdown formatting, NO backticks.
 
-Types of operations you can extract:
-1. "transaction": Standard expense or income (buying things, receiving salary).
-2. "transfer": Moving money between accounts or paying a credit card bill from a bank account.
-3. "debt_add": When the user lends money TO someone, or borrows money FROM someone.
-4. "debt_settle": When a person pays the user back, or the user pays a person back.
-5. "split_expense": When the user paid a shared bill for friends and expects to be paid back (e.g. "paid 300 for dinner, split 3 ways with Rahul and Sai").
+Available Accounts: [${accountNames}]
+Available Categories: [${categoryNames}]
 
-Example Output format:
-[
-  {
-    "operation": "transaction",
-    "amount": 240,
-    "type": "expense",
-    "description": "Short main heading only (e.g. 'Creatinine test')",
-    "category": "Match best category",
-    "account": "Match best account",
-    "date": "YYYY-MM-DD",
-    "notes": "Put location/extra context here (e.g. 'at Edakulam lab')"
-  },
-  {
-    "operation": "transfer",
-    "amount": 5000,
-    "fromAccount": "Match best source account",
-    "toAccount": "Match best destination account",
-    "date": "YYYY-MM-DD",
-    "notes": ""
-  },
-  {
-    "operation": "debt_add",
-    "amount": 500,
-    "direction": "lent",  // "lent" (user gave money) or "borrowed" (user received money)
-    "personName": "Rahul",
-    "reason": "Lunch",
-    "account": "Match best account",
-    "date": "YYYY-MM-DD",
-    "notes": ""
-  },
-  {
-    "operation": "debt_settle",
-    "amount": 500,
-    "direction": "lent", // "lent" (someone returning money to user) or "borrowed" (user returning money to someone)
-    "personName": "Rahul",
-    "account": "Match best account",
-    "date": "YYYY-MM-DD",
-    "notes": ""
-  },
-  {
-    "operation": "split_expense",
-    "totalAmount": 300,
-    "yourShare": 100,
-    "description": "Dinner",
-    "category": "Match best category",
-    "account": "Match best account",
-    "date": "YYYY-MM-DD",
-    "notes": "",
-    "splits": [
-      { "personName": "Rahul", "amount": 100 },
-      { "personName": "Sai", "amount": 100 }
-    ]
-  }
-]
+CRITICAL ACCOUNT MATCHING:
+- Always scan text for bank names (e.g. "slice", "axis", "kotak", "cash").
+- Match "slice" to "Slice Savings", "axis" to "Axis Bank", "kotak" to "Kotak Bank".
 
-Rules:
-- For 'account', 'fromAccount', 'toAccount', match best from: [${accountNames}].
-- IMPORTANT: For ANY debt operation (debt_add or debt_settle), if the user does NOT explicitly mention an account, you MUST default the account to "Slice Savings".
-- For standard 'transaction', if the account is unspecified, default to "Kotak Bank".
-- For 'split_expense': yourShare = totalAmount / number_of_people. splits array contains each OTHER person's share (not yours).
-- For 'category', match best from: [${categoryNames}] or invent a logical one.
-- For 'direction' in debts: "lent" means the user gave money to someone (people owe user). "borrowed" means user took money (user owes people).
-- date: default to current date: ${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]} if unspecified.
+SPLIT EXPENSE:
+- "spent 3k split between me, rahul, and rohit from slice" ->
+  operation: "split_expense", totalAmount: 3000, yourShare: 1000, account: "Slice Savings", splits: [{"personName": "Rahul", "amount": 1000}, {"personName": "Rohit", "amount": 1000}]
 
 User text: "${textInput}"`;
 
-      const geminiModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+      const geminiModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
       for (const gModel of geminiModels) {
         try {
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${apiKey}`, {
@@ -262,8 +244,6 @@ User text: "${textInput}"`;
     } catch (err) {
       console.warn('[AI] Browser Gemini failed:', err.message);
     }
-  } else {
-    console.log('[AI] No browser Gemini key available');
   }
 
   // 3. Direct browser Groq API key call
@@ -272,97 +252,34 @@ User text: "${textInput}"`;
     try {
       const categoryNames = categories.map(c => c.name).join(', ');
       const accountNames = accounts.map(a => a.name).join(', ');
-      const prompt = `You are a smart financial AI. Analyze the user's text and extract a list of financial operations.
-Return ONLY a raw JSON array of objects with NO markdown formatting, NO code blocks. Do not wrap the array in an object.
+      const prompt = `You are an expert financial transaction parser AI.
+Analyze the user's text and extract a list of financial operations.
+Return ONLY a raw JSON array of objects with NO markdown formatting, NO backticks.
 
-Types of operations you can extract:
-1. "transaction": Standard expense or income (buying things, receiving salary).
-2. "transfer": Moving money between accounts or paying a credit card bill from a bank account.
-3. "debt_add": When the user lends money TO someone, or borrows money FROM someone.
-4. "debt_settle": When a person pays the user back, or the user pays a person back.
-5. "split_expense": When the user paid a shared bill for friends and expects to be paid back (e.g. "paid 300 for dinner, split 3 ways with Rahul and Sai").
+Available Accounts: [${accountNames}]
+Available Categories: [${categoryNames}]
 
-Example Output format:
-[
-  {
-    "operation": "transaction",
-    "amount": 240,
-    "type": "expense",
-    "description": "Short main heading only (e.g. 'Creatinine test')",
-    "category": "Match best category",
-    "account": "Match best account",
-    "date": "YYYY-MM-DD",
-    "notes": "Put location/extra context here (e.g. 'at Edakulam lab')"
-  },
-  {
-    "operation": "transfer",
-    "amount": 5000,
-    "fromAccount": "Match best source account",
-    "toAccount": "Match best destination account",
-    "date": "YYYY-MM-DD",
-    "notes": ""
-  },
-  {
-    "operation": "debt_add",
-    "amount": 500,
-    "direction": "lent",  // "lent" (user gave money) or "borrowed" (user received money)
-    "personName": "Rahul",
-    "reason": "Lunch",
-    "account": "Match best account",
-    "date": "YYYY-MM-DD",
-    "notes": ""
-  },
-  {
-    "operation": "debt_settle",
-    "amount": 500,
-    "direction": "lent", // "lent" (someone returning money to user) or "borrowed" (user returning money to someone)
-    "personName": "Rahul",
-    "account": "Match best account",
-    "date": "YYYY-MM-DD",
-    "notes": ""
-  },
-  {
-    "operation": "split_expense",
-    "totalAmount": 300,
-    "yourShare": 100,
-    "description": "Dinner",
-    "category": "Match best category",
-    "account": "Match best account",
-    "date": "YYYY-MM-DD",
-    "notes": "",
-    "splits": [
-      { "personName": "Rahul", "amount": 100 },
-      { "personName": "Sai", "amount": 100 }
-    ]
-  }
-]
+CRITICAL ACCOUNT MATCHING:
+- Always scan text for bank names (e.g. "slice", "axis", "kotak", "cash").
+- Match "slice" to "Slice Savings", "axis" to "Axis Bank", "kotak" to "Kotak Bank".
 
-Rules:
-- For 'account', 'fromAccount', 'toAccount', match best from: [${accountNames}].
-- IMPORTANT: For ANY debt operation (debt_add or debt_settle), if the user does NOT explicitly mention an account, you MUST default the account to "Slice Savings".
-- For standard 'transaction', if the account is unspecified, default to "Kotak Bank".
-- For 'split_expense': yourShare = totalAmount / number_of_people. splits array contains each OTHER person's share (not yours).
-- For 'category', match best from: [${categoryNames}] or invent a logical one.
-- For 'direction' in debts: "lent" means the user gave money to someone (people owe user). "borrowed" means user took money (user owes people).
-- date: default to current date: ${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]} if unspecified.
+SPLIT EXPENSE:
+- "spent 3k split between me, rahul, and rohit from slice" ->
+  operation: "split_expense", totalAmount: 3000, yourShare: 1000, account: "Slice Savings", splits: [{"personName": "Rahul", "amount": 1000}, {"personName": "Rohit", "amount": 1000}]
 
 User text: "${textInput}"`;
 
       const groqResult = await callGroqApi(prompt, groqApiKey);
-      console.log('[AI] Browser Groq raw result:', groqResult);
       if (groqResult) {
         const parsed = JSON.parse(groqResult);
-        console.log('[AI] Browser Groq parsed:', parsed);
         return processParsed(parsed);
       }
     } catch (err) {
       console.warn('[AI] Browser Groq failed:', err.message);
     }
-  } else {
-    console.log('[AI] No browser Groq key available');
   }
 
-  // 4. Smart local regex fallback (handles multiple transactions)
+  // 4. Smart local regex fallback
   console.warn('[AI] Falling back to local regex parser');
   return fallbackLocalParser(textInput, categories, accounts);
 }
@@ -370,12 +287,13 @@ User text: "${textInput}"`;
 /**
  * Receipt OCR Image Parser
  */
-export async function parseReceiptImage(base64Image, categories = [], accounts = [], apiKey = '') {
+export async function parseReceiptImage(base64Image, categories = [], accounts = [], apiKey = '', groqApiKey = '') {
+  // 1. Try serverless endpoint first
   try {
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'parseReceipt', base64Image, categories, accounts })
+      body: JSON.stringify({ action: 'parseReceipt', base64Image, categories, accounts, apiKey, groqApiKey })
     });
     if (res.ok) {
       const data = await res.json();
@@ -392,10 +310,6 @@ export async function parseReceiptImage(base64Image, categories = [], accounts =
     }
   } catch (e) {}
 
-  if (!apiKey) {
-    throw new Error('Please enter your free Gemini API key in settings or set GEMINI_API_KEY in Vercel environment variables.');
-  }
-
   const mimeType = base64Image.split(';')[0].split(':')[1] || 'image/jpeg';
   const base64Data = base64Image.split(',')[1];
   const categoryNames = categories.map(c => c.name).join(', ');
@@ -411,40 +325,89 @@ JSON format:
   "description": string
 }`;
 
-  const geminiModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
-  for (const gModel of geminiModels) {
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: mimeType, data: base64Data } }
-            ]
-          }]
-        })
-      });
+  // 2. Direct browser Gemini Vision
+  if (apiKey && apiKey.trim()) {
+    const geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
+    for (const gModel of geminiModels) {
+      try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: mimeType, data: base64Data } }
+              ]
+            }]
+          })
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawText) {
-          const cleanedText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-          const parsed = JSON.parse(cleanedText);
-          return formatParsedTransaction({
-            amount: parsed.amount,
-            type: 'expense',
-            description: parsed.merchant || parsed.description || 'Receipt Purchase',
-            category: parsed.category,
-            date: parsed.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
-          }, categories, accounts);
+        if (response.ok) {
+          const data = await response.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText) {
+            const cleanedText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(cleanedText);
+            return formatParsedTransaction({
+              amount: parsed.amount,
+              type: 'expense',
+              description: parsed.merchant || parsed.description || 'Receipt Purchase',
+              category: parsed.category,
+              date: parsed.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
+            }, categories, accounts);
+          }
         }
+      } catch (e) {}
+    }
+  }
+
+  // 3. Direct browser Groq Vision
+  if (groqApiKey && groqApiKey.trim()) {
+    try {
+      const groqVisionModels = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
+      for (const gModel of groqVisionModels) {
+        try {
+          const response = await fetch(GROQ_API_URL, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${groqApiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: gModel,
+              messages: [{
+                role: 'user',
+                content: [
+                  { type: 'text', text: prompt },
+                  { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+                ]
+              }],
+              response_format: { type: 'json_object' },
+              temperature: 0.1
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const text = data?.choices?.[0]?.message?.content;
+            if (text) {
+              const parsed = JSON.parse(text.replace(/```json/g, '').replace(/```/g, '').trim());
+              return formatParsedTransaction({
+                amount: parsed.amount,
+                type: 'expense',
+                description: parsed.merchant || parsed.description || 'Receipt Purchase',
+                category: parsed.category,
+                date: parsed.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
+              }, categories, accounts);
+            }
+          }
+        } catch (e) {}
       }
     } catch (e) {}
   }
-  throw new Error('Could not extract text from receipt.');
+
+  throw new Error('Could not extract text from receipt. Please check your Gemini or Groq API key.');
 }
 
 /**

@@ -276,6 +276,9 @@ export function ExpenseProvider({ children }) {
       categoryId: newTx.categoryId || categories[0]?.id || 'cat-1',
       accountId: newTx.accountId || accounts[0]?.id || 'acc-1',
       notes: newTx.notes || '',
+      vaultId: currentVault?.id || 'vault_admin',
+      budgetMonth: newTx.budgetMonth || null,
+      bankAmount: newTx.bankAmount ? parseFloat(newTx.bankAmount) : null
     }));
 
     // Single state update for all transactions
@@ -287,7 +290,8 @@ export function ExpenseProvider({ children }) {
       for (const tx of formatted) {
         const idx = updated.findIndex(a => a.id === tx.accountId);
         if (idx !== -1) {
-          const delta = tx.type === 'income' ? tx.amount : -tx.amount;
+          const bankDelta = tx.bankAmount !== null && tx.bankAmount !== undefined ? tx.bankAmount : tx.amount;
+          const delta = tx.type === 'income' ? tx.amount : -bankDelta;
           updated[idx] = { ...updated[idx], balance: Math.round((updated[idx].balance + delta) * 100) / 100 };
         }
       }
