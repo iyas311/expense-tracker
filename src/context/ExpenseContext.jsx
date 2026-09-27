@@ -75,6 +75,13 @@ export function ExpenseProvider({ children }) {
       const res = await fetch(`/api/data?token=${token}&t=${Date.now()}`, {
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
+      if (res.status === 401) {
+        // Expired or invalid token on cloud
+        localStorage.removeItem('et_token');
+        setIsLoggedIn(false);
+        setIsSyncing(false);
+        return;
+      }
       if (res.ok) {
         const cloudData = await res.json();
         if (!cloudData.offline) {
@@ -168,11 +175,16 @@ export function ExpenseProvider({ children }) {
 
   const authFetch = async (action, payload = {}) => {
     const token = localStorage.getItem('et_token');
-    return fetch('/api/data', {
+    const res = await fetch('/api/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, payload: { ...payload, token } })
     });
+    if (res.status === 401) {
+      localStorage.removeItem('et_token');
+      setIsLoggedIn(false);
+    }
+    return res;
   };
 
   const logout = async () => {

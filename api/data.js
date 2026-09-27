@@ -393,11 +393,11 @@ export default async function handler(req, res) {
           return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
-        // Generate token and session (expires in 30 days)
+        // Generate token and session (expires in 90 days)
         const token = crypto.randomUUID();
         await sql`
           INSERT INTO app_sessions (token, user_id, vault_id, role, expires_at)
-          VALUES (${token}, ${user.id}, ${user.vault_id}, ${user.role}, CURRENT_TIMESTAMP + INTERVAL '30 days');
+          VALUES (${token}, ${user.id}, ${user.vault_id}, ${user.role}, CURRENT_TIMESTAMP + INTERVAL '90 days');
         `;
 
         const vaultData = await getVaultData(sql, user.vault_id);
