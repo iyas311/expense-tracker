@@ -38,8 +38,9 @@ export function ExpenseProvider({ children }) {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('et_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || '');
   const [groqApiKey, setGroqApiKey] = useState(() => localStorage.getItem('et_groq_api_key') || import.meta.env.VITE_GROQ_API_KEY || '');
 
-  // Currency
+  // Currency & Limits
   const [currency, setCurrencyState] = useState(() => localStorage.getItem('et_currency') || '₹');
+  const [creditCardLimit, setCreditCardLimitState] = useState(() => parseFloat(localStorage.getItem('et_cc_limit')) || 0);
 
   // Time filter
   const [timeRange, setTimeRange] = useState('this_month');
@@ -96,6 +97,11 @@ export function ExpenseProvider({ children }) {
           if (cloudData.settings?.currency) {
             setCurrencyState(cloudData.settings.currency);
             localStorage.setItem('et_currency', cloudData.settings.currency);
+          }
+          if (cloudData.settings?.credit_card_limit !== undefined) {
+            const lim = parseFloat(cloudData.settings.credit_card_limit) || 0;
+            setCreditCardLimitState(lim);
+            localStorage.setItem('et_cc_limit', lim);
           }
           // Process recurring
           if (cloudData.subscriptions?.length > 0) {
@@ -244,6 +250,15 @@ export function ExpenseProvider({ children }) {
     localStorage.setItem('et_currency', sym);
     try {
       await authFetch('updateSetting', { key: 'currency', value: sym });
+    } catch (e) {}
+  };
+
+  const setCreditCardLimit = async (limitVal) => {
+    const num = Math.max(0, parseFloat(limitVal) || 0);
+    setCreditCardLimitState(num);
+    localStorage.setItem('et_cc_limit', num);
+    try {
+      await authFetch('updateSetting', { key: 'credit_card_limit', value: num });
     } catch (e) {}
   };
 
@@ -640,7 +655,7 @@ export function ExpenseProvider({ children }) {
       categories, accounts, subscriptions, debts,
       totalIncome, totalExpenses, netWorth,
       login, logout, getUsers, createUser, changePassword,
-      setApiKey, setGroqApiKey, setCurrency,
+      setApiKey, setGroqApiKey, setCurrency, creditCardLimit, setCreditCardLimit,
       addTransaction, addTransactions, editTransaction, deleteTransaction,
       addTransfer,
       addCategory, updateCategory, deleteCategory, updateCategoryBudget,

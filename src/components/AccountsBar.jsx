@@ -4,8 +4,10 @@ import { useExpense } from '../context/ExpenseContext';
 import { Landmark, CreditCard, Wallet, PiggyBank, Plus, X, Edit2, Trash2, CalendarDays, AlertCircle } from 'lucide-react';
 
 export function AccountsBar() {
-  const { accounts, currency, addAccount, editAccount, deleteAccount } = useExpense();
+  const { accounts, currency, addAccount, editAccount, deleteAccount, creditCardLimit, setCreditCardLimit } = useExpense();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitInput, setLimitInput] = useState('');
   
   // Form State (used for both add and edit)
   const [editingId, setEditingId] = useState(null);
@@ -111,6 +113,13 @@ export function AccountsBar() {
     return 0;
   });
 
+  const cardAccounts = accounts.filter(a => a.type === 'card');
+  const totalCardSpent = cardAccounts.reduce((sum, a) => sum + (a.balance < 0 ? Math.abs(a.balance) : 0), 0);
+  const sumOfCardLimits = cardAccounts.reduce((sum, a) => sum + (parseFloat(a.creditLimit) || 0), 0);
+  const effectiveLimit = creditCardLimit > 0 ? creditCardLimit : sumOfCardLimits;
+  const percentUsed = effectiveLimit > 0 ? Math.min(100, Math.round((totalCardSpent / effectiveLimit) * 100)) : 0;
+  const remainingLimit = effectiveLimit - totalCardSpent;
+
   return (
     <div style={{ marginBottom: '24px' }}>
       <div className="section-header">
@@ -126,6 +135,110 @@ export function AccountsBar() {
           <Plus size={14} /> Add Account
         </button>
       </div>
+
+      {/* ─── Total Credit Cards Spent & Limit Bar ─── */}
+      {cardAccounts.length > 0 && (
+        <div className="glass-card" style={{
+          marginBottom: '16px',
+          padding: '14px 18px',
+          borderRadius: '16px',
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.88) 0%, rgba(99, 102, 241, 0.08) 100%)',
+          border: '1px solid rgba(99, 102, 241, 0.28)'
+        }}>
+          {/* Top Line: Title + Limit Setting Trigger */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ background: 'rgba(99, 102, 241, 0.15)', padding: '6px', borderRadius: '8px' }}>
+                <CreditCard size={18} color="#818cf8" />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.88rem', fontWeight: '700', color: '#fff' }}>
+                  Total Credit Cards Spent
+                </span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginLeft: '6px' }}>
+                  ({cardAccounts.length} card{cardAccounts.length > 1 ? 's' : ''})
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                Limit: <strong style={{ color: '#fff' }}>{effectiveLimit > 0 ? `${currency}${effectiveLimit.toLocaleString('en-IN')}` : 'Not set'}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setLimitInput(effectiveLimit > 0 ? String(effectiveLimit) : '');
+                  setShowLimitModal(true);
+                }}
+                className="btn-secondary"
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '0.72rem',
+                  borderRadius: '8px',
+                  color: '#818cf8',
+                  border: '1px solid rgba(129, 140, 248, 0.3)',
+                  background: 'rgba(99, 102, 241, 0.1)'
+                }}
+              >
+                {effectiveLimit > 0 ? 'Edit Limit' : 'Set Limit'}
+              </button>
+            </div>
+          </div>
+
+          {/* Amount & Utilization % */}
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <span className="font-heading" style={{ fontSize: '1.6rem', fontWeight: '800', color: percentUsed > 80 ? '#f43f5e' : '#818cf8', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                {currency}{totalCardSpent.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </span>
+              {effectiveLimit > 0 && (
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>
+                  spent of {currency}{effectiveLimit.toLocaleString('en-IN')}
+                </span>
+              )}
+            </div>
+
+            {effectiveLimit > 0 && (
+              <span style={{
+                fontSize: '0.82rem',
+                fontWeight: '700',
+                color: percentUsed > 80 ? '#f43f5e' : percentUsed > 60 ? '#f59e0b' : '#10b981'
+              }}>
+                {percentUsed}% used
+              </span>
+            )}
+          </div>
+
+          {/* Progress Bar */}
+          {effectiveLimit > 0 ? (
+            <div>
+              <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden', marginBottom: '6px' }}>
+                <div style={{
+                  width: `${Math.min(100, percentUsed)}%`,
+                  height: '100%',
+                  background: percentUsed > 80 ? '#f43f5e' : percentUsed > 60 ? '#f59e0b' : 'linear-gradient(90deg, #818cf8 0%, #06b6d4 100%)',
+                  borderRadius: '4px',
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-dim)' }}>
+                <span>
+                  Remaining limit: <strong style={{ color: remainingLimit >= 0 ? '#10b981' : '#f43f5e' }}>{currency}{Math.max(0, remainingLimit).toLocaleString('en-IN')}</strong>
+                  {remainingLimit < 0 && <span style={{ color: '#f43f5e' }}> (Over by {currency}{Math.abs(remainingLimit).toLocaleString('en-IN')})</span>}
+                </span>
+                <span style={{ color: percentUsed > 80 ? '#f43f5e' : 'var(--text-dim)' }}>
+                  {percentUsed > 80 ? '⚠️ High utilization' : '✓ Normal'}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', paddingTop: '2px' }}>
+              Click <strong>Set Limit</strong> above to configure your total credit limit and see your progress bar.
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px'
@@ -157,17 +270,40 @@ export function AccountsBar() {
                 {isNegative ? '-' : ''}{currency}{Math.abs(acc.balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </div>
 
-              {isCard && limit > 0 ? (
+              {isCard && (
                 <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
-                    <span style={{ color: 'var(--text-dim)' }}>Avail: <strong style={{ color: '#10b981' }}>{currency}{availableCredit.toLocaleString()}</strong></span>
-                    <span style={{ color: 'var(--text-dim)' }}>Limit: {currency}{limit.toLocaleString()} <span style={{ color: usedPercent > 80 ? '#f43f5e' : 'var(--text-dim)', fontWeight: 'bold' }}>({usedPercent}%)</span></span>
-                  </div>
-                  <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', marginBottom: '6px' }}>
-                    <div style={{ width: `${usedPercent}%`, height: '100%', background: usedPercent > 80 ? '#f43f5e' : '#06b6d4' }} />
-                  </div>
+                  {limit > 0 ? (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
+                        <span style={{ color: 'var(--text-dim)' }}>Avail: <strong style={{ color: '#10b981' }}>{currency}{availableCredit.toLocaleString()}</strong></span>
+                        <span style={{ color: 'var(--text-dim)' }}>Limit: {currency}{limit.toLocaleString()} <span style={{ color: usedPercent > 80 ? '#f43f5e' : 'var(--text-dim)', fontWeight: 'bold' }}>({usedPercent}%)</span></span>
+                      </div>
+                      <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', marginBottom: '6px' }}>
+                        <div style={{ width: `${usedPercent}%`, height: '100%', background: usedPercent > 80 ? '#f43f5e' : usedPercent > 60 ? '#f59e0b' : '#06b6d4' }} />
+                      </div>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openEdit(acc)}
+                      style={{
+                        width: '100%',
+                        padding: '4px 8px',
+                        fontSize: '0.72rem',
+                        color: '#38bdf8',
+                        background: 'rgba(6, 182, 212, 0.08)',
+                        border: '1px dashed rgba(6, 182, 212, 0.3)',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        textAlign: 'center'
+                      }}
+                    >
+                      + Set card limit
+                    </button>
+                  )}
                 </div>
-              ) : (
+              )}
+              {!isCard && (
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'capitalize', marginTop: '4px' }}>
                   {acc.type} account
                 </div>
@@ -329,6 +465,83 @@ export function AccountsBar() {
           </div>
         </div>
       , document.body)}
+
+      {/* ─── Set Total Credit Limit Modal ─── */}
+      {showLimitModal && createPortal(
+        <div className="modal-overlay">
+          <div className="modal-content animate-fade-in" style={{ maxWidth: '340px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CreditCard size={18} color="#818cf8" />
+                <h3 className="font-heading" style={{ fontSize: '1.05rem', margin: 0 }}>Total Credit Card Limit</h3>
+              </div>
+              <button className="btn-secondary" onClick={() => setShowLimitModal(false)} style={{ padding: '4px' }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.4 }}>
+              Set your total target spending limit across all your credit cards.
+            </p>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              setCreditCardLimit(limitInput);
+              setShowLimitModal(false);
+            }}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', marginBottom: '6px', color: 'var(--text-muted)' }}>
+                  Total Limit ({currency})
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  className="glass-input"
+                  value={limitInput}
+                  onChange={(e) => setLimitInput(e.target.value)}
+                  placeholder="e.g. 100000"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '18px', flexWrap: 'wrap' }}>
+                {[25000, 50000, 100000, 200000].map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setLimitInput(String(val))}
+                    className="btn-secondary"
+                    style={{ fontSize: '0.72rem', padding: '4px 8px', borderRadius: '6px' }}
+                  >
+                    {currency}{val >= 100000 ? `${val / 100000}L` : `${val / 1000}k`}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLimitModal(false)}
+                  className="btn-secondary"
+                  style={{ flex: 1, padding: '9px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-gradient"
+                  style={{ flex: 1, padding: '9px' }}
+                >
+                  Save Limit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
