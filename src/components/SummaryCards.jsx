@@ -53,6 +53,7 @@ export function SummaryCards() {
   const spentToday = transactions
     .filter(t => spendingAccountIds.includes(t.accountId) && t.type === 'expense' && t.date === todayStr)
     .reduce((sum, t) => sum + t.amount, 0);
+  const remainingToday = dailyAllowance - spentToday;
 
   const getPeriodLabel = () => {
     switch (timeRange) {
@@ -146,15 +147,24 @@ export function SummaryCards() {
         </div>
 
         {/* Simple context line */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
           <span>
             {remainingDays} days left in {currentMonthName}
           </span>
-          {spentToday > 0 && (
-            <span style={{ color: spentToday > dailyAllowance ? '#f43f5e' : '#10b981', fontWeight: '600' }}>
-              Today: {currency}{spentToday.toLocaleString('en-IN', { maximumFractionDigits: 0 })} {spentToday > dailyAllowance ? '⚠️' : '✓'}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <span>
+              Today: <strong style={{ color: spentToday > dailyAllowance ? '#f43f5e' : 'var(--text-main)', fontWeight: '600' }}>{currency}{spentToday.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</strong>
             </span>
-          )}
+            <span style={{ color: 'var(--border-glass)', opacity: 0.6 }}>•</span>
+            <span style={{
+              fontWeight: '700',
+              color: remainingToday >= 0 ? '#10b981' : '#f43f5e'
+            }}>
+              {remainingToday >= 0
+                ? `Remaining: ${currency}${Math.round(remainingToday).toLocaleString('en-IN')} ✓`
+                : `Over by: ${currency}${Math.round(Math.abs(remainingToday)).toLocaleString('en-IN')} ⚠️`}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -383,8 +393,15 @@ export function SummaryCards() {
           <h3 className="font-heading" style={{ fontSize: '1.8rem', fontWeight: '800', color: '#f43f5e', marginBottom: '6px' }}>
             -{currency}{totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#f43f5e' }}>
-            <ArrowDownRight size={14} /> Total spent across categories
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px', fontSize: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f43f5e' }}>
+              <ArrowDownRight size={14} /> Total spent across categories
+            </div>
+            {timeRange === 'today' && dailyAllowance > 0 && (
+              <span style={{ color: remainingToday >= 0 ? '#10b981' : '#f43f5e', fontWeight: '600' }}>
+                ({remainingToday >= 0 ? `${currency}${Math.round(remainingToday).toLocaleString('en-IN')} remaining today` : `${currency}${Math.round(Math.abs(remainingToday)).toLocaleString('en-IN')} over limit`})
+              </span>
+            )}
           </div>
         </div>
 

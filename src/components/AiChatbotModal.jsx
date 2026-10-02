@@ -91,6 +91,7 @@ export function AiChatbotModal({ isOpen, onClose }) {
       totalExpenses: `${currency}${totalExpenses.toFixed(2)}`,
       dailySafeSpend: `${currency}${dailySafeSpend.toFixed(0)}/day (${remainingDays} days remaining)`,
       spentToday: `${currency}${spentToday.toFixed(2)}`,
+      remainingToday: `${currency}${(dailySafeSpend - spentToday).toFixed(2)}`,
       monthlySpendingByCategory: monthlySpending,
       categoryBudgets: categoryBudgets,
       accounts: accounts.map(a => `${a.name} (${a.type}): ${currency}${a.balance}${a.creditLimit > 0 ? ` [Limit: ${currency}${a.creditLimit}, Stmt Day: ${a.statementDay||'N/A'}, Due Day: ${a.dueDay||'N/A'}]` : ''}`),

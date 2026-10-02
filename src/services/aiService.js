@@ -384,7 +384,7 @@ Context summary of user's financial state:
 - Total Net Worth: ${contextData.netWorth}
 - Total Monthly Income: ${contextData.totalIncome}
 - Total Monthly Expenses: ${contextData.totalExpenses}
-- Daily Spending Allowance: ${contextData.dailySafeSpend || 'N/A'} (Spent today: ${contextData.spentToday || 'N/A'})
+- Daily Spending Allowance: ${contextData.dailySafeSpend || 'N/A'} (Spent today: ${contextData.spentToday || 'N/A'}${contextData.remainingToday ? `, Remaining today: ${contextData.remainingToday}` : ''})
 - Spending By Category: ${JSON.stringify(contextData.monthlySpendingByCategory || {})}
 - Category Budgets: ${JSON.stringify(contextData.categoryBudgets || {})}
 - Account Balances & Limits: ${JSON.stringify(contextData.accounts)}
