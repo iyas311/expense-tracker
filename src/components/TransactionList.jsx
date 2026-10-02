@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useExpense } from '../context/ExpenseContext';
-import { Search, Trash2, ArrowUpRight, ArrowDownRight, ArrowLeftRight, FileText, Calendar, Pencil, X, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Search, Trash2, ArrowUpRight, ArrowDownRight, ArrowLeftRight, FileText, Calendar, Pencil, X, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download } from 'lucide-react';
 
 export function TransactionList({ showNotes = false }) {
   const {
@@ -96,14 +96,66 @@ export function TransactionList({ showNotes = false }) {
     }
   };
 
+  const handleExportFilteredCsv = () => {
+    if (displayTransactions.length === 0) return;
+    const headers = ['Date', 'Description', 'Amount', 'Type', 'Category', 'Account', 'Notes'];
+    const rows = displayTransactions.map(t => {
+      const cat = getCategory(t.categoryId)?.name || 'General';
+      const acc = getAccount(t.accountId)?.name || 'Account';
+      return [
+        `"${t.date || ''}"`,
+        `"${(t.description || '').replace(/"/g, '""')}"`,
+        t.amount,
+        `"${t.type || ''}"`,
+        `"${cat.replace(/"/g, '""')}"`,
+        `"${acc.replace(/"/g, '""')}"`,
+        `"${(t.notes || '').replace(/"/g, '""')}"`
+      ].join(',');
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `transactions_${timeRange}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="glass-card" style={{ marginBottom: '24px' }}>
       <div className="section-header">
-        <div className="section-title">
-          <h3 className="font-heading">Transaction History</h3>
-          <p>
-            Showing {totalItems > 0 ? `${startIndex + 1}–${endIndex} of ${totalItems}` : '0'} records · <strong style={{ color: '#38bdf8' }}>{getPeriodLabel()}</strong>
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '10px' }}>
+          <div className="section-title">
+            <h3 className="font-heading">Transaction History</h3>
+            <p>
+              Showing {totalItems > 0 ? `${startIndex + 1}–${endIndex} of ${totalItems}` : '0'} records · <strong style={{ color: '#38bdf8' }}>{getPeriodLabel()}</strong>
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExportFilteredCsv}
+            disabled={displayTransactions.length === 0}
+            className="btn-secondary"
+            style={{
+              fontSize: '0.78rem',
+              padding: '6px 12px',
+              borderRadius: '10px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: '#38bdf8',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              opacity: displayTransactions.length === 0 ? 0.4 : 1,
+              cursor: displayTransactions.length === 0 ? 'not-allowed' : 'pointer'
+            }}
+            title="Export currently filtered transactions to CSV"
+          >
+            <Download size={13} />
+            <span>Export CSV</span>
+          </button>
         </div>
 
         {/* Filters */}

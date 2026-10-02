@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useExpense } from '../context/ExpenseContext';
 import { parseNaturalLanguageTransaction, parseReceiptImage } from '../services/aiService';
-import { Sparkles, Camera, Plus, Loader2, CornerDownLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Sparkles, Camera, Plus, Loader2, CornerDownLeft, CheckCircle2, AlertCircle, X } from 'lucide-react';
 
 export function QuickAiBar({ onOpenManualAdd }) {
-  const { categories, accounts, apiKey, groqApiKey, addTransactions, addTransfer, addDebt, settleDebt, debts, currency, authFetch } = useExpense();
+  const { categories, accounts, apiKey, groqApiKey, addTransaction, addTransactions, addTransfer, addDebt, settleDebt, debts, currency, authFetch } = useExpense();
   const [naturalInput, setNaturalInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState(null); // { type: 'success' | 'error', message: string }
+  const [receiptPreview, setReceiptPreview] = useState(null); // { url, name, size }
+  const scanAbortedRef = useRef(false);
+  const fileInputRef = useRef(null);
   const [selectedEngine, setSelectedEngine] = useState(() => {
     try {
       return localStorage.getItem('et_quick_ai_engine') || 'auto';
@@ -194,18 +197,43 @@ export function QuickAiBar({ onOpenManualAdd }) {
     });
   };
 
+  const handleCancelReceiptScan = () => {
+    scanAbortedRef.current = true;
+    if (receiptPreview?.url) {
+      try { URL.revokeObjectURL(receiptPreview.url); } catch (e) {}
+    }
+    setReceiptPreview(null);
+    setIsLoading(false);
+    setStatus(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleReceiptUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    scanAbortedRef.current = false;
+    const objectUrl = URL.createObjectURL(file);
+    setReceiptPreview({
+      url: objectUrl,
+      name: file.name,
+      size: (file.size / 1024).toFixed(0) + ' KB'
+    });
 
     setIsLoading(true);
     setStatus({ type: 'loading', message: 'Extracting details from receipt image...' });
 
     try {
       const base64Image = await compressImage(file);
+      if (scanAbortedRef.current) return;
+
       const parsed = await parseReceiptImage(base64Image, categories, accounts, apiKey, groqApiKey);
+      if (scanAbortedRef.current) return;
+
       if (parsed) {
-        addTransaction(parsed);
+        await addTransaction(parsed);
         setStatus({
           type: 'success',
           message: `Receipt logged: ${currency}${parsed.amount} at ${parsed.description}`
@@ -213,11 +241,17 @@ export function QuickAiBar({ onOpenManualAdd }) {
         setTimeout(() => setStatus(null), 4000);
       }
     } catch (err) {
-      setStatus({ type: 'error', message: err.message || 'Failed to scan receipt.' });
-      setTimeout(() => setStatus(null), 4000);
+      if (!scanAbortedRef.current) {
+        setStatus({ type: 'error', message: err.message || 'Failed to scan receipt.' });
+        setTimeout(() => setStatus(null), 4000);
+      }
     } finally {
+      if (objectUrl) {
+        try { URL.revokeObjectURL(objectUrl); } catch (e) {}
+      }
+      setReceiptPreview(null);
       setIsLoading(false);
-      e.target.value = ''; // reset file input
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -267,6 +301,96 @@ export function QuickAiBar({ onOpenManualAdd }) {
           </select>
         </div>
       </div>
+
+      {/* Receipt Image Scan Preview Card */}
+      {receiptPreview && (
+        <div className="glass-card animate-fade-in" style={{
+          marginBottom: '10px',
+          padding: '10px 14px',
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(6, 182, 212, 0.12) 100%)',
+          border: '1px solid rgba(6, 182, 212, 0.35)',
+          borderRadius: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+            {/* Thumbnail with Laser Scanning Animation Overlay */}
+            <div style={{
+              position: 'relative',
+              width: '46px',
+              height: '46px',
+              borderRadius: '10px',
+              overflow: 'hidden',
+              flexShrink: 0,
+              border: '1px solid rgba(6, 182, 212, 0.4)',
+              boxShadow: '0 0 10px rgba(6, 182, 212, 0.25)'
+            }}>
+              <img
+                src={receiptPreview.url}
+                alt="Receipt scan"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+              {/* Laser scanner line effect */}
+              <div
+                className="animate-scan-laser"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  height: '3px',
+                  background: 'linear-gradient(90deg, transparent, #06b6d4, #38bdf8, transparent)',
+                  boxShadow: '0 0 8px #06b6d4, 0 0 4px #38bdf8'
+                }}
+              />
+            </div>
+
+            {/* Info and Progress message */}
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
+                  {receiptPreview.name}
+                </span>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: '6px' }}>
+                  {receiptPreview.size}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.74rem', color: '#38bdf8' }}>
+                <Loader2 size={12} className="animate-spin" />
+                <span>Scanning merchant, date & items...</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cancel button */}
+          <button
+            type="button"
+            onClick={handleCancelReceiptScan}
+            title="Cancel Receipt Scan"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              background: 'rgba(244, 63, 94, 0.12)',
+              border: '1px solid rgba(244, 63, 94, 0.3)',
+              color: '#f43f5e',
+              fontSize: '0.74rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              flexShrink: 0,
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(244, 63, 94, 0.2)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(244, 63, 94, 0.12)'}
+          >
+            <X size={13} />
+            <span>Cancel</span>
+          </button>
+        </div>
+      )}
 
       {/* Main Command Bar Container */}
       <div style={{
@@ -399,6 +523,7 @@ export function QuickAiBar({ onOpenManualAdd }) {
           >
             <Camera size={18} />
             <input
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               style={{ display: 'none' }}

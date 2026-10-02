@@ -4,7 +4,7 @@ import { useExpense } from '../context/ExpenseContext';
 import { Wallet, TrendingUp, TrendingDown, PiggyBank, ArrowUpRight, ArrowDownRight, Calendar, Zap, SlidersHorizontal, Check, X } from 'lucide-react';
 
 export function SummaryCards() {
-  const { currency, netWorth, totalIncome, totalExpenses, timeRange, setTimeRange, selectedMonth, setSelectedMonth, selectedDate, setSelectedDate, accounts, transactions } = useExpense();
+  const { currency, netWorth, totalIncome, totalExpenses, timeRange, setTimeRange, selectedMonth, setSelectedMonth, selectedDate, setSelectedDate, accounts, transactions, debts = [] } = useExpense();
 
   const [showAccountsModal, setShowAccountsModal] = useState(false);
 
@@ -35,6 +35,13 @@ export function SummaryCards() {
 
   const netSavings = totalIncome - totalExpenses;
   const savingsRate = totalIncome > 0 ? Math.max(0, Math.round((netSavings / totalIncome) * 100)) : 0;
+
+  // Assets vs Liabilities Breakdown
+  const totalAssets = accounts.reduce((sum, a) => sum + (a.balance > 0 ? a.balance : 0), 0) +
+    debts.filter(d => d.direction === 'lent' && d.status !== 'settled').reduce((sum, d) => sum + Math.max(0, d.amount - (d.settledAmount || 0)), 0);
+
+  const totalLiabilities = accounts.reduce((sum, a) => sum + (a.balance < 0 ? Math.abs(a.balance) : 0), 0) +
+    debts.filter(d => d.direction === 'borrowed' && d.status !== 'settled').reduce((sum, d) => sum + Math.max(0, d.amount - (d.settledAmount || 0)), 0);
 
   // Daily Allowance Calculations for Current Month
   const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
@@ -357,8 +364,16 @@ export function SummaryCards() {
           <h3 className="font-heading" style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '6px' }}>
             {currency}{netWorth.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '6px', marginBottom: '6px', fontSize: '0.72rem' }}>
+            <span style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '2px 8px', borderRadius: '6px', fontWeight: '600' }}>
+              Assets: +{currency}{totalAssets.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            </span>
+            <span style={{ color: totalLiabilities > 0 ? '#f43f5e' : 'var(--text-dim)', background: totalLiabilities > 0 ? 'rgba(244, 63, 94, 0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${totalLiabilities > 0 ? 'rgba(244, 63, 94, 0.25)' : 'rgba(255,255,255,0.1)'}`, padding: '2px 8px', borderRadius: '6px', fontWeight: '600' }}>
+              Liabilities: -{currency}{totalLiabilities.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            </span>
+          </div>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-            Across all connected bank accounts & cash
+            Across all connected accounts, cash & debts
           </p>
         </div>
 
