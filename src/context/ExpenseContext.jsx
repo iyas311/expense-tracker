@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { exportCsv } from '../utils/csvExport';
 import { exportPdfStatement as generatePdfStatement } from '../utils/pdfExport';
 
@@ -50,6 +50,8 @@ export function ExpenseProvider({ children }) {
   // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [deletedTxUndo, setDeletedTxUndo] = useState(null);
+  const undoTimeoutRef = useRef(null);
 
   // App Data (Scoped to current vault)
   const [transactions, setTransactions] = useState(() => {
@@ -343,11 +345,33 @@ export function ExpenseProvider({ children }) {
   };
 
   const deleteTransaction = async (id) => {
+    const txToDelete = transactions.find(t => t.id === id || t.transferId === id);
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+    }
+    if (txToDelete) {
+      setDeletedTxUndo(txToDelete);
+    }
+
     setTransactions(prev => prev.filter(t => t.id !== id && t.transferId !== id));
-    try {
-      await authFetch('deleteTransaction', { id });
-      refreshCloudData();
-    } catch (e) {}
+
+    // Delay actual cloud deletion by 5 seconds to give user time to undo
+    undoTimeoutRef.current = setTimeout(async () => {
+      try {
+        await authFetch('deleteTransaction', { id });
+        refreshCloudData();
+      } catch (e) {}
+      setDeletedTxUndo(null);
+    }, 5000);
+  };
+
+  const undoDeleteTransaction = () => {
+    if (!deletedTxUndo) return;
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+    }
+    setTransactions(prev => [deletedTxUndo, ...prev]);
+    setDeletedTxUndo(null);
   };
 
   // ─── Transfer ────────────────────────────────────────────────────────────────
@@ -657,6 +681,7 @@ export function ExpenseProvider({ children }) {
       login, logout, getUsers, createUser, changePassword,
       setApiKey, setGroqApiKey, setCurrency, creditCardLimit, setCreditCardLimit,
       addTransaction, addTransactions, editTransaction, deleteTransaction,
+      deletedTxUndo, undoDeleteTransaction,
       addTransfer,
       addCategory, updateCategory, deleteCategory, updateCategoryBudget,
       addAccount, editAccount, deleteAccount,

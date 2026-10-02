@@ -1,22 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { ExpenseProvider, useExpense } from './context/ExpenseContext';
 import { PasscodeModal } from './components/PasscodeModal';
 import { Navbar } from './components/Navbar';
 import { SummaryCards } from './components/SummaryCards';
 import { AccountsBar } from './components/AccountsBar';
-import { DebtTracker } from './components/DebtTracker';
 import { QuickAiBar } from './components/QuickAiBar';
 import { TransactionModal } from './components/TransactionModal';
 import { TransactionList } from './components/TransactionList';
-import { BudgetCategoryManager } from './components/BudgetCategoryManager';
-import { BudgetReport } from './components/BudgetReport';
-import { AnalyticsDashboard } from './components/AnalyticsDashboard';
-import { AdminDashboard } from './components/AdminDashboard';
-import { SubscriptionsTracker } from './components/SubscriptionsTracker';
-import { ApiKeyModal } from './components/ApiKeyModal';
-import { AiChatbotModal } from './components/AiChatbotModal';
-import { LogViewer } from './components/LogViewer';
-import { WifiOff } from 'lucide-react';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { WifiOff, RotateCcw } from 'lucide-react';
+
+// Lazy loaded secondary components & modals (reduces initial bundle size)
+const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
+const DebtTracker = lazy(() => import('./components/DebtTracker').then(m => ({ default: m.DebtTracker })));
+const BudgetCategoryManager = lazy(() => import('./components/BudgetCategoryManager').then(m => ({ default: m.BudgetCategoryManager })));
+const BudgetReport = lazy(() => import('./components/BudgetReport').then(m => ({ default: m.BudgetReport })));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const SubscriptionsTracker = lazy(() => import('./components/SubscriptionsTracker').then(m => ({ default: m.SubscriptionsTracker })));
+const ApiKeyModal = lazy(() => import('./components/ApiKeyModal').then(m => ({ default: m.ApiKeyModal })));
+const AiChatbotModal = lazy(() => import('./components/AiChatbotModal').then(m => ({ default: m.AiChatbotModal })));
+const LogViewer = lazy(() => import('./components/LogViewer').then(m => ({ default: m.LogViewer })));
+
+const LoadingFallback = () => (
+  <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+    <div style={{
+      width: '24px',
+      height: '24px',
+      margin: '0 auto 8px',
+      border: '2px solid rgba(6, 182, 212, 0.2)',
+      borderTopColor: '#06b6d4',
+      borderRadius: '50%',
+      animation: 'spin 0.8s linear infinite'
+    }} />
+    Loading...
+  </div>
+);
 
 function MainApp() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -24,7 +42,7 @@ function MainApp() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isLogViewerOpen, setIsLogViewerOpen] = useState(false);
-  const { isOffline, currentVault } = useExpense();
+  const { isOffline, currentVault, deletedTxUndo, undoDeleteTransaction, currency } = useExpense();
 
   return (
     <div className="app-layout">
@@ -48,55 +66,139 @@ function MainApp() {
         {/* TAB 1: DASHBOARD (Home) */}
         {activeTab === 'dashboard' && (
           <div className="animate-fade-in">
-            <QuickAiBar onOpenManualAdd={() => setIsManualModalOpen(true)} />
-            <SummaryCards />
-            <AccountsBar />
-            <AnalyticsDashboard />
-            <TransactionList showNotes={false} />
+            <ErrorBoundary fallbackTitle="Quick Entry issue">
+              <QuickAiBar onOpenManualAdd={() => setIsManualModalOpen(true)} />
+            </ErrorBoundary>
+
+            <ErrorBoundary fallbackTitle="Summary cards issue">
+              <SummaryCards />
+            </ErrorBoundary>
+
+            <ErrorBoundary fallbackTitle="Accounts overview issue">
+              <AccountsBar />
+            </ErrorBoundary>
+
+            <ErrorBoundary fallbackTitle="Analytics charts issue">
+              <Suspense fallback={<LoadingFallback />}>
+                <AnalyticsDashboard />
+              </Suspense>
+            </ErrorBoundary>
+
+            <ErrorBoundary fallbackTitle="Transactions list issue">
+              <TransactionList showNotes={false} />
+            </ErrorBoundary>
           </div>
         )}
 
         {/* TAB 2: TRANSACTIONS (History) */}
         {activeTab === 'transactions' && (
           <div className="animate-fade-in">
-            <QuickAiBar onOpenManualAdd={() => setIsManualModalOpen(true)} />
-            <TransactionList showNotes={true} />
+            <ErrorBoundary fallbackTitle="Quick Entry issue">
+              <QuickAiBar onOpenManualAdd={() => setIsManualModalOpen(true)} />
+            </ErrorBoundary>
+            <ErrorBoundary fallbackTitle="Transactions list issue">
+              <TransactionList showNotes={true} />
+            </ErrorBoundary>
           </div>
         )}
 
         {/* TAB 3: BUDGETS & CATEGORIES */}
         {activeTab === 'budgets' && (
           <div className="animate-fade-in">
-            <BudgetReport />
-            <BudgetCategoryManager />
+            <ErrorBoundary fallbackTitle="Budgets section issue">
+              <Suspense fallback={<LoadingFallback />}>
+                <BudgetReport />
+                <BudgetCategoryManager />
+              </Suspense>
+            </ErrorBoundary>
           </div>
         )}
 
         {/* TAB 4: RECURRING BILLS */}
         {activeTab === 'subscriptions' && (
           <div className="animate-fade-in">
-            <DebtTracker />
-            <SubscriptionsTracker />
+            <ErrorBoundary fallbackTitle="Debts & Subscriptions issue">
+              <Suspense fallback={<LoadingFallback />}>
+                <DebtTracker />
+                <SubscriptionsTracker />
+              </Suspense>
+            </ErrorBoundary>
           </div>
         )}
 
         {/* TAB 5: ADMIN DASHBOARD */}
         {activeTab === 'admin' && currentVault?.isAdmin && (
           <div className="animate-fade-in">
-            <AdminDashboard />
+            <ErrorBoundary fallbackTitle="Admin dashboard issue">
+              <Suspense fallback={<LoadingFallback />}>
+                <AdminDashboard />
+              </Suspense>
+            </ErrorBoundary>
           </div>
         )}
       </main>
 
       <TransactionModal isOpen={isManualModalOpen} onClose={() => setIsManualModalOpen(false)} />
-      <ApiKeyModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
-        onOpenLogs={() => { setIsSettingsOpen(false); setIsLogViewerOpen(true); }} 
-        onOpenAdmin={() => { setIsSettingsOpen(false); setActiveTab('admin'); }} 
-      />
-      <AiChatbotModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-      <LogViewer isOpen={isLogViewerOpen} onClose={() => setIsLogViewerOpen(false)} />
+      
+      <Suspense fallback={null}>
+        {isSettingsOpen && (
+          <ApiKeyModal 
+            isOpen={isSettingsOpen} 
+            onClose={() => setIsSettingsOpen(false)} 
+            onOpenLogs={() => { setIsSettingsOpen(false); setIsLogViewerOpen(true); }} 
+            onOpenAdmin={() => { setIsSettingsOpen(false); setActiveTab('admin'); }} 
+          />
+        )}
+        {isChatOpen && (
+          <AiChatbotModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+        )}
+        {isLogViewerOpen && (
+          <LogViewer isOpen={isLogViewerOpen} onClose={() => setIsLogViewerOpen(false)} />
+        )}
+      </Suspense>
+
+      {/* Floating 5-Second Deletion Undo Snackbar */}
+      {deletedTxUndo && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(15, 23, 42, 0.95)',
+          border: '1px solid rgba(59, 130, 246, 0.5)',
+          borderRadius: '14px',
+          padding: '10px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          zIndex: 99999,
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(12px)'
+        }}>
+          <span style={{ fontSize: '0.82rem', color: '#fff' }}>
+            Deleted: <strong>{deletedTxUndo.description || 'Transaction'}</strong> ({currency}{deletedTxUndo.amount})
+          </span>
+          <button
+            type="button"
+            onClick={undoDeleteTransaction}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              background: '#3b82f6',
+              color: '#fff',
+              border: 'none',
+              padding: '5px 12px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '700',
+              fontSize: '0.78rem'
+            }}
+          >
+            <RotateCcw size={13} /> Undo
+          </button>
+        </div>
+      )}
     </div>
   );
 }

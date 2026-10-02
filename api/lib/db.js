@@ -117,7 +117,16 @@ export async function runMigrations(sql) {
   try { await sql`UPDATE transactions SET vault_id = 'vault_admin' WHERE vault_id IS NULL;`; } catch (e) {}
   try { await sql`UPDATE subscriptions SET vault_id = 'vault_admin' WHERE vault_id IS NULL;`; } catch (e) {}
 
-  // 5. Ensure Admin Vault exists in app_vaults
+  // 5. Database Indexes for high-speed indexing & querying
+  try { await sql`CREATE INDEX IF NOT EXISTS idx_tx_vault_date ON transactions(vault_id, date DESC);`; } catch (e) {}
+  try { await sql`CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(account_id);`; } catch (e) {}
+  try { await sql`CREATE INDEX IF NOT EXISTS idx_sessions_token ON app_sessions(token);`; } catch (e) {}
+  try { await sql`CREATE INDEX IF NOT EXISTS idx_debts_vault ON app_debts(vault_id);`; } catch (e) {}
+  try { await sql`CREATE INDEX IF NOT EXISTS idx_accounts_vault ON accounts(vault_id);`; } catch (e) {}
+  try { await sql`CREATE INDEX IF NOT EXISTS idx_categories_vault ON categories(vault_id);`; } catch (e) {}
+  try { await sql`CREATE INDEX IF NOT EXISTS idx_subscriptions_vault ON subscriptions(vault_id);`; } catch (e) {}
+
+  // 6. Ensure Admin Vault exists in app_vaults
   const adminVaults = await sql`SELECT id, passcode FROM app_vaults WHERE id = 'vault_admin' OR is_admin = TRUE;`;
   if (adminVaults.length === 0) {
     let adminPass = '3311';
