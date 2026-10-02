@@ -3,7 +3,21 @@ import { useExpense } from '../context/ExpenseContext';
 import { Search, Trash2, ArrowUpRight, ArrowDownRight, ArrowLeftRight, FileText, Calendar, Pencil, X, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 export function TransactionList({ showNotes = false }) {
-  const { transactions, filteredTransactions: timeFilteredTransactions, categories, accounts, currency, deleteTransaction, editTransaction, timeRange } = useExpense();
+  const {
+    transactions,
+    filteredTransactions: timeFilteredTransactions,
+    categories,
+    accounts,
+    currency,
+    deleteTransaction,
+    editTransaction,
+    timeRange,
+    setTimeRange,
+    selectedMonth,
+    setSelectedMonth,
+    selectedDate,
+    setSelectedDate
+  } = useExpense();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -62,18 +76,85 @@ export function TransactionList({ showNotes = false }) {
 
   const cancelEdit = () => setEditingId(null);
 
+  const getPeriodLabel = () => {
+    switch (timeRange) {
+      case 'today': return 'Today';
+      case 'yesterday': return 'Yesterday';
+      case 'this_week': return 'This Week';
+      case 'this_month': return 'This Month';
+      case 'all_time': return 'All Time';
+      case 'custom_month': {
+        const [year, month] = (selectedMonth || '').split('-');
+        if (!year || !month) return 'Custom Month';
+        return new Date(year, month - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+      }
+      case 'custom_date': {
+        if (!selectedDate) return 'Custom Date';
+        return new Date(selectedDate + 'T00:00:00').toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+      default: return timeRange.replace('_', ' ');
+    }
+  };
+
   return (
     <div className="glass-card" style={{ marginBottom: '24px' }}>
       <div className="section-header">
         <div className="section-title">
           <h3 className="font-heading">Transaction History</h3>
           <p>
-            Showing {totalItems > 0 ? `${startIndex + 1}–${endIndex} of ${totalItems}` : '0'} records · {timeRange.replace('_', ' ')}
+            Showing {totalItems > 0 ? `${startIndex + 1}–${endIndex} of ${totalItems}` : '0'} records · <strong style={{ color: '#38bdf8' }}>{getPeriodLabel()}</strong>
           </p>
         </div>
 
         {/* Filters */}
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', paddingBottom: '4px' }}>
+          {/* Time Period Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <select
+              className="glass-input"
+              style={{
+                width: 'auto',
+                fontSize: '0.82rem',
+                flexShrink: 0,
+                color: '#38bdf8',
+                fontWeight: '700',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                background: 'rgba(56, 189, 248, 0.1)'
+              }}
+              value={timeRange}
+              onChange={e => setTimeRange(e.target.value)}
+              title="Filter transactions by time period"
+            >
+              <option value="this_month" style={{ background: '#0f172a', color: '#fff' }}>📅 This Month</option>
+              <option value="today" style={{ background: '#0f172a', color: '#fff' }}>📅 Today</option>
+              <option value="yesterday" style={{ background: '#0f172a', color: '#fff' }}>📅 Yesterday</option>
+              <option value="this_week" style={{ background: '#0f172a', color: '#fff' }}>📅 This Week</option>
+              <option value="all_time" style={{ background: '#0f172a', color: '#fff' }}>📅 All Time</option>
+              <option value="custom_month" style={{ background: '#0f172a', color: '#fff' }}>📅 Select Month...</option>
+              <option value="custom_date" style={{ background: '#0f172a', color: '#fff' }}>📅 Select Date...</option>
+            </select>
+
+            {timeRange === 'custom_month' && (
+              <input
+                type="month"
+                className="glass-input"
+                style={{ width: 'auto', padding: '5px 10px', fontSize: '0.8rem', color: '#fff' }}
+                value={selectedMonth}
+                onChange={e => setSelectedMonth(e.target.value)}
+              />
+            )}
+
+            {timeRange === 'custom_date' && (
+              <input
+                type="date"
+                className="glass-input"
+                style={{ width: 'auto', padding: '5px 10px', fontSize: '0.8rem', color: '#fff' }}
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+              />
+            )}
+          </div>
+
           <div style={{ position: 'relative', flex: '1 1 160px', minWidth: '140px' }}>
             <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input
