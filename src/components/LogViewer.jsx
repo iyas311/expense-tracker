@@ -8,6 +8,7 @@ export function LogViewer({ isOpen, onClose }) {
   const [logs, setLogs] = useState([]);
   const [prompts, setPrompts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(25);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -65,13 +66,17 @@ export function LogViewer({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) {
+      setVisibleCount(25);
       fetchPrompts();
       fetchLogs();
     }
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen) handleRefresh();
+    if (isOpen) {
+      setVisibleCount(25);
+      handleRefresh();
+    }
   }, [activeTab]);
 
   if (!isOpen) return null;
@@ -171,7 +176,7 @@ export function LogViewer({ isOpen, onClose }) {
                 <p style={{ fontSize: '0.78rem', marginTop: '6px', opacity: 0.6 }}>e.g. "burger 60 and groceries 100"</p>
               </div>
             )}
-            {!loading && prompts.map(p => {
+            {!loading && prompts.slice(0, visibleCount).map(p => {
               const time = new Date(p.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
               return (
                 <div key={p.id} style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
@@ -190,6 +195,16 @@ export function LogViewer({ isOpen, onClose }) {
                 </div>
               );
             })}
+            {!loading && prompts.length > visibleCount && (
+              <button
+                type="button"
+                onClick={() => setVisibleCount(c => c + 25)}
+                className="btn-secondary"
+                style={{ padding: '8px', fontSize: '0.78rem', marginTop: '6px', textAlign: 'center', width: '100%', borderRadius: '8px' }}
+              >
+                Load More Prompts ({prompts.length - visibleCount} remaining)
+              </button>
+            )}
           </div>
         )}
 
@@ -224,7 +239,7 @@ export function LogViewer({ isOpen, onClose }) {
                   <p style={{ fontSize: '0.78rem', marginTop: '6px', opacity: 0.6 }}>Make sure GEMINI_API_KEY or GROQ_API_KEY is set in Vercel env vars.</p>
                 </div>
               )}
-              {!loading && logs.map(log => {
+              {!loading && logs.slice(0, visibleCount).map(log => {
                 const lvl = getLevelConfig(log.level);
                 const time = new Date(log.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 return (
@@ -244,6 +259,16 @@ export function LogViewer({ isOpen, onClose }) {
                   </div>
                 );
               })}
+              {!loading && logs.length > visibleCount && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount(c => c + 25)}
+                  className="btn-secondary"
+                  style={{ padding: '8px', fontSize: '0.78rem', marginTop: '6px', textAlign: 'center', width: '100%', borderRadius: '8px' }}
+                >
+                  Load More Logs ({logs.length - visibleCount} remaining)
+                </button>
+              )}
             </div>
           </>
         )}

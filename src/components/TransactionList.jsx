@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useExpense } from '../context/ExpenseContext';
-import { Search, Trash2, ArrowUpRight, ArrowDownRight, ArrowLeftRight, FileText, Calendar, Pencil, X, Check } from 'lucide-react';
+import { Search, Trash2, ArrowUpRight, ArrowDownRight, ArrowLeftRight, FileText, Calendar, Pencil, X, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 export function TransactionList({ showNotes = false }) {
   const { transactions, filteredTransactions: timeFilteredTransactions, categories, accounts, currency, deleteTransaction, editTransaction, timeRange } = useExpense();
@@ -9,6 +9,10 @@ export function TransactionList({ showNotes = false }) {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedAccount, setSelectedAccount] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(showNotes ? 25 : 10);
 
   // Edit state
   const [editingId, setEditingId] = useState(null);
@@ -22,6 +26,18 @@ export function TransactionList({ showNotes = false }) {
     const matchesType = selectedType === 'all' || t.type === selectedType;
     return matchesSearch && matchesCat && matchesAcc && matchesType;
   });
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, selectedAccount, selectedType, timeRange, pageSize]);
+
+  const totalItems = displayTransactions.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedTransactions = displayTransactions.slice(startIndex, endIndex);
 
   const getCategory = (catId) => categories.find(c => c.id === catId) || { name: 'Transfer', color: '#6366f1' };
   const getAccount = (accId) => accounts.find(a => a.id === accId) || { name: 'Account' };
@@ -52,7 +68,7 @@ export function TransactionList({ showNotes = false }) {
         <div className="section-title">
           <h3 className="font-heading">Transaction History</h3>
           <p>
-            Showing {displayTransactions.length} records · {timeRange.replace('_', ' ')}
+            Showing {totalItems > 0 ? `${startIndex + 1}–${endIndex} of ${totalItems}` : '0'} records · {timeRange.replace('_', ' ')}
           </p>
         </div>
 
@@ -91,7 +107,7 @@ export function TransactionList({ showNotes = false }) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {displayTransactions.map((tx) => {
+          {paginatedTransactions.map((tx) => {
             const cat = getCategory(tx.categoryId);
             const acc = getAccount(tx.accountId);
             const isTransfer = tx.type.startsWith('transfer');
@@ -199,6 +215,110 @@ export function TransactionList({ showNotes = false }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ─── Pagination Bar ─── */}
+      {totalItems > 0 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          marginTop: '16px',
+          paddingTop: '14px',
+          borderTop: '1px solid rgba(255, 255, 255, 0.07)',
+          fontSize: '0.8rem',
+          color: 'var(--text-muted)'
+        }}>
+          {/* Rows per page selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>Rows per page:</span>
+            <select
+              className="glass-input"
+              style={{ padding: '4px 8px', fontSize: '0.76rem', width: 'auto', borderRadius: '8px' }}
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+            >
+              <option value={10} style={{ background: '#0f172a' }}>10</option>
+              <option value={25} style={{ background: '#0f172a' }}>25</option>
+              <option value={50} style={{ background: '#0f172a' }}>50</option>
+              <option value={100} style={{ background: '#0f172a' }}>100</option>
+            </select>
+            <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+              ({startIndex + 1}–{endIndex} of {totalItems})
+            </span>
+          </div>
+
+          {/* Navigation Buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={safeCurrentPage === 1}
+              onClick={() => setCurrentPage(1)}
+              title="First Page"
+              style={{
+                padding: '5px 8px',
+                borderRadius: '8px',
+                opacity: safeCurrentPage === 1 ? 0.35 : 1,
+                cursor: safeCurrentPage === 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <ChevronsLeft size={14} />
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={safeCurrentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              title="Previous Page"
+              style={{
+                padding: '5px 8px',
+                borderRadius: '8px',
+                opacity: safeCurrentPage === 1 ? 0.35 : 1,
+                cursor: safeCurrentPage === 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <ChevronLeft size={14} />
+            </button>
+
+            <span style={{ padding: '0 8px', fontWeight: '600', color: 'var(--text-main)', fontSize: '0.78rem' }}>
+              Page {safeCurrentPage} of {totalPages}
+            </span>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={safeCurrentPage >= totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              title="Next Page"
+              style={{
+                padding: '5px 8px',
+                borderRadius: '8px',
+                opacity: safeCurrentPage >= totalPages ? 0.35 : 1,
+                cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <ChevronRight size={14} />
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={safeCurrentPage >= totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+              title="Last Page"
+              style={{
+                padding: '5px 8px',
+                borderRadius: '8px',
+                opacity: safeCurrentPage >= totalPages ? 0.35 : 1,
+                cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <ChevronsRight size={14} />
+            </button>
+          </div>
         </div>
       )}
     </div>
