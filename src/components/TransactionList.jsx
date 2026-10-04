@@ -356,23 +356,23 @@ export function TransactionList({ showNotes = false }) {
               transferBadgeColor = '#6366f1';
               transferBadgeBg = 'rgba(99,102,241,0.15)';
             } else if (isTransferOut) {
-              iconBg = 'rgba(244,63,94,0.12)';
-              iconBorder = 'rgba(244,63,94,0.3)';
-              iconColor = '#f43f5e';
-              amtColor = '#f43f5e';
+              iconBg = 'rgba(245,158,11,0.12)';
+              iconBorder = 'rgba(245,158,11,0.3)';
+              iconColor = '#f59e0b';
+              amtColor = '#f59e0b';
               amtPrefix = '-';
               transferBadgeText = 'Transfer Out';
-              transferBadgeColor = '#f43f5e';
-              transferBadgeBg = 'rgba(244,63,94,0.15)';
+              transferBadgeColor = '#f59e0b';
+              transferBadgeBg = 'rgba(245,158,11,0.15)';
             } else if (isTransferIn) {
-              iconBg = 'rgba(16,185,129,0.12)';
-              iconBorder = 'rgba(16,185,129,0.3)';
-              iconColor = '#10b981';
-              amtColor = '#10b981';
+              iconBg = 'rgba(6,182,212,0.12)';
+              iconBorder = 'rgba(6,182,212,0.3)';
+              iconColor = '#06b6d4';
+              amtColor = '#06b6d4';
               amtPrefix = '+';
               transferBadgeText = 'Transfer In';
-              transferBadgeColor = '#10b981';
-              transferBadgeBg = 'rgba(16,185,129,0.15)';
+              transferBadgeColor = '#06b6d4';
+              transferBadgeBg = 'rgba(6,182,212,0.15)';
             } else if (isIncome) {
               iconBg = 'rgba(16,185,129,0.12)';
               iconBorder = 'rgba(16,185,129,0.3)';
@@ -399,15 +399,15 @@ export function TransactionList({ showNotes = false }) {
                       <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Type</label>
                       <select
                         className="glass-input"
-                        style={{ fontSize: '0.82rem', fontWeight: '700', color: editForm.type?.startsWith('transfer') ? '#818cf8' : editForm.type === 'income' ? '#10b981' : '#f43f5e' }}
+                        style={{ fontSize: '0.82rem', fontWeight: '700', color: editForm.type === 'transfer_out' ? '#f59e0b' : editForm.type === 'transfer_in' ? '#06b6d4' : editForm.type === 'transfer' ? '#818cf8' : editForm.type === 'income' ? '#10b981' : '#f43f5e' }}
                         value={editForm.type}
                         onChange={e => setEditForm(f => ({ ...f, type: e.target.value }))}
                       >
                         <option value="expense" style={{ background: '#0f172a' }}>Expense</option>
                         <option value="income" style={{ background: '#0f172a' }}>Income</option>
-                        <option value="transfer_out" style={{ background: '#0f172a' }}>Transfer Out (Lent / Sent)</option>
-                        <option value="transfer_in" style={{ background: '#0f172a' }}>Transfer In (Repaid / Received)</option>
-                        <option value="transfer" style={{ background: '#0f172a' }}>Transfer (Internal)</option>
+                        <option value="transfer_out" style={{ background: '#0f172a', color: '#f59e0b' }}>Transfer Out (Lent / Sent)</option>
+                        <option value="transfer_in" style={{ background: '#0f172a', color: '#06b6d4' }}>Transfer In (Repaid / Received)</option>
+                        <option value="transfer" style={{ background: '#0f172a', color: '#818cf8' }}>Transfer (Internal)</option>
                       </select>
                     </div>
                     <div>
