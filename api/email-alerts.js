@@ -1,4 +1,4 @@
-import { getSql } from './lib/db.js';
+import { getSql, getComputedAccounts } from './lib/db.js';
 
 export default async function handler(req, res) {
   // Allow POST from frontend or GET from Vercel Cron
@@ -115,25 +115,25 @@ export default async function handler(req, res) {
 
     // ─── ACTION: CHECK DUE BILLS & ALERT ──────────────────────────────────────
     if (action === 'checkDueBills') {
-      const accounts = await sql`
-        SELECT id, name, type, balance, statement_day as "statementDay", due_day as "dueDay", credit_limit as "creditLimit"
-        FROM accounts
-        WHERE vault_id = ${vaultId} AND type = 'card' AND due_day IS NOT NULL;
-      `;
+      const allAccounts = await getComputedAccounts(sql, vaultId);
+      const accounts = allAccounts.filter(a => a.type === 'card' && a.dueDay);
 
       const now = new Date();
-      const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      // Use IST (Asia/Kolkata) date to match user's local day
+      const istString = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD
+      const [year, month, day] = istString.split('-').map(Number);
+      const todayMidnight = new Date(year, month - 1, day);
 
       const dueSoonCards = [];
 
       for (const card of accounts) {
         const debt = card.balance < 0 ? Math.abs(card.balance) : 0;
-        if (debt <= 0) continue; // Bill already paid
+        if (debt <= 0) continue; // Bill already paid or zero balance
 
         const dueDayNum = parseInt(card.dueDay);
-        let dueDateMidnight = new Date(now.getFullYear(), now.getMonth(), dueDayNum);
-        if (now.getDate() > dueDayNum) {
-          dueDateMidnight = new Date(now.getFullYear(), now.getMonth() + 1, dueDayNum);
+        let dueDateMidnight = new Date(year, month - 1, dueDayNum);
+        if (day > dueDayNum) {
+          dueDateMidnight = new Date(year, month, dueDayNum);
         }
 
         const diffMs = dueDateMidnight.getTime() - todayMidnight.getTime();
