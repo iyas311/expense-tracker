@@ -318,7 +318,7 @@ JSON format:
   // 3. Direct browser Groq Vision
   if (groqApiKey && groqApiKey.trim()) {
     try {
-      const groqVisionModels = ['llama-3.2-11b-vision-preview'];
+      const groqVisionModels = ['qwen/qwen3.8-27b', 'llama-3.2-90b-vision-preview'];
       for (const gModel of groqVisionModels) {
         try {
           const response = await fetch(GROQ_API_URL, {

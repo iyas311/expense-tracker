@@ -88,7 +88,7 @@ export default async function handler(req, res) {
     const callGroq = async (prompt, isJson = true, imageData = null) => {
       if (!groqKey) return null;
       const models = imageData 
-        ? ['llama-3.2-11b-vision-preview']
+        ? ['qwen/qwen3.8-27b', 'llama-3.2-90b-vision-preview']
         : ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'mixtral-8x7b-32768'];
       let lastError = null;
 
