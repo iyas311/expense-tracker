@@ -10,16 +10,36 @@ import { TransactionList } from './components/TransactionList';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { WifiOff, RotateCcw } from 'lucide-react';
 
+// Resilient lazy import that auto-refreshes if new build hashes change on deployment
+function lazyWithRetry(importer) {
+  return lazy(async () => {
+    try {
+      return await importer();
+    } catch (err) {
+      const msg = err?.message || '';
+      if (msg.includes('Failed to fetch dynamically imported module') || msg.includes('Importing a module script failed')) {
+        const reloaded = sessionStorage.getItem('et_chunk_auto_reloaded');
+        if (!reloaded) {
+          sessionStorage.setItem('et_chunk_auto_reloaded', 'true');
+          window.location.reload();
+          return new Promise(() => {}); // pause until page reloads
+        }
+      }
+      throw err;
+    }
+  });
+}
+
 // Lazy loaded secondary components & modals (reduces initial bundle size)
-const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
-const DebtTracker = lazy(() => import('./components/DebtTracker').then(m => ({ default: m.DebtTracker })));
-const BudgetCategoryManager = lazy(() => import('./components/BudgetCategoryManager').then(m => ({ default: m.BudgetCategoryManager })));
-const BudgetReport = lazy(() => import('./components/BudgetReport').then(m => ({ default: m.BudgetReport })));
-const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
-const SubscriptionsTracker = lazy(() => import('./components/SubscriptionsTracker').then(m => ({ default: m.SubscriptionsTracker })));
-const ApiKeyModal = lazy(() => import('./components/ApiKeyModal').then(m => ({ default: m.ApiKeyModal })));
-const AiChatbotModal = lazy(() => import('./components/AiChatbotModal').then(m => ({ default: m.AiChatbotModal })));
-const LogViewer = lazy(() => import('./components/LogViewer').then(m => ({ default: m.LogViewer })));
+const AnalyticsDashboard = lazyWithRetry(() => import('./components/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
+const DebtTracker = lazyWithRetry(() => import('./components/DebtTracker').then(m => ({ default: m.DebtTracker })));
+const BudgetCategoryManager = lazyWithRetry(() => import('./components/BudgetCategoryManager').then(m => ({ default: m.BudgetCategoryManager })));
+const BudgetReport = lazyWithRetry(() => import('./components/BudgetReport').then(m => ({ default: m.BudgetReport })));
+const AdminDashboard = lazyWithRetry(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const SubscriptionsTracker = lazyWithRetry(() => import('./components/SubscriptionsTracker').then(m => ({ default: m.SubscriptionsTracker })));
+const ApiKeyModal = lazyWithRetry(() => import('./components/ApiKeyModal').then(m => ({ default: m.ApiKeyModal })));
+const AiChatbotModal = lazyWithRetry(() => import('./components/AiChatbotModal').then(m => ({ default: m.AiChatbotModal })));
+const LogViewer = lazyWithRetry(() => import('./components/LogViewer').then(m => ({ default: m.LogViewer })));
 
 const LoadingFallback = () => (
   <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
