@@ -254,9 +254,9 @@ export function TransactionModal({ isOpen, onClose }) {
                     fontSize: '0.74rem',
                     fontWeight: '700',
                     borderRadius: '8px',
-                    border: transferMode === 'external_out' ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.08)',
-                    background: transferMode === 'external_out' ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255,255,255,0.03)',
-                    color: transferMode === 'external_out' ? '#818cf8' : 'var(--text-muted)',
+                    border: transferMode === 'external_out' ? '1px solid #f43f5e' : '1px solid rgba(255,255,255,0.08)',
+                    background: transferMode === 'external_out' ? 'rgba(244, 63, 94, 0.22)' : 'rgba(255,255,255,0.03)',
+                    color: transferMode === 'external_out' ? '#f43f5e' : 'var(--text-muted)',
                     cursor: 'pointer'
                   }}
                 >
@@ -270,9 +270,9 @@ export function TransactionModal({ isOpen, onClose }) {
                     fontSize: '0.74rem',
                     fontWeight: '700',
                     borderRadius: '8px',
-                    border: transferMode === 'external_in' ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.08)',
-                    background: transferMode === 'external_in' ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255,255,255,0.03)',
-                    color: transferMode === 'external_in' ? '#818cf8' : 'var(--text-muted)',
+                    border: transferMode === 'external_in' ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.08)',
+                    background: transferMode === 'external_in' ? 'rgba(16, 185, 129, 0.22)' : 'rgba(255,255,255,0.03)',
+                    color: transferMode === 'external_in' ? '#10b981' : 'var(--text-muted)',
                     cursor: 'pointer'
                   }}
                 >

@@ -59,11 +59,20 @@ export function TransactionList({ showNotes = false }) {
 
   const activeSource = (searchAllTime || timeRange === 'all_time') ? (transactions || []) : (timeFilteredTransactions || transactions || []);
 
+  const checkTypeMatch = (t, typeFilter) => {
+    if (typeFilter === 'all') return true;
+    if (typeFilter === 'transfer') return t.type === 'transfer' || t.type.startsWith('transfer_');
+    if (typeFilter === 'transfer_internal') return Boolean(t.transferId) || t.type === 'transfer';
+    if (typeFilter === 'transfer_out') return t.type === 'transfer_out' && !t.transferId;
+    if (typeFilter === 'transfer_in') return t.type === 'transfer_in' && !t.transferId;
+    return t.type === typeFilter;
+  };
+
   const displayTransactions = activeSource.filter(t => {
     const sMatch = matchesSearchTerm(t, searchTerm);
     const matchesCat = selectedCategory === 'all' || t.categoryId === selectedCategory;
     const matchesAcc = selectedAccount === 'all' || t.accountId === selectedAccount;
-    const matchesType = selectedType === 'all' || t.type === selectedType || (selectedType === 'transfer' && (t.type === 'transfer' || t.type.startsWith('transfer_')));
+    const matchesType = checkTypeMatch(t, selectedType);
     return sMatch && matchesCat && matchesAcc && matchesType;
   });
 
@@ -73,7 +82,7 @@ export function TransactionList({ showNotes = false }) {
         const sMatch = matchesSearchTerm(t, searchTerm);
         const matchesCat = selectedCategory === 'all' || t.categoryId === selectedCategory;
         const matchesAcc = selectedAccount === 'all' || t.accountId === selectedAccount;
-        const matchesType = selectedType === 'all' || t.type === selectedType || (selectedType === 'transfer' && (t.type === 'transfer' || t.type.startsWith('transfer_')));
+        const matchesType = checkTypeMatch(t, selectedType);
         return sMatch && matchesCat && matchesAcc && matchesType;
       }).length
     : 0;
@@ -274,7 +283,10 @@ export function TransactionList({ showNotes = false }) {
             <option value="all" style={{ background: '#0f172a' }}>All Types</option>
             <option value="expense" style={{ background: '#0f172a' }}>Expenses</option>
             <option value="income" style={{ background: '#0f172a' }}>Income</option>
-            <option value="transfer" style={{ background: '#0f172a' }}>Transfers</option>
+            <option value="transfer" style={{ background: '#0f172a' }}>All Transfers</option>
+            <option value="transfer_out" style={{ background: '#0f172a' }}>Transfer Out (Lent / Sent)</option>
+            <option value="transfer_in" style={{ background: '#0f172a' }}>Transfer In (Repaid / Received)</option>
+            <option value="transfer_internal" style={{ background: '#0f172a' }}>Transfer (Internal)</option>
           </select>
         </div>
       </div>
@@ -318,18 +330,62 @@ export function TransactionList({ showNotes = false }) {
           {paginatedTransactions.map((tx) => {
             const cat = getCategory(tx.categoryId);
             const acc = getAccount(tx.accountId);
-            const isTransfer = tx.type.startsWith('transfer');
+            const isInternal = Boolean(tx.transferId) || tx.type === 'transfer';
+            const isTransferOut = tx.type === 'transfer_out' && !tx.transferId;
+            const isTransferIn = tx.type === 'transfer_in' && !tx.transferId;
+            const isTransfer = isInternal || isTransferOut || isTransferIn || tx.type.startsWith('transfer');
             const isIncome = tx.type === 'income';
             const isEditing = editingId === tx.id;
 
-            const iconBg = isTransfer
-              ? 'rgba(99,102,241,0.12)'
-              : isIncome ? 'rgba(16,185,129,0.12)' : 'rgba(244,63,94,0.12)';
-            const iconBorder = isTransfer
-              ? 'rgba(99,102,241,0.3)'
-              : isIncome ? 'rgba(16,185,129,0.3)' : 'rgba(244,63,94,0.3)';
-            const amtColor = isTransfer ? '#6366f1' : isIncome ? '#10b981' : '#f43f5e';
-            const amtPrefix = isTransfer ? (tx.type === 'transfer_in' ? '+' : tx.type === 'transfer_out' ? '-' : '⇄') : isIncome ? '+' : '-';
+            let iconBg = 'rgba(244,63,94,0.12)';
+            let iconBorder = 'rgba(244,63,94,0.3)';
+            let iconColor = '#f43f5e';
+            let amtColor = '#f43f5e';
+            let amtPrefix = '-';
+            let transferBadgeText = null;
+            let transferBadgeColor = '#6366f1';
+            let transferBadgeBg = 'rgba(99,102,241,0.15)';
+
+            if (isInternal) {
+              iconBg = 'rgba(99,102,241,0.12)';
+              iconBorder = 'rgba(99,102,241,0.3)';
+              iconColor = '#6366f1';
+              amtColor = '#6366f1';
+              amtPrefix = tx.type === 'transfer_out' ? '-' : (tx.type === 'transfer_in' ? '+' : '⇄');
+              transferBadgeText = 'Transfer';
+              transferBadgeColor = '#6366f1';
+              transferBadgeBg = 'rgba(99,102,241,0.15)';
+            } else if (isTransferOut) {
+              iconBg = 'rgba(244,63,94,0.12)';
+              iconBorder = 'rgba(244,63,94,0.3)';
+              iconColor = '#f43f5e';
+              amtColor = '#f43f5e';
+              amtPrefix = '-';
+              transferBadgeText = 'Transfer Out';
+              transferBadgeColor = '#f43f5e';
+              transferBadgeBg = 'rgba(244,63,94,0.15)';
+            } else if (isTransferIn) {
+              iconBg = 'rgba(16,185,129,0.12)';
+              iconBorder = 'rgba(16,185,129,0.3)';
+              iconColor = '#10b981';
+              amtColor = '#10b981';
+              amtPrefix = '+';
+              transferBadgeText = 'Transfer In';
+              transferBadgeColor = '#10b981';
+              transferBadgeBg = 'rgba(16,185,129,0.15)';
+            } else if (isIncome) {
+              iconBg = 'rgba(16,185,129,0.12)';
+              iconBorder = 'rgba(16,185,129,0.3)';
+              iconColor = '#10b981';
+              amtColor = '#10b981';
+              amtPrefix = '+';
+            } else {
+              iconBg = 'rgba(244,63,94,0.12)';
+              iconBorder = 'rgba(244,63,94,0.3)';
+              iconColor = '#f43f5e';
+              amtColor = '#f43f5e';
+              amtPrefix = '-';
+            }
 
             if (isEditing) {
               return (
@@ -396,14 +452,18 @@ export function TransactionList({ showNotes = false }) {
                 {/* Left */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', minWidth: 0, flex: 1 }}>
                   <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: iconBg, border: `1px solid ${iconBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
-                    {isTransfer ? <ArrowLeftRight size={18} color="#6366f1" /> : isIncome ? <ArrowUpRight size={18} color="#10b981" /> : <ArrowDownRight size={18} color="#f43f5e" />}
+                    {isTransfer ? <ArrowLeftRight size={18} color={iconColor} /> : isIncome ? <ArrowUpRight size={18} color="#10b981" /> : <ArrowDownRight size={18} color="#f43f5e" />}
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px', lineHeight: '1.2' }}>{tx.description}</h4>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '2px' }}>
                       <span className="badge" style={{ background: `${cat.color}20`, color: cat.color, border: `1px solid ${cat.color}40`, padding: '2px 8px', fontSize: '0.7rem' }}>{cat.name}</span>
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>• {acc.name}</span>
-                      {isTransfer && <span className="badge" style={{ background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: '0.65rem' }}>Transfer</span>}
+                      {transferBadgeText && (
+                        <span className="badge" style={{ background: transferBadgeBg, color: transferBadgeColor, border: `1px solid ${transferBadgeColor}40`, fontSize: '0.65rem' }}>
+                          {transferBadgeText}
+                        </span>
+                      )}
                     </div>
                     {showNotes && tx.notes && (
                       <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '6px', display: 'flex', alignItems: 'flex-start', gap: '6px', lineHeight: '1.4' }}>
