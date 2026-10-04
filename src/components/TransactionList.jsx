@@ -20,6 +20,7 @@ export function TransactionList({ showNotes = false }) {
   } = useExpense();
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchAllTime, setSearchAllTime] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedAccount, setSelectedAccount] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
@@ -32,19 +33,55 @@ export function TransactionList({ showNotes = false }) {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
 
-  const displayTransactions = (timeFilteredTransactions || transactions).filter(t => {
-    const matchesSearch = t.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          t.notes?.toLowerCase().includes(searchTerm.toLowerCase());
+  const getCategory = (catId) => categories.find(c => c.id === catId) || { name: 'Transfer', color: '#6366f1' };
+  const getAccount = (accId) => accounts.find(a => a.id === accId) || { name: 'Account' };
+
+  const matchesSearchTerm = (t, term) => {
+    if (!term || !term.trim()) return true;
+    const clean = term.trim().toLowerCase().replace(/^[₹$€£\s]+/, '');
+    if (!clean) return true;
+
+    const amtStr = t.amount !== undefined && t.amount !== null ? String(t.amount) : '';
+    const amtFixed = t.amount !== undefined && t.amount !== null ? Number(t.amount).toFixed(2) : '';
+    const formattedAmt = t.amount !== undefined && t.amount !== null ? Number(t.amount).toLocaleString('en-IN') : '';
+    const catName = getCategory(t.categoryId)?.name?.toLowerCase() || '';
+    const accName = getAccount(t.accountId)?.name?.toLowerCase() || '';
+
+    return t.description?.toLowerCase().includes(clean) ||
+           t.notes?.toLowerCase().includes(clean) ||
+           amtStr.includes(clean) ||
+           amtFixed.includes(clean) ||
+           formattedAmt.includes(clean) ||
+           (t.date && t.date.includes(clean)) ||
+           catName.includes(clean) ||
+           accName.includes(clean);
+  };
+
+  const activeSource = (searchAllTime || timeRange === 'all_time') ? (transactions || []) : (timeFilteredTransactions || transactions || []);
+
+  const displayTransactions = activeSource.filter(t => {
+    const sMatch = matchesSearchTerm(t, searchTerm);
     const matchesCat = selectedCategory === 'all' || t.categoryId === selectedCategory;
     const matchesAcc = selectedAccount === 'all' || t.accountId === selectedAccount;
     const matchesType = selectedType === 'all' || t.type === selectedType || (selectedType === 'transfer' && (t.type === 'transfer' || t.type.startsWith('transfer_')));
-    return matchesSearch && matchesCat && matchesAcc && matchesType;
+    return sMatch && matchesCat && matchesAcc && matchesType;
   });
+
+  // Check if matches exist across All Time when current period has 0
+  const allTimeMatchesCount = (searchTerm.trim() && !searchAllTime && timeRange !== 'all_time')
+    ? (transactions || []).filter(t => {
+        const sMatch = matchesSearchTerm(t, searchTerm);
+        const matchesCat = selectedCategory === 'all' || t.categoryId === selectedCategory;
+        const matchesAcc = selectedAccount === 'all' || t.accountId === selectedAccount;
+        const matchesType = selectedType === 'all' || t.type === selectedType || (selectedType === 'transfer' && (t.type === 'transfer' || t.type.startsWith('transfer_')));
+        return sMatch && matchesCat && matchesAcc && matchesType;
+      }).length
+    : 0;
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedCategory, selectedAccount, selectedType, timeRange, pageSize]);
+  }, [searchTerm, selectedCategory, selectedAccount, selectedType, timeRange, pageSize, searchAllTime]);
 
   const totalItems = displayTransactions.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -52,9 +89,6 @@ export function TransactionList({ showNotes = false }) {
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const paginatedTransactions = displayTransactions.slice(startIndex, endIndex);
-
-  const getCategory = (catId) => categories.find(c => c.id === catId) || { name: 'Transfer', color: '#6366f1' };
-  const getAccount = (accId) => accounts.find(a => a.id === accId) || { name: 'Account' };
 
   const startEdit = (tx) => {
     setEditingId(tx.id);
@@ -211,10 +245,22 @@ export function TransactionList({ showNotes = false }) {
             <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input
               type="text" className="glass-input"
-              style={{ paddingLeft: '34px', fontSize: '0.85rem' }}
+              style={{ paddingLeft: '34px', paddingRight: searchTerm ? '30px' : '12px', fontSize: '0.85rem' }}
               value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Search..."
+              placeholder="Search description, amount (e.g. 525)..."
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                style={{
+                  position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+                  background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 4px', fontSize: '0.75rem'
+                }}
+              >
+                ✕
+              </button>
+            )}
           </div>
           <select className="glass-input" style={{ width: 'auto', fontSize: '0.82rem', flexShrink: 0 }} value={selectedAccount} onChange={e => setSelectedAccount(e.target.value)}>
             <option value="all" style={{ background: '#0f172a' }}>All Accounts</option>
@@ -234,9 +280,38 @@ export function TransactionList({ showNotes = false }) {
       </div>
 
       {displayTransactions.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+        <div style={{ textAlign: 'center', padding: '36px 20px', color: 'var(--text-muted)' }}>
           <FileText size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
-          <p>No transactions found for the selected filters.</p>
+          {allTimeMatchesCount > 0 ? (
+            <div>
+              <p style={{ marginBottom: '10px' }}>No transactions found in <strong style={{ color: '#38bdf8' }}>{getPeriodLabel()}</strong> matching "{searchTerm}".</p>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '12px',
+                background: 'rgba(6, 182, 212, 0.12)',
+                border: '1px solid rgba(6, 182, 212, 0.3)',
+                padding: '10px 18px',
+                borderRadius: '14px',
+                flexWrap: 'wrap',
+                justifyContent: 'center'
+              }}>
+                <span style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '600' }}>
+                  Found {allTimeMatchesCount} matching record(s) in All Time (e.g. earlier dates/years)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setTimeRange('all_time'); setSearchAllTime(true); }}
+                  className="btn-cyan"
+                  style={{ fontSize: '0.78rem', padding: '6px 14px', borderRadius: '10px' }}
+                >
+                  View in All Time
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p>No transactions found for the selected filters.</p>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

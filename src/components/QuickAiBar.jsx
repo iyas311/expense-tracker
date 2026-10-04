@@ -234,11 +234,23 @@ export function QuickAiBar({ onOpenManualAdd }) {
 
       if (parsed) {
         await addTransaction(parsed);
+
+        // Record in Prompt History so image uploads show up in logs & prompt history!
+        authFetch('addPromptHistory', {
+          text: `📷 [Receipt Scan] ${parsed.description || file.name || 'Receipt'} (${currency}${parsed.amount})`,
+          txCount: 1
+        }).catch(() => {});
+
+        // Date check: inform user if invoice/receipt has an older date
+        const todayStr = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        const isCurrentMonth = parsed.date && parsed.date.slice(0, 7) === todayStr.slice(0, 7);
+        const dateNotice = (!isCurrentMonth && parsed.date) ? ` (Dated ${parsed.date} — check All Time filter)` : '';
+
         setStatus({
           type: 'success',
-          message: `Receipt logged: ${currency}${parsed.amount} at ${parsed.description}`
+          message: `Receipt logged: ${currency}${parsed.amount} at ${parsed.description}${dateNotice}`
         });
-        setTimeout(() => setStatus(null), 4000);
+        setTimeout(() => setStatus(null), 6000);
       }
     } catch (err) {
       if (!scanAbortedRef.current) {

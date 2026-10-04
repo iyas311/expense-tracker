@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, RefreshCw, Trash2, Activity, Cpu, AlertTriangle, CheckCircle, MessageSquare, Clock } from 'lucide-react';
+import { X, RefreshCw, Trash2, Activity, Cpu, AlertTriangle, CheckCircle, MessageSquare, Clock, Camera } from 'lucide-react';
 import { useExpense } from '../context/ExpenseContext';
 
 export function LogViewer({ isOpen, onClose }) {
@@ -178,17 +178,40 @@ export function LogViewer({ isOpen, onClose }) {
             )}
             {!loading && prompts.slice(0, visibleCount).map(p => {
               const time = new Date(p.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+              const isReceipt = p.text?.includes('[Receipt Scan]') || p.text?.startsWith('📷');
               return (
-                <div key={p.id} style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                  <MessageSquare size={14} color="#818cf8" style={{ marginTop: '3px', flexShrink: 0 }} />
+                <div 
+                  key={p.id} 
+                  style={{ 
+                    background: isReceipt ? 'rgba(6,182,212,0.07)' : 'rgba(99,102,241,0.07)', 
+                    border: `1px solid ${isReceipt ? 'rgba(6,182,212,0.25)' : 'rgba(99,102,241,0.15)'}`, 
+                    borderRadius: '10px', 
+                    padding: '10px 14px', 
+                    display: 'flex', 
+                    alignItems: 'flex-start', 
+                    gap: '10px' 
+                  }}
+                >
+                  {isReceipt ? (
+                    <Camera size={15} color="#06b6d4" style={{ marginTop: '3px', flexShrink: 0 }} />
+                  ) : (
+                    <MessageSquare size={14} color="#818cf8" style={{ marginTop: '3px', flexShrink: 0 }} />
+                  )}
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: '0.88rem', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>"{p.text}"</p>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <p style={{ fontSize: '0.88rem', color: 'var(--text-primary)', margin: '0 0 4px 0', fontWeight: isReceipt ? 500 : 400 }}>
+                      {p.text}
+                    </p>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '3px' }}>
                         <Clock size={10} /> {time}
                       </span>
-                      <span style={{ fontSize: '0.7rem', background: 'rgba(99,102,241,0.15)', color: '#818cf8', padding: '1px 8px', borderRadius: '20px', fontWeight: '700' }}>
-                        {p.txCount} tx logged
+                      {isReceipt && (
+                        <span style={{ fontSize: '0.68rem', background: 'rgba(6,182,212,0.18)', color: '#06b6d4', padding: '1px 7px', borderRadius: '12px', fontWeight: '700' }}>
+                          Receipt
+                        </span>
+                      )}
+                      <span style={{ fontSize: '0.7rem', background: isReceipt ? 'rgba(6,182,212,0.12)' : 'rgba(99,102,241,0.15)', color: isReceipt ? '#06b6d4' : '#818cf8', padding: '1px 8px', borderRadius: '20px', fontWeight: '700' }}>
+                        {p.txCount} {p.txCount === 1 ? 'tx' : 'txs'} logged
                       </span>
                     </div>
                   </div>
