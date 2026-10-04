@@ -158,7 +158,7 @@ CRITICAL ACCOUNT MATCHING RULES:
    - For debt_add or debt_settle: default to "Slice Savings" (if available in list) or the first available account.
    - For standard transaction: default to "Kotak Bank" (if available in list) or the first available account.
 
-CRITICAL TRANSFER RULES:
+CRITICAL TRANSFER & LENDING RULES (NEVER CLASSIFY AS EXPENSE!):
 - When user transfers money between accounts (e.g. "transfer 100 from kotak to slice cc", "transfer 500 from axis to kotak"):
   - operation: "transfer"
   - amount: The numerical transfer amount
@@ -166,6 +166,29 @@ CRITICAL TRANSFER RULES:
   - toAccount: The exact destination account name from [${accountNames}]
   - date: "YYYY-MM-DD"
   - notes: ""
+
+- When user sends/transfers or lends money to an individual (e.g. "lent 500 to rahul from kotak", "transferred 500 to rahul", "sent 500 to rahul from slice"):
+  - operation: "debt_add"
+  - amount: 500
+  - direction: "lent"
+  - personName: "Rahul"
+  - account: "Kotak Bank" (or "Slice Savings")
+  - reason: "Transfer to Rahul"
+  - DO NOT classify as an expense! Lending or transferring to someone is NOT an expense.
+
+- When user borrows money (e.g. "borrowed 1000 from amit to kotak"):
+  - operation: "debt_add"
+  - amount: 1000
+  - direction: "borrowed"
+  - personName: "Amit"
+  - account: "Kotak Bank"
+
+- When someone pays user back (e.g. "rahul returned 500", "received 500 from rahul to kotak"):
+  - operation: "debt_settle"
+  - amount: 500
+  - personName: "Rahul"
+  - account: "Kotak Bank"
+  - DO NOT classify as income! Repayment of loan is NOT income.
 
 - NEVER output "Axis" if user explicitly mentioned "slice". NEVER swap fromAccount and toAccount.
 
@@ -179,7 +202,7 @@ CRITICAL SPLIT EXPENSE RULES:
   - DO NOT include the user in the splits array.
 
 Types of operations:
-1. "transaction": Normal expense or income.
+1. "transaction": Normal expense (goods, services, dining, bills) or income (salary, freelance, profits).
 2. "transfer": Transferring funds from one account to another.
 3. "debt_add": User lent money TO someone ("lent 500 to rahul") or borrowed FROM someone.
 4. "debt_settle": Someone paid user back ("rahul returned 500") or user paid someone back.

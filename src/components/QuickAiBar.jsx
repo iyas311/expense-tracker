@@ -67,12 +67,12 @@ export function QuickAiBar({ onOpenManualAdd }) {
             };
             addDebt(debtPayload);
 
-            // Create corresponding transaction
+            // Create corresponding transaction (transfer_out/transfer_in, NEVER expense/income)
             transactionsToLog.push({
               amount: op.amount,
-              type: op.direction === 'lent' ? 'expense' : 'income',
+              type: op.direction === 'lent' ? 'transfer_out' : 'transfer_in',
               description: `${op.direction === 'lent' ? 'Lent to' : 'Borrowed from'} ${op.personName}`,
-              categoryId: categories[0]?.id || 'cat-1', // Default category
+              categoryId: null,
               accountId: op.accountId,
               date: op.date,
               notes: op.notes
@@ -90,12 +90,12 @@ export function QuickAiBar({ onOpenManualAdd }) {
               const status = newSettled >= targetDebt.amount ? 'settled' : 'partial';
               settleDebt(targetDebt.id, Math.min(newSettled, targetDebt.amount), status);
 
-              // Create corresponding transaction
+              // Create corresponding transaction (transfer_in for repayment received, transfer_out for payback)
               transactionsToLog.push({
                 amount: op.amount,
-                type: targetDebt.direction === 'lent' ? 'income' : 'expense',
+                type: targetDebt.direction === 'lent' ? 'transfer_in' : 'transfer_out',
                 description: `${targetDebt.direction === 'lent' ? 'Received back from' : 'Paid back to'} ${targetDebt.personName}`,
-                categoryId: categories[0]?.id || 'cat-1',
+                categoryId: null,
                 accountId: op.accountId,
                 date: op.date,
                 notes: op.notes

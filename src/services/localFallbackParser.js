@@ -40,6 +40,43 @@ export function fallbackLocalParser(input, categories = [], accounts = []) {
 
   const isIncomeSentence = (text) => /\b(?:salary|income|received|earned|got paid)\b/i.test(text);
 
+  // Check if input is lending or borrowing (e.g. "lent 500 to rahul", "borrowed 1000 from amit")
+  const debtMatch = input.match(/\b(?:lent|lend|gave|loaned)\b\s*(?:(?:rs\.?|inr|[\$₹€£])\s*)?(\d+(?:\.\d{1,2})?)\s*(?:to\b)?\s*([a-z0-9\s]+?)(?:\s+(?:from|via|using)\s+([a-z0-9\s]+))?$/i);
+  if (debtMatch) {
+    const amt = parseFloat(debtMatch[1]) || 0;
+    const person = debtMatch[2].trim();
+    const accStr = (debtMatch[3] || '').trim().toLowerCase();
+    const acc = accounts.find(a => (a.name || '').toLowerCase().includes(accStr)) || accounts[0] || { id: defaultAccountId };
+    return [{
+      operation: 'debt_add',
+      amount: amt,
+      direction: 'lent',
+      personName: person.charAt(0).toUpperCase() + person.slice(1),
+      reason: `Lent to ${person}`,
+      accountId: acc.id,
+      date: today,
+      notes: ''
+    }];
+  }
+
+  const borrowMatch = input.match(/\b(?:borrowed|borrow|took loan of)\b\s*(?:(?:rs\.?|inr|[\$₹€£])\s*)?(\d+(?:\.\d{1,2})?)\s*(?:from\b)?\s*([a-z0-9\s]+?)(?:\s+(?:to|into)\s+([a-z0-9\s]+))?$/i);
+  if (borrowMatch) {
+    const amt = parseFloat(borrowMatch[1]) || 0;
+    const person = borrowMatch[2].trim();
+    const accStr = (borrowMatch[3] || '').trim().toLowerCase();
+    const acc = accounts.find(a => (a.name || '').toLowerCase().includes(accStr)) || accounts[0] || { id: defaultAccountId };
+    return [{
+      operation: 'debt_add',
+      amount: amt,
+      direction: 'borrowed',
+      personName: person.charAt(0).toUpperCase() + person.slice(1),
+      reason: `Borrowed from ${person}`,
+      accountId: acc.id,
+      date: today,
+      notes: ''
+    }];
+  }
+
   // Check if input is a transfer operation (e.g. transfer 100 from kotak to slice cc)
   const tfrMatch = input.match(/\b(?:transfer|transferred|sent|send|move|moved)\b.*?(\d+(?:\.\d{1,2})?).*?\bfrom\b\s+([a-z0-9\s]+?)\s+\bto\b\s+([a-z0-9\s]+)/i);
   if (tfrMatch) {
@@ -47,15 +84,30 @@ export function fallbackLocalParser(input, categories = [], accounts = []) {
     const fromStr = tfrMatch[2].trim().toLowerCase();
     const toStr = tfrMatch[3].trim().toLowerCase();
     const fromAcc = accounts.find(a => (a.name || '').toLowerCase().includes(fromStr)) || accounts[0] || { id: defaultAccountId };
-    const toAcc = accounts.find(a => (a.name || '').toLowerCase().includes(toStr)) || accounts[1] || accounts[0] || { id: defaultAccountId };
-    return [{
-      operation: 'transfer',
-      amount: amt,
-      fromAccountId: fromAcc.id,
-      toAccountId: toAcc.id,
-      date: today,
-      notes: ''
-    }];
+    const toAcc = accounts.find(a => (a.name || '').toLowerCase().includes(toStr));
+    
+    if (toAcc) {
+      return [{
+        operation: 'transfer',
+        amount: amt,
+        fromAccountId: fromAcc.id,
+        toAccountId: toAcc.id,
+        date: today,
+        notes: ''
+      }];
+    } else {
+      // Transfer to an external person -> treat as debt/external transfer
+      return [{
+        operation: 'debt_add',
+        amount: amt,
+        direction: 'lent',
+        personName: tfrMatch[3].trim().charAt(0).toUpperCase() + tfrMatch[3].trim().slice(1),
+        reason: `Transfer to ${tfrMatch[3].trim()}`,
+        accountId: fromAcc.id,
+        date: today,
+        notes: ''
+      }];
+    }
   }
 
   // Split input into chunks at conjunctions that likely separate two expenses

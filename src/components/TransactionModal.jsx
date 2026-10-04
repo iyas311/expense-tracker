@@ -32,6 +32,12 @@ export function TransactionModal({ isOpen, onClose }) {
   const [totalPaid, setTotalPaid] = useState('');
   const [splits, setSplits] = useState([{ name: '', share: '' }]);
 
+  // Transfer modes: 'internal' (between own accounts) | 'external_out' (send/lend) | 'external_in' (receive/borrow)
+  const [transferMode, setTransferMode] = useState('internal');
+  const [externalPerson, setExternalPerson] = useState('');
+  const [trackAsLoan, setTrackAsLoan] = useState(false);
+  const [loanDueDate, setLoanDueDate] = useState('');
+
   // AI Smart Category Suggestions from past transactions
   useEffect(() => {
     if (!description.trim() || description.length < 2) {
@@ -55,17 +61,64 @@ export function TransactionModal({ isOpen, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!amount || parseFloat(amount) <= 0) return;
+    const parsedAmount = parseFloat(amount);
 
     if (type === 'transfer') {
-      if (accountId === toAccountId) return alert('Please select different accounts for transfer.');
-      addTransfer({ fromAccountId: accountId, toAccountId, amount: parseFloat(amount), date, notes });
+      if (transferMode === 'internal') {
+        if (accountId === toAccountId) return alert('Please select different accounts for transfer.');
+        addTransfer({ fromAccountId: accountId, toAccountId, amount: parsedAmount, date, notes });
+      } else if (transferMode === 'external_out') {
+        const desc = externalPerson.trim() || 'Transfer Out';
+        addTransaction({
+          description: desc,
+          amount: parsedAmount,
+          type: 'transfer_out',
+          categoryId: null,
+          accountId,
+          date,
+          notes
+        });
+        if (trackAsLoan && externalPerson.trim()) {
+          addDebt({
+            personName: externalPerson.trim(),
+            amount: parsedAmount,
+            direction: 'lent',
+            reason: notes || 'Transfer / Loan',
+            dateCreated: date,
+            dueDate: loanDueDate || null,
+            notes
+          });
+        }
+      } else if (transferMode === 'external_in') {
+        const desc = externalPerson.trim() || 'Transfer In';
+        addTransaction({
+          description: desc,
+          amount: parsedAmount,
+          type: 'transfer_in',
+          categoryId: null,
+          accountId,
+          date,
+          notes
+        });
+        if (trackAsLoan && externalPerson.trim()) {
+          addDebt({
+            personName: externalPerson.trim(),
+            amount: parsedAmount,
+            direction: 'borrowed',
+            reason: notes || 'Borrowed loan',
+            dateCreated: date,
+            dueDate: loanDueDate || null,
+            notes
+          });
+        }
+      }
     } else {
       if (!description.trim()) return;
       
       const bMonth = type === 'income' ? budgetMonth : null;
       
       if (isSplit && type === 'expense') {
-        const totalBill = parseFloat(amount);
+        const totalBill = parsedAmount;
         const friendsTotal = splits.reduce((sum, s) => sum + (parseFloat(s.share) || 0), 0);
         const yourShare = totalBill - friendsTotal;
         
@@ -100,8 +153,7 @@ export function TransactionModal({ isOpen, onClose }) {
           }
         });
       } else {
-        const txAmount = parseFloat(amount);
-        addTransaction({ description, amount: txAmount, type, categoryId, accountId, date, notes, budgetMonth: bMonth });
+        addTransaction({ description, amount: parsedAmount, type, categoryId, accountId, date, notes, budgetMonth: bMonth });
       }
     }
     resetAndClose();
@@ -109,6 +161,7 @@ export function TransactionModal({ isOpen, onClose }) {
 
   const resetAndClose = () => {
     setDescription(''); setAmount(''); setNotes(''); setType('expense');
+    setTransferMode('internal'); setExternalPerson(''); setTrackAsLoan(false); setLoanDueDate('');
     setCategoryId(categories[0]?.id || 'cat-1');
     setAccountId(accounts[0]?.id || 'acc-1');
     setSuggestions([]);
@@ -172,29 +225,198 @@ export function TransactionModal({ isOpen, onClose }) {
             />
           </div>
 
-          {/* Transfer: From/To Accounts */}
+          {/* Transfer Mode & Accounts */}
           {type === 'transfer' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-muted)' }}>From Account</label>
-                <select className="glass-input" value={accountId} onChange={e => setAccountId(e.target.value)}>
-                  {accounts.map(a => (
-                    <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>
-                      {a.name} ({currency}{a.balance.toFixed(0)})
-                    </option>
-                  ))}
-                </select>
+            <div style={{ marginBottom: '16px' }}>
+              {/* Transfer Mode Tabs */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '14px' }}>
+                <button
+                  type="button"
+                  onClick={() => setTransferMode('internal')}
+                  style={{
+                    padding: '7px 4px',
+                    fontSize: '0.74rem',
+                    fontWeight: '700',
+                    borderRadius: '8px',
+                    border: transferMode === 'internal' ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.08)',
+                    background: transferMode === 'internal' ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255,255,255,0.03)',
+                    color: transferMode === 'internal' ? '#818cf8' : 'var(--text-muted)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Between Accounts
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTransferMode('external_out')}
+                  style={{
+                    padding: '7px 4px',
+                    fontSize: '0.74rem',
+                    fontWeight: '700',
+                    borderRadius: '8px',
+                    border: transferMode === 'external_out' ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.08)',
+                    background: transferMode === 'external_out' ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255,255,255,0.03)',
+                    color: transferMode === 'external_out' ? '#818cf8' : 'var(--text-muted)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Send / Lend Money
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTransferMode('external_in')}
+                  style={{
+                    padding: '7px 4px',
+                    fontSize: '0.74rem',
+                    fontWeight: '700',
+                    borderRadius: '8px',
+                    border: transferMode === 'external_in' ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.08)',
+                    background: transferMode === 'external_in' ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255,255,255,0.03)',
+                    color: transferMode === 'external_in' ? '#818cf8' : 'var(--text-muted)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Receive / Borrow
+                </button>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-muted)' }}>To Account</label>
-                <select className="glass-input" value={toAccountId} onChange={e => setToAccountId(e.target.value)}>
-                  {accounts.filter(a => a.id !== accountId).map(a => (
-                    <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>
-                      {a.name} ({currency}{a.balance.toFixed(0)})
-                    </option>
-                  ))}
-                </select>
-              </div>
+
+              {/* Mode 1: Internal between accounts */}
+              {transferMode === 'internal' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-muted)' }}>From Account</label>
+                    <select className="glass-input" value={accountId} onChange={e => setAccountId(e.target.value)}>
+                      {accounts.map(a => (
+                        <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>
+                          {a.name} ({currency}{a.balance.toFixed(0)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-muted)' }}>To Account</label>
+                    <select className="glass-input" value={toAccountId} onChange={e => setToAccountId(e.target.value)}>
+                      {accounts.filter(a => a.id !== accountId).map(a => (
+                        <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>
+                          {a.name} ({currency}{a.balance.toFixed(0)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Mode 2: External Out / Lend */}
+              {transferMode === 'external_out' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-muted)' }}>From Account</label>
+                      <select className="glass-input" value={accountId} onChange={e => setAccountId(e.target.value)}>
+                        {accounts.map(a => (
+                          <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>
+                            {a.name} ({currency}{a.balance.toFixed(0)})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-muted)' }}>Recipient / Person</label>
+                      <input
+                        type="text"
+                        className="glass-input"
+                        placeholder="e.g. Rahul, Sent to John"
+                        value={externalPerson}
+                        onChange={e => setExternalPerson(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.25)', borderRadius: '10px', padding: '10px 12px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.8rem', color: '#c7d2fe', fontWeight: '600' }}>
+                      <input
+                        type="checkbox"
+                        checked={trackAsLoan}
+                        onChange={e => setTrackAsLoan(e.target.checked)}
+                        style={{ accentColor: '#6366f1', width: '16px', height: '16px' }}
+                      />
+                      <span>Track as Loan in Debt Tracker (Money owed to you)</span>
+                    </label>
+                    {trackAsLoan && (
+                      <div style={{ marginTop: '8px' }}>
+                        <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Expected Repayment Date (Optional)</label>
+                        <input
+                          type="date"
+                          className="glass-input"
+                          style={{ fontSize: '0.8rem' }}
+                          value={loanDueDate}
+                          onChange={e => setLoanDueDate(e.target.value)}
+                        />
+                      </div>
+                    )}
+                    <p style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '6px', margin: 0 }}>
+                      ℹ️ This debits your bank account, but is <strong>excluded from your expense budget</strong>.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Mode 3: External In / Receive / Borrow */}
+              {transferMode === 'external_in' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-muted)' }}>To Account</label>
+                      <select className="glass-input" value={accountId} onChange={e => setAccountId(e.target.value)}>
+                        {accounts.map(a => (
+                          <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>
+                            {a.name} ({currency}{a.balance.toFixed(0)})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', marginBottom: '6px', color: 'var(--text-muted)' }}>Sender / Person</label>
+                      <input
+                        type="text"
+                        className="glass-input"
+                        placeholder="e.g. Rahul repaid, Mike"
+                        value={externalPerson}
+                        onChange={e => setExternalPerson(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.25)', borderRadius: '10px', padding: '10px 12px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.8rem', color: '#c7d2fe', fontWeight: '600' }}>
+                      <input
+                        type="checkbox"
+                        checked={trackAsLoan}
+                        onChange={e => setTrackAsLoan(e.target.checked)}
+                        style={{ accentColor: '#6366f1', width: '16px', height: '16px' }}
+                      />
+                      <span>Track as Borrowed Debt (Money you owe)</span>
+                    </label>
+                    {trackAsLoan && (
+                      <div style={{ marginTop: '8px' }}>
+                        <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Due Date to Return (Optional)</label>
+                        <input
+                          type="date"
+                          className="glass-input"
+                          style={{ fontSize: '0.8rem' }}
+                          value={loanDueDate}
+                          onChange={e => setLoanDueDate(e.target.value)}
+                        />
+                      </div>
+                    )}
+                    <p style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '6px', margin: 0 }}>
+                      ℹ️ This credits your bank account, but is <strong>excluded from earned income</strong>.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -406,7 +628,9 @@ export function TransactionModal({ isOpen, onClose }) {
             )}
 
           <button type="submit" className="btn-gradient" style={{ width: '100%', padding: '14px', background: typeColors[type] }}>
-            {type === 'transfer' ? '🔄 Confirm Transfer' : type === 'income' ? '+ Add Income' : '− Add Expense'}
+            {type === 'transfer' 
+              ? (transferMode === 'external_out' ? '↗ Confirm Transfer Out' : transferMode === 'external_in' ? '↙ Confirm Transfer In' : '🔄 Confirm Transfer')
+              : type === 'income' ? '+ Add Income' : '− Add Expense'}
           </button>
         </form>
       </div>

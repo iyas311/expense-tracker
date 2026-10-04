@@ -37,7 +37,7 @@ export function TransactionList({ showNotes = false }) {
                           t.notes?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCat = selectedCategory === 'all' || t.categoryId === selectedCategory;
     const matchesAcc = selectedAccount === 'all' || t.accountId === selectedAccount;
-    const matchesType = selectedType === 'all' || t.type === selectedType;
+    const matchesType = selectedType === 'all' || t.type === selectedType || (selectedType === 'transfer' && (t.type === 'transfer' || t.type.startsWith('transfer_')));
     return matchesSearch && matchesCat && matchesAcc && matchesType;
   });
 
@@ -265,6 +265,21 @@ export function TransactionList({ showNotes = false }) {
                       <input className="glass-input" style={{ fontSize: '0.85rem' }} value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
                     </div>
                     <div>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Type</label>
+                      <select
+                        className="glass-input"
+                        style={{ fontSize: '0.82rem', fontWeight: '700', color: editForm.type?.startsWith('transfer') ? '#818cf8' : editForm.type === 'income' ? '#10b981' : '#f43f5e' }}
+                        value={editForm.type}
+                        onChange={e => setEditForm(f => ({ ...f, type: e.target.value }))}
+                      >
+                        <option value="expense" style={{ background: '#0f172a' }}>Expense</option>
+                        <option value="income" style={{ background: '#0f172a' }}>Income</option>
+                        <option value="transfer_out" style={{ background: '#0f172a' }}>Transfer Out (Lent / Sent)</option>
+                        <option value="transfer_in" style={{ background: '#0f172a' }}>Transfer In (Repaid / Received)</option>
+                        <option value="transfer" style={{ background: '#0f172a' }}>Transfer (Internal)</option>
+                      </select>
+                    </div>
+                    <div>
                       <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Amount</label>
                       <input type="number" step="0.01" className="glass-input" style={{ fontSize: '0.85rem' }} value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
                     </div>
@@ -335,7 +350,7 @@ export function TransactionList({ showNotes = false }) {
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {!isTransfer && (
+                    {!tx.transferId && (
                       <button onClick={() => startEdit(tx)} className="btn-secondary" title="Edit" style={{ padding: '6px', color: '#6366f1', border: 'none', borderRadius: '8px' }}>
                         <Pencil size={13} />
                       </button>

@@ -283,7 +283,8 @@ export function ExpenseProvider({ children }) {
     setTransactions(prev => [formatted, ...prev]);
     setAccounts(prev => prev.map(acc => {
       if (acc.id === formatted.accountId) {
-        const delta = formatted.type === 'income' ? formatted.amount : -bankDelta;
+        const isPositive = formatted.type === 'income' || formatted.type === 'transfer_in';
+        const delta = isPositive ? formatted.amount : -bankDelta;
         return { ...acc, balance: Math.round((acc.balance + delta) * 100) / 100 };
       }
       return acc;
@@ -322,7 +323,8 @@ export function ExpenseProvider({ children }) {
         const idx = updated.findIndex(a => a.id === tx.accountId);
         if (idx !== -1) {
           const bankDelta = tx.bankAmount !== null && tx.bankAmount !== undefined ? tx.bankAmount : tx.amount;
-          const delta = tx.type === 'income' ? tx.amount : -bankDelta;
+          const isPositive = tx.type === 'income' || tx.type === 'transfer_in';
+          const delta = isPositive ? tx.amount : -bankDelta;
           updated[idx] = { ...updated[idx], balance: Math.round((updated[idx].balance + delta) * 100) / 100 };
         }
       }
@@ -506,14 +508,14 @@ export function ExpenseProvider({ children }) {
     const defaultExpenseCatId = debtCat?.id || categories.find(c => c.type === 'expense')?.id || categories[0]?.id;
     const defaultIncomeCatId = debtCat?.id || categories.find(c => c.type === 'income')?.id || categories[0]?.id;
 
-    // If friend paid us back (lent direction) and we have an account to credit, create an income transaction
+    // If friend paid us back (lent direction) and we have an account to credit, create a transfer_in transaction (NOT income)
     if (receivedAccountId && debt && debt.direction === 'lent') {
       const amt = parseFloat(settledAmount) || debt.amount;
       await addTransaction({
         description: `${debt.personName} repaid loan`,
         amount: amt,
-        type: 'income',
-        categoryId: defaultIncomeCatId,
+        type: 'transfer_in',
+        categoryId: null,
         accountId: receivedAccountId,
         date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
         notes: debt.reason ? `Debt repaid: ${debt.reason}` : 'Loan repayment'
@@ -523,8 +525,8 @@ export function ExpenseProvider({ children }) {
       await addTransaction({
         description: `Repaid ${debt.personName}`,
         amount: amt,
-        type: 'expense',
-        categoryId: defaultExpenseCatId,
+        type: 'transfer_out',
+        categoryId: null,
         accountId: receivedAccountId,
         date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
         notes: debt.reason ? `Settlement: ${debt.reason}` : 'Debt settlement'

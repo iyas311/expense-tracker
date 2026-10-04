@@ -94,8 +94,8 @@ export function DebtTracker() {
       addTransaction({
         description: form.direction === 'lent' ? `Lent to ${form.personName.trim()}` : `Borrowed from ${form.personName.trim()}`,
         amount: parseFloat(form.amount),
-        type: form.direction === 'lent' ? 'expense' : 'income',
-        categoryId: targetCatId,
+        type: form.direction === 'lent' ? 'transfer_out' : 'transfer_in',
+        categoryId: null,
         accountId: form.accountId,
         date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
         notes: form.reason ? `Debt creation: ${form.reason.trim()}` : 'Debt creation'

@@ -151,9 +151,15 @@ CRITICAL ACCOUNT MATCHING:
 - Always scan text for bank names (e.g. "slice", "axis", "kotak", "cash").
 - Match "slice" to "Slice Savings", "axis" to "Axis Bank", "kotak" to "Kotak Bank".
 
-TRANSFER:
+TRANSFER / LENDING / REPAYMENT (NEVER CLASSIFY AS EXPENSE!):
 - "transfer 100 from kotak to slice cc" ->
   operation: "transfer", amount: 100, fromAccount: "Kotak Bank", toAccount: "Slice CC"
+- "lent 500 to rahul from kotak" OR "transferred 500 to rahul from kotak" OR "sent 500 to rahul" ->
+  operation: "debt_add", amount: 500, direction: "lent", personName: "Rahul", account: "Kotak Bank", reason: "Transfer to Rahul"
+- "borrowed 1000 from amit to kotak" ->
+  operation: "debt_add", amount: 1000, direction: "borrowed", personName: "Amit", account: "Kotak Bank", reason: "Borrowed from Amit"
+- "rahul paid back 500" OR "received 500 from rahul to kotak" ->
+  operation: "debt_settle", amount: 500, personName: "Rahul", account: "Kotak Bank"
 
 SPLIT EXPENSE:
 - "spent 3k split between me, rahul, and rohit from slice" ->
@@ -203,9 +209,15 @@ CRITICAL ACCOUNT MATCHING:
 - Always scan text for bank names (e.g. "slice", "axis", "kotak", "cash").
 - Match "slice" to "Slice Savings", "axis" to "Axis Bank", "kotak" to "Kotak Bank".
 
-TRANSFER:
+TRANSFER / LENDING / REPAYMENT (NEVER CLASSIFY AS EXPENSE!):
 - "transfer 100 from kotak to slice cc" ->
   operation: "transfer", amount: 100, fromAccount: "Kotak Bank", toAccount: "Slice CC"
+- "lent 500 to rahul from kotak" OR "transferred 500 to rahul from kotak" OR "sent 500 to rahul" ->
+  operation: "debt_add", amount: 500, direction: "lent", personName: "Rahul", account: "Kotak Bank", reason: "Transfer to Rahul"
+- "borrowed 1000 from amit to kotak" ->
+  operation: "debt_add", amount: 1000, direction: "borrowed", personName: "Amit", account: "Kotak Bank", reason: "Borrowed from Amit"
+- "rahul paid back 500" OR "received 500 from rahul to kotak" ->
+  operation: "debt_settle", amount: 500, personName: "Rahul", account: "Kotak Bank"
 
 SPLIT EXPENSE:
 - "spent 3k split between me, rahul, and rohit from slice" ->
