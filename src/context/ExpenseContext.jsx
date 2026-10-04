@@ -672,6 +672,51 @@ export function ExpenseProvider({ children }) {
     });
   };
 
+  // ─── Export Vault Backup (JSON) ─────────────────────────────────────────────
+  const exportVaultBackup = () => {
+    const backupData = {
+      version: '1.1.0',
+      exportedAt: new Date().toISOString(),
+      vaultId: currentVault?.id || 'vault_admin',
+      vaultName: currentVault?.name || 'Vault',
+      accounts,
+      categories,
+      transactions,
+      debts,
+      subscriptions
+    };
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(backupData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `expensia_backup_${currentVault?.id || 'vault'}_${dateStr}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // ─── Restore Vault Backup (JSON) ───────────────────────────────────────────
+  const restoreVaultBackup = async (backupData) => {
+    try {
+      const res = await authFetch('restoreVaultData', { backup: backupData });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          if (Array.isArray(data.categories)) setCategories(data.categories);
+          if (Array.isArray(data.accounts)) setAccounts(data.accounts);
+          if (Array.isArray(data.transactions)) setTransactions(data.transactions);
+          if (Array.isArray(data.subscriptions)) setSubscriptions(data.subscriptions);
+          if (Array.isArray(data.debts)) setDebts(data.debts);
+          return { success: true, message: 'Vault restored successfully!' };
+        }
+      }
+      return { success: false, error: 'Failed to restore vault backup' };
+    } catch (e) {
+      return { success: false, error: e.message || 'Error restoring vault' };
+    }
+  };
+
   return (
     <ExpenseContext.Provider value={{
       currentVault, isLoggedIn, apiKey, groqApiKey, currency,
@@ -694,6 +739,8 @@ export function ExpenseProvider({ children }) {
       clearAllData,
       exportData,
       exportPdfStatement,
+      exportVaultBackup,
+      restoreVaultBackup,
       authFetch
     }}>
       {children}

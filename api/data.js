@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { getSql, runMigrations, ensureTablesExist, getVaultData } from './lib/db.js';
-import { hashPassword, isRateLimited } from './lib/auth.js';
+import { hashPassword, isRateLimited, isLoginRateLimited, recordFailedLogin, clearFailedLogins } from './lib/auth.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -46,14 +46,30 @@ export default async function handler(req, res) {
         const { username, password } = payload || {};
         if (!username || !password) return res.status(400).json({ success: false, error: 'Username and password required' });
 
+        if (isLoginRateLimited(ip)) {
+          return res.status(429).json({ 
+            success: false, 
+            error: 'Too many failed login attempts. Please wait 15 minutes before trying again.' 
+          });
+        }
+
         const users = await sql`SELECT id, username, password_hash, role, vault_id FROM app_users WHERE username = ${username.toLowerCase().trim()};`;
-        if (users.length === 0) return res.status(401).json({ success: false, error: 'Invalid credentials' });
+        if (users.length === 0) {
+          recordFailedLogin(ip);
+          return res.status(401).json({ success: false, error: 'Invalid credentials' });
+        }
 
         const user = users[0];
         const hash = hashPassword(password);
         if (hash !== user.password_hash) {
-          return res.status(401).json({ success: false, error: 'Invalid credentials' });
+          const failCount = recordFailedLogin(ip);
+          const remaining = Math.max(0, 5 - failCount);
+          const warning = remaining > 0 ? ` (${remaining} attempt${remaining === 1 ? '' : 's'} remaining)` : ' (Account locked for 15 minutes)';
+          return res.status(401).json({ success: false, error: `Invalid credentials${warning}` });
         }
+
+        // Successful login: clear failed attempts
+        clearFailedLogins(ip);
 
         // Generate token and session (expires in 90 days)
         const token = crypto.randomUUID();
@@ -137,6 +153,112 @@ export default async function handler(req, res) {
 
         await sql`UPDATE app_users SET password_hash = ${hashPassword(newPassword)} WHERE id = ${session.user_id};`;
         return res.status(200).json({ success: true });
+      }
+
+      // ─── RESTORE VAULT BACKUP (JSON) ─────────────────────────────────────────
+      if (action === 'restoreVaultData') {
+        const { backup } = payload || {};
+        if (!backup || typeof backup !== 'object') {
+          return res.status(400).json({ error: 'Invalid backup file provided' });
+        }
+
+        const { accounts, categories, transactions, debts, subscriptions } = backup;
+
+        // Restore accounts
+        if (Array.isArray(accounts)) {
+          for (const a of accounts) {
+            await sql`
+              INSERT INTO accounts (id, name, type, balance, initial_balance, credit_limit, color, icon, vault_id, statement_day, due_day, due_month_offset)
+              VALUES (${a.id}, ${a.name}, ${a.type}, ${parseFloat(a.balance) || 0}, ${parseFloat(a.initialBalance || a.balance) || 0}, ${parseFloat(a.creditLimit) || 0}, ${a.color || '#06b6d4'}, ${a.icon || 'Landmark'}, ${vaultId}, ${a.statementDay || null}, ${a.dueDay || null}, ${a.dueMonthOffset !== undefined ? a.dueMonthOffset : 1})
+              ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                type = EXCLUDED.type,
+                balance = EXCLUDED.balance,
+                initial_balance = EXCLUDED.initial_balance,
+                credit_limit = EXCLUDED.credit_limit,
+                color = EXCLUDED.color,
+                statement_day = EXCLUDED.statement_day,
+                due_day = EXCLUDED.due_day,
+                due_month_offset = EXCLUDED.due_month_offset;
+            `;
+          }
+        }
+
+        // Restore categories
+        if (Array.isArray(categories)) {
+          for (const c of categories) {
+            await sql`
+              INSERT INTO categories (id, name, budget_cap, is_auto_budget, color, icon, vault_id, type)
+              VALUES (${c.id}, ${c.name}, ${parseFloat(c.budgetCap) || 0}, ${Boolean(c.isAutoBudget)}, ${c.color || '#8b5cf6'}, ${c.icon || 'Tag'}, ${vaultId}, ${c.type || 'expense'})
+              ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                budget_cap = EXCLUDED.budget_cap,
+                is_auto_budget = EXCLUDED.is_auto_budget,
+                color = EXCLUDED.color,
+                type = EXCLUDED.type;
+            `;
+          }
+        }
+
+        // Restore transactions
+        if (Array.isArray(transactions)) {
+          for (const t of transactions) {
+            await sql`
+              INSERT INTO transactions (id, date, description, amount, type, category_id, account_id, notes, transfer_id, vault_id, budget_month, bank_amount)
+              VALUES (${t.id}, ${t.date}, ${t.description}, ${parseFloat(t.amount) || 0}, ${t.type}, ${t.categoryId || null}, ${t.accountId}, ${t.notes || ''}, ${t.transferId || null}, ${vaultId}, ${t.budgetMonth || null}, ${t.bankAmount || null})
+              ON CONFLICT (id) DO UPDATE SET
+                date = EXCLUDED.date,
+                description = EXCLUDED.description,
+                amount = EXCLUDED.amount,
+                type = EXCLUDED.type,
+                category_id = EXCLUDED.category_id,
+                account_id = EXCLUDED.account_id,
+                notes = EXCLUDED.notes,
+                transfer_id = EXCLUDED.transfer_id,
+                budget_month = EXCLUDED.budget_month,
+                bank_amount = EXCLUDED.bank_amount;
+            `;
+          }
+        }
+
+        // Restore debts
+        if (Array.isArray(debts)) {
+          for (const d of debts) {
+            await sql`
+              INSERT INTO app_debts (id, vault_id, person_name, amount, direction, reason, date_created, due_date, status, settled_amount, notes)
+              VALUES (${d.id}, ${vaultId}, ${d.personName}, ${parseFloat(d.amount) || 0}, ${d.direction || 'lent'}, ${d.reason || ''}, ${d.dateCreated}, ${d.dueDate || null}, ${d.status || 'pending'}, ${parseFloat(d.settledAmount) || 0}, ${d.notes || ''})
+              ON CONFLICT (id) DO UPDATE SET
+                person_name = EXCLUDED.person_name,
+                amount = EXCLUDED.amount,
+                direction = EXCLUDED.direction,
+                reason = EXCLUDED.reason,
+                date_created = EXCLUDED.date_created,
+                due_date = EXCLUDED.due_date,
+                status = EXCLUDED.status,
+                settled_amount = EXCLUDED.settled_amount,
+                notes = EXCLUDED.notes;
+            `;
+          }
+        }
+
+        // Restore subscriptions
+        if (Array.isArray(subscriptions)) {
+          for (const s of subscriptions) {
+            await sql`
+              INSERT INTO subscriptions (id, name, amount, billing_cycle, next_billing_date, category_id, account_id, is_active, notes, vault_id)
+              VALUES (${s.id}, ${s.name}, ${parseFloat(s.amount) || 0}, ${s.billingCycle || 'monthly'}, ${s.nextBillingDate}, ${s.categoryId || null}, ${s.accountId || null}, ${s.isActive !== false}, ${s.notes || ''}, ${vaultId})
+              ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                amount = EXCLUDED.amount,
+                billing_cycle = EXCLUDED.billing_cycle,
+                next_billing_date = EXCLUDED.next_billing_date,
+                is_active = EXCLUDED.is_active;
+            `;
+          }
+        }
+
+        const freshData = await getVaultData(sql, vaultId);
+        return res.status(200).json({ success: true, message: 'Vault restored successfully', ...freshData });
       }
 
       // ─── ADD TRANSACTION ─────────────────────────────────────────────────────

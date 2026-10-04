@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useExpense } from '../context/ExpenseContext';
-import { Sparkles, ExternalLink, Check, X, Activity, Lock, Loader2, Server, Key, ChevronDown, ChevronUp, CheckCircle2, Download, FileText } from 'lucide-react';
+import { Sparkles, ExternalLink, Check, X, Activity, Lock, Loader2, Server, Key, ChevronDown, ChevronUp, CheckCircle2, Download, FileText, Database, Upload } from 'lucide-react';
 
 export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
   const {
@@ -8,7 +8,8 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
     groqApiKey, setGroqApiKey,
     currency, setCurrency,
     currentVault, changePassword,
-    exportData, exportPdfStatement
+    exportData, exportPdfStatement,
+    exportVaultBackup, restoreVaultBackup
   } = useExpense();
 
   const [keyInput, setKeyInput] = useState(apiKey);
@@ -21,11 +22,54 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
   const [serverAiStatus, setServerAiStatus] = useState(null);
   const [isCheckingServer, setIsCheckingServer] = useState(false);
 
+  // Vault Backup & Restore State
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreStatus, setRestoreStatus] = useState({ text: '', type: '' });
+  const fileInputRef = useRef(null);
+
   // Change Password state
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isChangingPass, setIsChangingPass] = useState(false);
   const [passMsg, setPassMsg] = useState({ text: '', type: '' });
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target.result);
+        if (!json.transactions && !json.accounts) {
+          throw new Error('Not a valid Expensia vault backup file.');
+        }
+
+        const txCount = json.transactions?.length || 0;
+        const accCount = json.accounts?.length || 0;
+        const debtCount = json.debts?.length || 0;
+
+        if (!window.confirm(`Found backup containing:\n• ${accCount} Accounts\n• ${txCount} Transactions\n• ${debtCount} Debts\n\nDo you want to restore this into your active vault?`)) {
+          return;
+        }
+
+        setIsRestoring(true);
+        setRestoreStatus({ text: 'Restoring backup data...', type: 'info' });
+        const res = await restoreVaultBackup(json);
+        if (res.success) {
+          setRestoreStatus({ text: `✓ Successfully restored ${txCount} transactions and ${debtCount} debts!`, type: 'success' });
+        } else {
+          setRestoreStatus({ text: res.error || 'Failed to restore backup', type: 'error' });
+        }
+      } catch (err) {
+        setRestoreStatus({ text: err.message || 'Invalid JSON file', type: 'error' });
+      } finally {
+        setIsRestoring(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -318,7 +362,7 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
             </div>
 
             {/* Export & Reports */}
-            <div style={{ marginBottom: '20px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ marginBottom: '18px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '8px', color: 'var(--text-muted)' }}>
                 Export & Reports
               </label>
@@ -340,6 +384,59 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
                   <FileText size={14} /> PDF Statement
                 </button>
               </div>
+            </div>
+
+            {/* Complete Vault Backup & Restore */}
+            <div style={{ marginBottom: '20px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                  <Database size={14} color="#06b6d4" /> Complete Vault Backup & Restore
+                </label>
+                <span style={{ fontSize: '0.65rem', color: '#10b981', background: 'rgba(16,185,129,0.12)', padding: '1px 6px', borderRadius: '8px', fontWeight: '700' }}>
+                  JSON
+                </span>
+              </div>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginBottom: '10px', lineHeight: '1.4' }}>
+                Download a complete disaster-recovery backup of all accounts, transactions, debts, and budgets.
+              </p>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn-cyan"
+                  onClick={exportVaultBackup}
+                  style={{ padding: '8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', borderRadius: '10px' }}
+                >
+                  <Download size={14} /> Download Backup
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={isRestoring}
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{ padding: '8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', borderRadius: '10px' }}
+                >
+                  <Upload size={14} /> {isRestoring ? 'Restoring...' : 'Restore Backup'}
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".json,application/json"
+                  onChange={handleFileUpload}
+                  style={{ display: 'none' }}
+                />
+              </div>
+
+              {restoreStatus.text && (
+                <div style={{
+                  marginTop: '8px', padding: '6px 10px', borderRadius: '8px', fontSize: '0.73rem',
+                  background: restoreStatus.type === 'success' ? 'rgba(16,185,129,0.15)' : restoreStatus.type === 'error' ? 'rgba(244,63,94,0.15)' : 'rgba(99,102,241,0.15)',
+                  color: restoreStatus.type === 'success' ? '#10b981' : restoreStatus.type === 'error' ? '#f43f5e' : '#818cf8',
+                  border: `1px solid ${restoreStatus.type === 'success' ? 'rgba(16,185,129,0.3)' : restoreStatus.type === 'error' ? 'rgba(244,63,94,0.3)' : 'rgba(99,102,241,0.3)'}`
+                }}>
+                  {restoreStatus.text}
+                </div>
+              )}
             </div>
 
             {/* System Diagnostics & Admin */}

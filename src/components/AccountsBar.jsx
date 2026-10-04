@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useExpense } from '../context/ExpenseContext';
-import { Landmark, CreditCard, Wallet, PiggyBank, Plus, X, Edit2, Trash2, CalendarDays, AlertCircle } from 'lucide-react';
+import { Landmark, CreditCard, Wallet, PiggyBank, Plus, X, Edit2, Trash2, CalendarDays, AlertCircle, AlertTriangle, CheckCircle2, Clock, ArrowUpRight } from 'lucide-react';
+import { TransactionModal } from './TransactionModal';
 
 export function AccountsBar() {
   const { accounts, currency, addAccount, editAccount, deleteAccount, creditCardLimit, setCreditCardLimit } = useExpense();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitInput, setLimitInput] = useState('');
+  const [payBillData, setPayBillData] = useState(null);
   
   // Form State (used for both add and edit)
   const [editingId, setEditingId] = useState(null);
@@ -119,6 +121,37 @@ export function AccountsBar() {
   const effectiveLimit = creditCardLimit > 0 ? creditCardLimit : sumOfCardLimits;
   const percentUsed = effectiveLimit > 0 ? Math.min(100, Math.round((totalCardSpent / effectiveLimit) * 100)) : 0;
   const remainingLimit = effectiveLimit - totalCardSpent;
+
+  const getCardBillingInfo = (acc) => {
+    if (!acc.dueDay) return null;
+    const now = new Date();
+    const dueDayNum = parseInt(acc.dueDay);
+    let dueDate = new Date(now.getFullYear(), now.getMonth(), dueDayNum, 23, 59, 59);
+    if (now.getDate() > dueDayNum) {
+      dueDate = new Date(now.getFullYear(), now.getMonth() + 1, dueDayNum, 23, 59, 59);
+    }
+    const diffMs = dueDate.getTime() - now.getTime();
+    const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    const formattedDate = dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    return {
+      dueDay: dueDayNum,
+      dueDate,
+      daysRemaining,
+      formattedDate,
+      statementDay: acc.statementDay ? parseInt(acc.statementDay) : null
+    };
+  };
+
+  const handlePayBill = (acc) => {
+    setPayBillData({
+      type: 'transfer',
+      transferMode: 'internal',
+      toAccountId: acc.id,
+      amount: acc.balance < 0 ? Math.abs(acc.balance) : 0,
+      description: `Pay ${acc.name} Bill`,
+      notes: `Bill payment for ${acc.name}`
+    });
+  };
 
   return (
     <div style={{ marginBottom: '24px' }}>
@@ -237,6 +270,146 @@ export function AccountsBar() {
               Click <strong>Set Limit</strong> above to configure your total credit limit and see your progress bar.
             </div>
           )}
+
+          {/* ─── Bill Due Dates & Quick Pay Cards ─── */}
+          <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <CalendarDays size={14} color="#818cf8" /> Bill Due Dates & Statements
+              </span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>
+                {cardAccounts.filter(c => c.dueDay).length} of {cardAccounts.length} scheduled
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
+              {cardAccounts.map(card => {
+                const billing = getCardBillingInfo(card);
+                const debt = card.balance < 0 ? Math.abs(card.balance) : 0;
+                const isPaid = debt === 0;
+
+                let urgencyColor = '#10b981';
+                let urgencyBg = 'rgba(16, 185, 129, 0.12)';
+                let urgencyBorder = 'rgba(16, 185, 129, 0.25)';
+                let badgeText = 'Paid Up';
+
+                if (!isPaid) {
+                  if (!billing) {
+                    urgencyColor = '#94a3b8';
+                    urgencyBg = 'rgba(148, 163, 184, 0.1)';
+                    urgencyBorder = 'rgba(148, 163, 184, 0.2)';
+                    badgeText = 'No Due Day Set';
+                  } else if (billing.daysRemaining === 0) {
+                    urgencyColor = '#f43f5e';
+                    urgencyBg = 'rgba(244, 63, 94, 0.2)';
+                    urgencyBorder = 'rgba(244, 63, 94, 0.4)';
+                    badgeText = 'Due Today!';
+                  } else if (billing.daysRemaining <= 3) {
+                    urgencyColor = '#f43f5e';
+                    urgencyBg = 'rgba(244, 63, 94, 0.15)';
+                    urgencyBorder = 'rgba(244, 63, 94, 0.35)';
+                    badgeText = `Due in ${billing.daysRemaining}d (${billing.formattedDate})`;
+                  } else if (billing.daysRemaining <= 7) {
+                    urgencyColor = '#f59e0b';
+                    urgencyBg = 'rgba(245, 158, 11, 0.15)';
+                    urgencyBorder = 'rgba(245, 158, 11, 0.35)';
+                    badgeText = `Due in ${billing.daysRemaining}d (${billing.formattedDate})`;
+                  } else {
+                    urgencyColor = '#06b6d4';
+                    urgencyBg = 'rgba(6, 182, 212, 0.12)';
+                    urgencyBorder = 'rgba(6, 182, 212, 0.25)';
+                    badgeText = `Due in ${billing.daysRemaining}d (${billing.formattedDate})`;
+                  }
+                }
+
+                return (
+                  <div key={card.id} style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.07)',
+                    borderRadius: '12px',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px'
+                  }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                        <span style={{ fontWeight: '700', fontSize: '0.84rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {card.name}
+                        </span>
+                        {card.statementDay && (
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', background: 'rgba(255, 255, 255, 0.05)', padding: '1px 5px', borderRadius: '4px' }}>
+                            Stmt: {card.statementDay}th
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: '800', color: isPaid ? '#10b981' : '#f43f5e' }}>
+                          {isPaid ? '₹0 Due' : `${currency}${debt.toLocaleString('en-IN')}`}
+                        </span>
+                        <span style={{
+                          fontSize: '0.68rem',
+                          fontWeight: '600',
+                          padding: '2px 6px',
+                          borderRadius: '6px',
+                          color: urgencyColor,
+                          background: urgencyBg,
+                          border: `1px solid ${urgencyBorder}`,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}>
+                          {isPaid ? <CheckCircle2 size={10} /> : billing?.daysRemaining <= 3 ? <AlertTriangle size={10} /> : <Clock size={10} />}
+                          {badgeText}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      {!isPaid ? (
+                        <button
+                          type="button"
+                          onClick={() => handlePayBill(card)}
+                          className="btn-gradient"
+                          style={{
+                            padding: '5px 10px',
+                            fontSize: '0.72rem',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            whiteSpace: 'nowrap',
+                            boxShadow: 'none'
+                          }}
+                        >
+                          Pay Bill <ArrowUpRight size={12} />
+                        </button>
+                      ) : !card.dueDay ? (
+                        <button
+                          type="button"
+                          onClick={() => openEdit(card)}
+                          className="btn-secondary"
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '0.68rem',
+                            borderRadius: '6px',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          Set Due Date
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '0.72rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 8px' }}>
+                          <CheckCircle2 size={14} /> Clear
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
@@ -295,12 +468,62 @@ export function AccountsBar() {
                         border: '1px dashed rgba(6, 182, 212, 0.3)',
                         borderRadius: '6px',
                         cursor: 'pointer',
-                        textAlign: 'center'
+                        textAlign: 'center',
+                        marginBottom: '6px'
                       }}
                     >
                       + Set card limit
                     </button>
                   )}
+
+                  {/* Due Date Info & Quick Pay */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.72rem', flexWrap: 'wrap', gap: '4px' }}>
+                    {acc.dueDay ? (() => {
+                      const b = getCardBillingInfo(acc);
+                      const isUrgent = b.daysRemaining <= 3 && isNegative;
+                      return (
+                        <span style={{
+                          color: !isNegative ? '#10b981' : isUrgent ? '#f43f5e' : '#f59e0b',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontWeight: '600'
+                        }}>
+                          <CalendarDays size={12} />
+                          Due: {b.formattedDate} {isNegative && `(${b.daysRemaining}d)`}
+                        </span>
+                      );
+                    })() : (
+                      <span
+                        style={{ color: 'var(--text-dim)', cursor: 'pointer', textDecoration: 'underline' }}
+                        onClick={() => openEdit(acc)}
+                      >
+                        + Set Due Day
+                      </span>
+                    )}
+
+                    {isNegative && (
+                      <button
+                        type="button"
+                        onClick={() => handlePayBill(acc)}
+                        style={{
+                          background: 'rgba(99, 102, 241, 0.15)',
+                          border: '1px solid rgba(99, 102, 241, 0.3)',
+                          borderRadius: '6px',
+                          color: '#818cf8',
+                          fontWeight: '700',
+                          fontSize: '0.7rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '2px',
+                          padding: '2px 6px'
+                        }}
+                      >
+                        Pay <ArrowUpRight size={11} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
               {!isCard && (
@@ -541,6 +764,14 @@ export function AccountsBar() {
           </div>
         </div>,
         document.body
+      )}
+
+      {payBillData && (
+        <TransactionModal
+          isOpen={!!payBillData}
+          onClose={() => setPayBillData(null)}
+          initialValues={payBillData}
+        />
       )}
     </div>
   );

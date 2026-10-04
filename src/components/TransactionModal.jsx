@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useExpense } from '../context/ExpenseContext';
 import { X, ArrowLeftRight, Sparkles } from 'lucide-react';
 
-export function TransactionModal({ isOpen, onClose }) {
+export function TransactionModal({ isOpen, onClose, initialValues }) {
   const { categories, accounts, currency, addTransaction, addTransfer, addDebt, transactions } = useExpense();
 
   const [type, setType] = useState('expense');
@@ -37,6 +37,23 @@ export function TransactionModal({ isOpen, onClose }) {
   const [externalPerson, setExternalPerson] = useState('');
   const [trackAsLoan, setTrackAsLoan] = useState(false);
   const [loanDueDate, setLoanDueDate] = useState('');
+
+  // Handle initialValues if provided (e.g. paying credit card bill)
+  useEffect(() => {
+    if (isOpen && initialValues) {
+      if (initialValues.type) setType(initialValues.type);
+      if (initialValues.transferMode) setTransferMode(initialValues.transferMode);
+      if (initialValues.toAccountId) {
+        setToAccountId(initialValues.toAccountId);
+        const nonToAcc = accounts.find(a => a.id !== initialValues.toAccountId);
+        if (nonToAcc) setAccountId(nonToAcc.id);
+      }
+      if (initialValues.accountId) setAccountId(initialValues.accountId);
+      if (initialValues.amount !== undefined && initialValues.amount !== null) setAmount(String(initialValues.amount));
+      if (initialValues.description) setDescription(initialValues.description);
+      if (initialValues.notes) setNotes(initialValues.notes);
+    }
+  }, [isOpen, initialValues, accounts]);
 
   // AI Smart Category Suggestions from past transactions
   useEffect(() => {
