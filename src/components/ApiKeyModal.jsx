@@ -97,15 +97,30 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
     }
   }, [isOpen]);
 
-  const feedToken = 'cal_b8b0646eef530e64facc920e';
-  const calendarUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/api/calendar?feed=${feedToken}`
-    : '';
-  const webcalUrl = calendarUrl.replace(/^https?:/, 'webcal:');
-  const googleCalUrl = `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`;
+  const [calendarUrl, setCalendarUrl] = useState('');
+  const [loadingCalendar, setLoadingCalendar] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      const token = localStorage.getItem('et_token');
+      if (token) {
+        setLoadingCalendar(true);
+        fetch(`/api/calendar?action=getFeedToken&token=${encodeURIComponent(token)}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.feedUrl) setCalendarUrl(data.feedUrl);
+          })
+          .catch(() => {})
+          .finally(() => setLoadingCalendar(false));
+      }
+    }
+  }, [isOpen]);
+
+  const webcalUrl = calendarUrl ? calendarUrl.replace(/^https?:/, 'webcal:') : '';
+  const googleCalUrl = calendarUrl ? `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}` : '#';
 
   const handleCopyCalendar = () => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+    if (calendarUrl && typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(calendarUrl);
       setCopiedCalendar(true);
       setTimeout(() => setCopiedCalendar(false), 2000);

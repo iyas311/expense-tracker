@@ -24,26 +24,50 @@ export default async function handler(req, res) {
 
   try {
     const sql = getSql();
-    let vaultId = req.query.vault || 'vault_admin';
-    const token = req.query.token;
-    const key = req.query.key;
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const token = bearerToken || req.query.token;
     const feed = req.query.feed;
+    const action = req.query.action;
 
-    // Validate access
+    // Helper: generate feed token for a vault using server salt
+    const getVaultFeedToken = (vId) => {
+      const salt = process.env.SESSION_SECRET || process.env.CALENDAR_FEED_SALT || 'ET_FEED_SALT_2026';
+      return 'feed_' + crypto.createHash('sha256').update(vId + '_' + salt).digest('hex').slice(0, 24);
+    };
+
+    // ─── ACTION: GET FEED TOKEN (Requires authenticated session) ─────────────
+    if (action === 'getFeedToken') {
+      if (!token) {
+        return res.status(401).json({ error: 'Unauthorized: Session token required' });
+      }
+      const s = await sql`SELECT vault_id FROM app_sessions WHERE token = ${token} AND expires_at > CURRENT_TIMESTAMP;`;
+      if (s.length === 0) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid or expired session' });
+      }
+      const userVaultId = s[0].vault_id;
+      const feedToken = getVaultFeedToken(userVaultId);
+      const host = req.headers.host || 'expensia.rentlora.in';
+      const proto = host.includes('localhost') ? 'http' : 'https';
+      const feedUrl = `${proto}://${host}/api/calendar?feed=${feedToken}`;
+      return res.status(200).json({ success: true, feedToken, feedUrl });
+    }
+
+    // ─── SERVE .ICS CALENDAR FEED ──────────────────────────────────────────
+    let vaultId = 'vault_admin';
     let authorized = false;
 
-    // 1. Secure Masked Feed Token Check
+    // 1. Masked Feed Token Check (for calendar apps like Google Calendar / Apple Calendar)
     if (feed) {
-      const expectedAdminToken = 'cal_' + crypto.createHash('sha256').update('vault_admin_ET_FEED_SALT_2026').digest('hex').slice(0, 24);
-      if (feed === expectedAdminToken) {
+      // Check admin default vault
+      if (feed === getVaultFeedToken('vault_admin')) {
         vaultId = 'vault_admin';
         authorized = true;
       } else {
         try {
           const vaults = await sql`SELECT id FROM app_vaults;`;
           for (const v of vaults) {
-            const exp = 'cal_' + crypto.createHash('sha256').update(v.id + '_ET_FEED_SALT_2026').digest('hex').slice(0, 24);
-            if (feed === exp) {
+            if (feed === getVaultFeedToken(v.id)) {
               vaultId = v.id;
               authorized = true;
               break;
@@ -53,6 +77,7 @@ export default async function handler(req, res) {
       }
     }
 
+    // 2. Active Session Token Check
     if (!authorized && token) {
       const s = await sql`SELECT vault_id FROM app_sessions WHERE token = ${token} AND expires_at > CURRENT_TIMESTAMP;`;
       if (s.length > 0) {
@@ -60,20 +85,9 @@ export default async function handler(req, res) {
         authorized = true;
       }
     }
-    if (!authorized && key) {
-      const settings = await sql`SELECT key, value FROM app_settings WHERE key = 'passcode' AND value = ${key};`;
-      if (settings.length > 0) authorized = true;
-      const vaults = await sql`SELECT id FROM app_vaults WHERE id = ${vaultId} AND passcode = ${key};`;
-      if (vaults.length > 0) authorized = true;
-    }
-
-    // Default fallback for master vault if key matches admin default passcode '1122' or no key provided
-    if (!authorized && (!key || key === '1122')) {
-      authorized = true;
-    }
 
     if (!authorized) {
-      return res.status(401).send('Unauthorized: Invalid or missing calendar key or token.');
+      return res.status(401).send('Unauthorized: Valid ?feed= token required.');
     }
 
     // Fetch accounts, subscriptions, debts, settings
