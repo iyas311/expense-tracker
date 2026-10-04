@@ -112,10 +112,6 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
   };
 
   const handleSendTestEmail = async () => {
-    if (!alertEmail.trim()) {
-      setEmailStatus({ text: 'Please enter a recipient email address.', type: 'error' });
-      return;
-    }
     setIsSendingTestEmail(true);
     setEmailStatus({ text: 'Sending test email via Resend...', type: 'info' });
     try {
@@ -126,7 +122,7 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
           action: 'test',
           payload: {
             vaultId: currentVault?.id || 'vault_admin',
-            recipientEmail: alertEmail.trim()
+            recipientEmail: alertEmail.trim() || undefined
           }
         })
       });
@@ -548,13 +544,13 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
                 <label style={{ fontSize: '0.86rem', fontWeight: '700', color: '#fff' }}>Email Alerts (Resend)</label>
               </div>
               <p style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginBottom: '10px', lineHeight: 1.4 }}>
-                Receive automatic morning reminders 2-3 days before credit card bills are due.
+                Receive automatic morning reminders 2-3 days before credit card bills are due. Leave blank to use your default Vercel / Resend email.
               </p>
 
               <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
                 <input
                   type="email"
-                  placeholder="your.email@gmail.com"
+                  placeholder="e.g. Leave blank to use default email"
                   value={alertEmail}
                   onChange={(e) => setAlertEmail(e.target.value)}
                   className="glass-input"
