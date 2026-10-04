@@ -125,17 +125,21 @@ export function AccountsBar() {
   const getCardBillingInfo = (acc) => {
     if (!acc.dueDay) return null;
     const now = new Date();
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const dueDayNum = parseInt(acc.dueDay);
-    let dueDate = new Date(now.getFullYear(), now.getMonth(), dueDayNum, 23, 59, 59);
+
+    // If today is past the due day (e.g. today is 4th and due day is 2nd), next due date is next month
+    let dueDateMidnight = new Date(now.getFullYear(), now.getMonth(), dueDayNum);
     if (now.getDate() > dueDayNum) {
-      dueDate = new Date(now.getFullYear(), now.getMonth() + 1, dueDayNum, 23, 59, 59);
+      dueDateMidnight = new Date(now.getFullYear(), now.getMonth() + 1, dueDayNum);
     }
-    const diffMs = dueDate.getTime() - now.getTime();
-    const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-    const formattedDate = dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+    const diffMs = dueDateMidnight.getTime() - todayMidnight.getTime();
+    const daysRemaining = Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+    const formattedDate = dueDateMidnight.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
     return {
       dueDay: dueDayNum,
-      dueDate,
+      dueDate: dueDateMidnight,
       daysRemaining,
       formattedDate,
       statementDay: acc.statementDay ? parseInt(acc.statementDay) : null
@@ -304,6 +308,11 @@ export function AccountsBar() {
                     urgencyBg = 'rgba(244, 63, 94, 0.2)';
                     urgencyBorder = 'rgba(244, 63, 94, 0.4)';
                     badgeText = 'Due Today!';
+                  } else if (billing.daysRemaining === 1) {
+                    urgencyColor = '#f43f5e';
+                    urgencyBg = 'rgba(244, 63, 94, 0.2)';
+                    urgencyBorder = 'rgba(244, 63, 94, 0.4)';
+                    badgeText = `Due Tomorrow (${billing.formattedDate})`;
                   } else if (billing.daysRemaining <= 3) {
                     urgencyColor = '#f43f5e';
                     urgencyBg = 'rgba(244, 63, 94, 0.15)';
@@ -490,7 +499,7 @@ export function AccountsBar() {
                           fontWeight: '600'
                         }}>
                           <CalendarDays size={12} />
-                          Due: {b.formattedDate} {isNegative && `(${b.daysRemaining}d)`}
+                          Due: {b.formattedDate} {isNegative && `(${b.daysRemaining === 0 ? 'Today' : b.daysRemaining === 1 ? 'Tomorrow' : `${b.daysRemaining}d`})`}
                         </span>
                       );
                     })() : (
