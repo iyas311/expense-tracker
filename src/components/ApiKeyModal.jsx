@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useExpense } from '../context/ExpenseContext';
-import { Sparkles, ExternalLink, Check, X, Activity, Lock, Loader2, Server, Key, ChevronDown, ChevronUp, CheckCircle2, Download, FileText, Database, Upload } from 'lucide-react';
+import { Sparkles, ExternalLink, Check, X, Activity, Lock, Loader2, Server, Key, ChevronDown, ChevronUp, CheckCircle2, Download, FileText, Database, Upload, Calendar, Mail, Copy } from 'lucide-react';
 
 export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
   const {
@@ -32,6 +32,12 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
   const [newPassword, setNewPassword] = useState('');
   const [isChangingPass, setIsChangingPass] = useState(false);
   const [passMsg, setPassMsg] = useState({ text: '', type: '' });
+
+  // Calendar Feed & Email Alerts state
+  const [copiedCalendar, setCopiedCalendar] = useState(false);
+  const [alertEmail, setAlertEmail] = useState('');
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  const [emailStatus, setEmailStatus] = useState({ text: '', type: '' });
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
@@ -90,6 +96,52 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
         });
     }
   }, [isOpen]);
+
+  const calendarUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/api/calendar?vault=${currentVault?.id || 'vault_admin'}&key=1122`
+    : '';
+  const webcalUrl = calendarUrl.replace(/^https?:/, 'webcal:');
+  const googleCalUrl = `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`;
+
+  const handleCopyCalendar = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(calendarUrl);
+      setCopiedCalendar(true);
+      setTimeout(() => setCopiedCalendar(false), 2000);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!alertEmail.trim()) {
+      setEmailStatus({ text: 'Please enter a recipient email address.', type: 'error' });
+      return;
+    }
+    setIsSendingTestEmail(true);
+    setEmailStatus({ text: 'Sending test email via Resend...', type: 'info' });
+    try {
+      const res = await fetch('/api/email-alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'test',
+          payload: {
+            vaultId: currentVault?.id || 'vault_admin',
+            recipientEmail: alertEmail.trim()
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEmailStatus({ text: `✓ Test email sent successfully to ${data.sentTo}! Check your inbox.`, type: 'success' });
+      } else {
+        setEmailStatus({ text: `Error: ${data.error || 'Failed to send'}`, type: 'error' });
+      }
+    } catch (e) {
+      setEmailStatus({ text: 'Network error: ' + e.message, type: 'error' });
+    } finally {
+      setIsSendingTestEmail(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -435,6 +487,99 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
                   border: `1px solid ${restoreStatus.type === 'success' ? 'rgba(16,185,129,0.3)' : restoreStatus.type === 'error' ? 'rgba(244,63,94,0.3)' : 'rgba(99,102,241,0.3)'}`
                 }}>
                   {restoreStatus.text}
+                </div>
+              )}
+            </div>
+
+            {/* ─── Google Calendar / iCal Feed Sync ─── */}
+            <div style={{ marginBottom: '20px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <Calendar size={16} color="#06b6d4" />
+                <label style={{ fontSize: '0.86rem', fontWeight: '700', color: '#fff' }}>Calendar Feed (Due Dates & Subscriptions)</label>
+              </div>
+              <p style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginBottom: '10px', lineHeight: 1.4 }}>
+                Subscribe to your live bill due dates and recurring subscriptions in Google Calendar, Apple iCal, or Outlook.
+              </p>
+              
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  readOnly
+                  value={calendarUrl}
+                  className="glass-input"
+                  style={{ fontSize: '0.74rem', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.2)' }}
+                />
+                <button
+                  type="button"
+                  onClick={handleCopyCalendar}
+                  className="btn-secondary"
+                  style={{ padding: '0 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
+                >
+                  {copiedCalendar ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                  {copiedCalendar ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <a
+                  href={googleCalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary"
+                  style={{ padding: '8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', borderRadius: '10px', textDecoration: 'none', color: '#38bdf8' }}
+                >
+                  <ExternalLink size={13} /> Add to Google Cal
+                </a>
+                <a
+                  href={calendarUrl}
+                  download="expensia_calendar.ics"
+                  className="btn-secondary"
+                  style={{ padding: '8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', borderRadius: '10px', textDecoration: 'none' }}
+                >
+                  <Download size={13} /> Download .ics
+                </a>
+              </div>
+            </div>
+
+            {/* ─── Resend Email Alerts ─── */}
+            <div style={{ marginBottom: '20px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <Mail size={16} color="#f59e0b" />
+                <label style={{ fontSize: '0.86rem', fontWeight: '700', color: '#fff' }}>Email Alerts (Resend)</label>
+              </div>
+              <p style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginBottom: '10px', lineHeight: 1.4 }}>
+                Receive automatic morning reminders 2-3 days before credit card bills are due.
+              </p>
+
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                <input
+                  type="email"
+                  placeholder="your.email@gmail.com"
+                  value={alertEmail}
+                  onChange={(e) => setAlertEmail(e.target.value)}
+                  className="glass-input"
+                  style={{ fontSize: '0.8rem' }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSendTestEmail}
+                  disabled={isSendingTestEmail}
+                  className="btn-secondary"
+                  style={{ padding: '0 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', borderColor: 'rgba(245,158,11,0.3)', color: '#f59e0b' }}
+                >
+                  {isSendingTestEmail ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />}
+                  {isSendingTestEmail ? 'Sending...' : 'Test Send'}
+                </button>
+              </div>
+
+              {emailStatus.text && (
+                <div style={{
+                  padding: '6px 10px', borderRadius: '8px', fontSize: '0.73rem',
+                  background: emailStatus.type === 'success' ? 'rgba(16,185,129,0.15)' : emailStatus.type === 'error' ? 'rgba(244,63,94,0.15)' : 'rgba(99,102,241,0.15)',
+                  color: emailStatus.type === 'success' ? '#10b981' : emailStatus.type === 'error' ? '#f43f5e' : '#818cf8',
+                  border: `1px solid ${emailStatus.type === 'success' ? 'rgba(16,185,129,0.3)' : emailStatus.type === 'error' ? 'rgba(244,63,94,0.3)' : 'rgba(99,102,241,0.3)'}`
+                }}>
+                  {emailStatus.text}
                 </div>
               )}
             </div>
