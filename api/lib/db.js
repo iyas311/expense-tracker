@@ -229,13 +229,13 @@ export async function seedStarterCategories(sql, vaultId) {
   const defaults = [
     [`cat-1-${vaultId}`, 'Food & Dining', 'expense', 0, false, '#f43f5e', 'Utensils'],
     [`cat-2-${vaultId}`, 'Groceries', 'expense', 0, false, '#10b981', 'ShoppingCart'],
-    [`cat-3-${vaultId}`, 'Transportation', 'expense', 0, false, '#06b6d4', 'Car'],
+    [`cat-3-${vaultId}`, 'Transportation', 'expense', 0, false, '#0284c7', 'Car'],
     [`cat-fuel-${vaultId}`, 'Fuel', 'expense', 0, false, '#f97316', 'Fuel'],
     [`cat-4-${vaultId}`, 'Bills & Utilities', 'expense', 0, false, '#f59e0b', 'Zap'],
     [`cat-5-${vaultId}`, 'Entertainment', 'expense', 0, false, '#8b5cf6', 'Film'],
     [`cat-6-${vaultId}`, 'Shopping', 'expense', 0, false, '#ec4899', 'ShoppingBag'],
-    [`cat-7-${vaultId}`, 'Loans & Debts', 'expense', 0, false, '#f59e0b', 'HandCoins'],
-    [`cat-8-${vaultId}`, 'Salary & Income', 'income', 0, false, '#10b981', 'DollarSign']
+    [`cat-7-${vaultId}`, 'Loans & Debts', 'expense', 0, false, '#be123c', 'HandCoins'],
+    [`cat-8-${vaultId}`, 'Salary & Income', 'income', 0, false, '#22c55e', 'DollarSign']
   ];
   for (const [id, name, type, budgetCap, isAuto, color, icon] of defaults) {
     await sql`INSERT INTO categories (id, name, type, budget_cap, is_auto_budget, color, icon, vault_id) VALUES (${id}, ${name}, ${type}, ${budgetCap}, ${isAuto}, ${color}, ${icon}, ${vaultId}) ON CONFLICT DO NOTHING;`;
