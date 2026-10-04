@@ -169,14 +169,14 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
         bottom: 0,
         left: 0,
         right: 0,
-        background: 'rgba(15, 22, 41, 0.95)',
+        background: 'rgba(15, 22, 41, 0.96)',
         backdropFilter: 'blur(20px)',
         borderTop: '1px solid var(--border-light)',
-        display: 'flex',
-        justifyContent: 'around',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
         alignItems: 'center',
-        paddingTop: '10px',
-        paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
+        paddingTop: '8px',
+        paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 0px))',
         zIndex: 99
       }} className="mobile-nav">
         {[
@@ -198,15 +198,18 @@ export function Navbar({ onOpenSettings, onOpenChat, activeTab, setActiveTab }) 
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.72rem',
+                justifyContent: 'center',
+                gap: '3px',
+                fontSize: '0.68rem',
                 fontWeight: isActive ? '700' : '500',
                 cursor: 'pointer',
-                flex: 1
+                padding: '4px 0',
+                width: '100%',
+                transition: 'all 0.15s ease'
               }}
             >
-              <Icon size={20} color={isActive ? '#06b6d4' : '#94a3b8'} />
-              {item.label}
+              <Icon size={19} color={isActive ? '#06b6d4' : '#94a3b8'} />
+              <span style={{ whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>{item.label}</span>
             </button>
           );
         })}
