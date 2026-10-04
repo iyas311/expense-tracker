@@ -16,8 +16,11 @@ export function fallbackLocalParser(input, categories = [], accounts = []) {
     if (/\b(?:grocer|supermarket|vegetable|fruit|milk)\b/i.test(text)) {
       return categories.find(c => /grocer|market/i.test(c.name))?.id || defaultCategoryId;
     }
-    if (/\b(?:uber|gas|fuel|cab|ride|auto|taxi|train|bus|petrol)\b/i.test(text)) {
-      return categories.find(c => /transport|travel/i.test(c.name))?.id || defaultCategoryId;
+    if (/\b(?:fuel|petrol|diesel|gas|cng|bunk|charging)\b/i.test(text)) {
+      return categories.find(c => /fuel/i.test(c.name))?.id || categories.find(c => /transport|travel/i.test(c.name))?.id || defaultCategoryId;
+    }
+    if (/\b(?:uber|ola|rapido|cab|ride|auto|taxi|train|bus|metro|flight|ticket|toll|fasttag)\b/i.test(text)) {
+      return categories.find(c => /transport|travel|commute/i.test(c.name))?.id || defaultCategoryId;
     }
     if (/\b(?:bill|electricity|water|wifi|recharge|internet|power)\b/i.test(text)) {
       return categories.find(c => /bill|util/i.test(c.name))?.id || defaultCategoryId;

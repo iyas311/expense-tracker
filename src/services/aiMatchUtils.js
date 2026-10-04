@@ -85,6 +85,16 @@ export function matchCategory(hint, descText, categories = [], type = 'expense')
     if (found) return found;
   }
 
+  // Distinctive keyword checks for Fuel vs Transportation
+  if (/\b(?:fuel|petrol|diesel|gas|cng|bunk|charging)\b/i.test(cleanDesc)) {
+    const fuelCat = categories.find(c => /fuel/i.test(c.name));
+    if (fuelCat) return fuelCat;
+  }
+  if (/\b(?:uber|ola|rapido|cab|ride|auto|taxi|train|bus|metro|flight|ticket|toll|fasttag)\b/i.test(cleanDesc)) {
+    const transCat = categories.find(c => /transport|travel|commute/i.test(c.name));
+    if (transCat) return transCat;
+  }
+
   const foundDesc = categories.find(c => cleanDesc.includes((c.name || '').toLowerCase()));
   if (foundDesc) return foundDesc;
 

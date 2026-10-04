@@ -201,6 +201,10 @@ CRITICAL SPLIT EXPENSE RULES:
   - splits: An array of each OTHER person's share who owes the user (e.g. [{ "personName": "Rahul", "amount": 1000 }, { "personName": "Rohit", "amount": 1000 }])
   - DO NOT include the user in the splits array.
 
+CRITICAL CATEGORY RULES FOR FUEL VS TRANSPORTATION:
+- If user mentions "fuel", "petrol", "diesel", "gas", "cng", "bunk", "charging" -> category MUST be "Fuel" (if available in categories list).
+- If user mentions "uber", "ola", "rapido", "cab", "ride", "auto", "taxi", "train", "bus", "metro", "flight", "ticket", "fasttag" -> category MUST be "Transportation" (or "Transport & Fuel" if not separated).
+
 Types of operations:
 1. "transaction": Normal expense (goods, services, dining, bills) or income (salary, freelance, profits).
 2. "transfer": Transferring funds from one account to another.

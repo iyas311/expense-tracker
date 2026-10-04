@@ -229,7 +229,8 @@ export async function seedStarterCategories(sql, vaultId) {
   const defaults = [
     [`cat-1-${vaultId}`, 'Food & Dining', 'expense', 0, false, '#f43f5e', 'Utensils'],
     [`cat-2-${vaultId}`, 'Groceries', 'expense', 0, false, '#10b981', 'ShoppingCart'],
-    [`cat-3-${vaultId}`, 'Transport & Fuel', 'expense', 0, false, '#06b6d4', 'Car'],
+    [`cat-3-${vaultId}`, 'Transportation', 'expense', 0, false, '#06b6d4', 'Car'],
+    [`cat-fuel-${vaultId}`, 'Fuel', 'expense', 0, false, '#f97316', 'Fuel'],
     [`cat-4-${vaultId}`, 'Bills & Utilities', 'expense', 0, false, '#f59e0b', 'Zap'],
     [`cat-5-${vaultId}`, 'Entertainment', 'expense', 0, false, '#8b5cf6', 'Film'],
     [`cat-6-${vaultId}`, 'Shopping', 'expense', 0, false, '#ec4899', 'ShoppingBag'],
