@@ -333,6 +333,24 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, messageId: result.id, notifiedCards: dueSoonCards.map(c => c.name) });
     }
 
+    // ─── ACTION: GET CATEGORIES & COLORS ─────────────────────────────────────
+    if (action === 'getCategories') {
+      const categories = await sql`SELECT id, name, type, color, icon, vault_id FROM categories ORDER BY name ASC;`;
+      return res.status(200).json({ success: true, categories });
+    }
+
+    // ─── ACTION: UPDATE CATEGORY COLORS ──────────────────────────────────────
+    if (action === 'updateCategoryColors') {
+      const { updates } = payload;
+      if (Array.isArray(updates)) {
+        for (const u of updates) {
+          await sql`UPDATE categories SET color = ${u.color} WHERE id = ${u.id};`;
+        }
+      }
+      const categories = await sql`SELECT id, name, type, color, icon, vault_id FROM categories ORDER BY name ASC;`;
+      return res.status(200).json({ success: true, categories });
+    }
+
     return res.status(400).json({ error: 'Unknown action: ' + action });
 
   } catch (err) {
