@@ -97,8 +97,9 @@ export function ApiKeyModal({ isOpen, onClose, onOpenLogs, onOpenAdmin }) {
     }
   }, [isOpen]);
 
+  const feedToken = 'cal_b8b0646eef530e64facc920e';
   const calendarUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/api/calendar?vault=${currentVault?.id || 'vault_admin'}&key=1122`
+    ? `${window.location.origin}/api/calendar?feed=${feedToken}`
     : '';
   const webcalUrl = calendarUrl.replace(/^https?:/, 'webcal:');
   const googleCalUrl = `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`;

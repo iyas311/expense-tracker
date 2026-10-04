@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { getSql } from './lib/db.js';
 
 function formatIcsDate(date) {
@@ -26,10 +27,33 @@ export default async function handler(req, res) {
     let vaultId = req.query.vault || 'vault_admin';
     const token = req.query.token;
     const key = req.query.key;
+    const feed = req.query.feed;
 
     // Validate access
     let authorized = false;
-    if (token) {
+
+    // 1. Secure Masked Feed Token Check
+    if (feed) {
+      const expectedAdminToken = 'cal_' + crypto.createHash('sha256').update('vault_admin_ET_FEED_SALT_2026').digest('hex').slice(0, 24);
+      if (feed === expectedAdminToken) {
+        vaultId = 'vault_admin';
+        authorized = true;
+      } else {
+        try {
+          const vaults = await sql`SELECT id FROM app_vaults;`;
+          for (const v of vaults) {
+            const exp = 'cal_' + crypto.createHash('sha256').update(v.id + '_ET_FEED_SALT_2026').digest('hex').slice(0, 24);
+            if (feed === exp) {
+              vaultId = v.id;
+              authorized = true;
+              break;
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (!authorized && token) {
       const s = await sql`SELECT vault_id FROM app_sessions WHERE token = ${token} AND expires_at > CURRENT_TIMESTAMP;`;
       if (s.length > 0) {
         vaultId = s[0].vault_id;

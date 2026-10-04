@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     const settings = await sql`SELECT key, value FROM app_settings;`;
     const getSetting = (k, def = '') => settings.find(s => s.key === k)?.value || def;
     const currency = getSetting('currency', '₹');
-    const recipientEmail = payload.recipientEmail || getSetting('alert_email') || process.env.ALERT_EMAIL || 'iyas311@gmail.com';
+    const recipientEmail = payload.recipientEmail || getSetting('alert_email') || process.env.ALERT_EMAIL || 'iyas2458@gmail.com';
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'Expensia Alerts <onboarding@resend.dev>';
 
     // Helper: Send via Resend REST API
