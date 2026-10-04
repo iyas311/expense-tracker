@@ -93,10 +93,13 @@ export default async function handler(req, res) {
         </div>
       `;
 
+      const subject = payload.subject || '🎉 Expensia Email Alerts are Connected!';
+      const contentHtml = payload.html || (payload.text ? `<p style="font-size:14px;color:#f8fafc;">${payload.text}</p>` : html);
+
       const result = await sendEmail({
         to: target,
-        subject: '🎉 Expensia Email Alerts are Connected!',
-        html
+        subject,
+        html: contentHtml
       });
 
       // Save recipient email in settings for future automated alerts
