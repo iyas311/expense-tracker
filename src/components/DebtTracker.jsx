@@ -107,6 +107,22 @@ export function DebtTracker() {
   };
 
   // Group debts by person name (case-insensitive)
+  const getAvatarBg = (name) => {
+    const hues = [
+      ['#3b82f6', '#1d4ed8'],
+      ['#10b981', '#047857'],
+      ['#8b5cf6', '#6d28d9'],
+      ['#f59e0b', '#b45309'],
+      ['#06b6d4', '#0e7490'],
+      ['#ec4899', '#be185d']
+    ];
+    let h = 0;
+    for (let i = 0; i < (name || '').length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+    const pair = hues[Math.abs(h) % hues.length];
+    return `linear-gradient(135deg, ${pair[0]}, ${pair[1]})`;
+  };
+
+  // Group debts by person name (case-insensitive) & sort by dateCreated DESC
   const groupByPerson = (debtList) => {
     const map = {};
     for (const d of debtList) {
@@ -114,7 +130,11 @@ export function DebtTracker() {
       if (!map[key]) map[key] = { personName: d.personName, debts: [] };
       map[key].debts.push(d);
     }
-    return Object.values(map);
+    const groups = Object.values(map);
+    groups.forEach(g => {
+      g.debts.sort((a, b) => new Date(b.dateCreated || 0) - new Date(a.dateCreated || 0));
+    });
+    return groups;
   };
 
   const lentGroups = groupByPerson(lentDebts);
@@ -122,6 +142,7 @@ export function DebtTracker() {
 
   const [expandedPerson, setExpandedPerson] = useState(null);
   const [settlingGroupPerson, setSettlingGroupPerson] = useState(null);
+  const [showAllSettled, setShowAllSettled] = useState(false);
 
   const handleSettleGroup = (groupDebts, direction) => {
     const partial = parseFloat(settleInput);
@@ -145,65 +166,201 @@ export function DebtTracker() {
   };
 
   const PersonGroup = ({ group, direction }) => {
-    const totalRemaining = group.debts.reduce((s, d) => s + Math.max(0, d.amount - (d.settledAmount || 0)), 0);
+    const totalInitial = group.debts.reduce((s, d) => s + (d.amount || 0), 0);
+    const totalSettled = group.debts.reduce((s, d) => s + (d.settledAmount || 0), 0);
+    const totalRemaining = Math.max(0, totalInitial - totalSettled);
     const isLent = direction === 'lent';
     const isExpanded = expandedPerson === group.personName.toLowerCase();
     const isSettling = settlingGroupPerson === group.personName.toLowerCase();
     const hasPartial = group.debts.some(d => d.status === 'partial');
 
+    // Most recent activity
+    const latestDebt = group.debts[0];
+    const latestReason = latestDebt?.reason?.trim() || (isLent ? 'Lent' : 'Borrowed');
+    const formattedLatestDate = latestDebt?.dateCreated
+      ? new Date(latestDebt.dateCreated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+      : '';
+
+    // Distinct reasons for preview chips (up to 3)
+    const distinctReasons = Array.from(new Set(group.debts.map(d => d.reason?.trim()).filter(Boolean)));
+    const previewChips = distinctReasons.slice(0, 3);
+    const remainingReasonsCount = distinctReasons.length - previewChips.length;
+
     return (
       <div style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: `1px solid ${isLent ? 'rgba(16,185,129,0.25)' : 'rgba(244,63,94,0.25)'}`,
-        borderRadius: '14px', overflow: 'hidden'
+        background: 'rgba(255,255,255,0.025)',
+        border: `1px solid ${isLent ? 'rgba(16,185,129,0.22)' : 'rgba(244,63,94,0.22)'}`,
+        borderRadius: '16px',
+        overflow: 'hidden',
+        transition: 'all 0.2s ease',
+        boxShadow: isExpanded ? '0 8px 24px rgba(0,0,0,0.25)' : 'none'
       }}>
         {/* Person header row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 16px', gap: '10px' }}>
+        <div
+          onClick={() => {
+            if (group.debts.length > 1) {
+              setExpandedPerson(isExpanded ? null : group.personName.toLowerCase());
+            }
+          }}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '12px 16px',
+            gap: '12px',
+            cursor: group.debts.length > 1 ? 'pointer' : 'default',
+            userSelect: 'none'
+          }}
+        >
+          {/* Avatar */}
+          <div
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '12px',
+              background: getAvatarBg(group.personName),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontWeight: '800',
+              fontSize: '1rem',
+              flexShrink: 0,
+              boxShadow: '0 2px 10px rgba(0,0,0,0.25)'
+            }}
+          >
+            {group.personName.trim().charAt(0).toUpperCase()}
+          </div>
+
+          {/* Details */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{group.personName}</span>
+              <span style={{ fontWeight: '700', fontSize: '0.96rem', color: 'var(--text-primary)' }}>
+                {group.personName}
+              </span>
               {group.debts.length > 1 && (
-                <span style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', padding: '2px 7px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '700' }}>
+                <span style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', padding: '2px 8px', borderRadius: '12px', fontSize: '0.68rem', fontWeight: '700' }}>
                   {group.debts.length} entries
                 </span>
               )}
               {hasPartial && (
-                <span style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 7px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '700' }}>PARTIAL</span>
+                <span style={{ background: 'rgba(245,158,11,0.18)', color: '#f59e0b', padding: '2px 8px', borderRadius: '12px', fontSize: '0.65rem', fontWeight: '700', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  PARTIAL
+                </span>
               )}
             </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-              {group.debts.map(d => d.reason || (isLent ? 'Lent' : 'Borrowed')).join(' · ')}
-            </div>
+
+            {/* Smart subtitle */}
+            {group.debts.length === 1 ? (
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <span>{latestReason}</span>
+                {formattedLatestDate && <span>• {formattedLatestDate}</span>}
+                {latestDebt?.dueDate && (
+                  <span style={{ color: getDaysInfo(latestDebt.dueDate) < 0 ? '#f43f5e' : 'var(--text-dim)', fontSize: '0.7rem' }}>
+                    • Due {latestDebt.dueDate}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div style={{ marginTop: '3px' }}>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    Latest: <strong style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{latestReason}</strong> ({currency}{latestDebt.amount.toLocaleString('en-IN', { minimumFractionDigits: 0 })})
+                  </span>
+                  {formattedLatestDate && <span style={{ color: 'var(--text-dim)' }}>• {formattedLatestDate}</span>}
+                </div>
+                {previewChips.length > 0 && (
+                  <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginTop: '5px', flexWrap: 'wrap' }}>
+                    {previewChips.map((chip, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          fontSize: '0.66rem',
+                          background: 'rgba(255,255,255,0.06)',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          padding: '1px 7px',
+                          borderRadius: '8px',
+                          color: 'var(--text-dim)',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                    {remainingReasonsCount > 0 && (
+                      <span
+                        style={{
+                          fontSize: '0.66rem',
+                          background: 'rgba(99,102,241,0.14)',
+                          color: '#818cf8',
+                          padding: '1px 7px',
+                          borderRadius: '8px',
+                          fontWeight: '700'
+                        }}
+                      >
+                        +{remainingReasonsCount} more
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Partial Progress Bar */}
+            {totalSettled > 0 && (
+              <div style={{ marginTop: '7px', maxWidth: '320px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.66rem', color: 'var(--text-muted)', marginBottom: '2px' }}>
+                  <span style={{ color: '#10b981', fontWeight: '600' }}>{currency}{totalSettled.toLocaleString('en-IN')} paid</span>
+                  <span>{currency}{totalRemaining.toLocaleString('en-IN')} left ({Math.round((totalSettled / totalInitial) * 100)}%)</span>
+                </div>
+                <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min(100, Math.round((totalSettled / totalInitial) * 100))}%`, background: '#10b981', borderRadius: '2px' }} />
+                </div>
+              </div>
+            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-            <span style={{ fontWeight: '800', fontSize: '1rem', color: isLent ? '#10b981' : '#f43f5e' }}>
-              {currency}{totalRemaining.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-            </span>
+
+          {/* Amount and Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: '800', fontSize: '1.05rem', color: isLent ? '#10b981' : '#f43f5e' }}>
+                {currency}{totalRemaining.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+              </div>
+              {group.debts.length > 1 && (
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Total Balance
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => { setSettlingGroupPerson(isSettling ? null : group.personName.toLowerCase()); setSettlingId(null); setSettleInput(''); setSettleAccountId(''); }}
               className="btn-secondary"
-              style={{ padding: '5px 8px', fontSize: '0.72rem', borderRadius: '8px', color: '#10b981' }}
-              title="Settle"
+              style={{ padding: '6px 9px', fontSize: '0.72rem', borderRadius: '8px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}
+              title={group.debts.length > 1 ? "Settle all or partial" : "Settle"}
             >
               <Check size={13} />
             </button>
+
             {group.debts.length === 1 && (
               <button
                 onClick={() => handleOpenEdit(group.debts[0])}
                 className="btn-secondary"
-                style={{ padding: '5px 8px', fontSize: '0.72rem', borderRadius: '8px', color: 'var(--text-muted)' }}
+                style={{ padding: '6px 8px', fontSize: '0.72rem', borderRadius: '8px', color: 'var(--text-muted)' }}
                 title="Edit"
               >
                 <Edit2 size={13} />
               </button>
             )}
+
             {group.debts.length > 1 && (
               <button
                 onClick={() => setExpandedPerson(isExpanded ? null : group.personName.toLowerCase())}
                 className="btn-secondary"
-                style={{ padding: '5px', borderRadius: '8px', color: 'var(--text-dim)' }}
+                style={{ padding: '6px 8px', borderRadius: '8px', color: 'var(--text-dim)', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+                title={isExpanded ? "Collapse" : "View individual entries"}
               >
-                {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                <ChevronDown size={14} />
               </button>
             )}
           </div>
@@ -211,37 +368,70 @@ export function DebtTracker() {
 
         {/* Expandable individual entries */}
         {isExpanded && (
-          <div style={{ borderTop: `1px solid ${isLent ? 'rgba(16,185,129,0.15)' : 'rgba(244,63,94,0.15)'}`, padding: '8px 16px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ borderTop: `1px solid ${isLent ? 'rgba(16,185,129,0.15)' : 'rgba(244,63,94,0.15)'}`, padding: '10px 16px 14px', background: 'rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Itemized Ledger ({group.debts.length} records)
+              </span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
+                Click [✓] on any item to settle individually
+              </span>
+            </div>
+
             {group.debts.map(d => {
-              const rem = d.amount - (d.settledAmount || 0);
+              const rem = Math.max(0, d.amount - (d.settledAmount || 0));
               const formattedDate = d.dateCreated ? (typeof d.dateCreated === 'string' ? d.dateCreated.split('T')[0] : new Date(d.dateCreated).toISOString().split('T')[0]) : '';
               const isThisSettling = settlingId === d.id;
 
               return (
                 <React.Fragment key={d.id}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', gap: '8px', padding: '5px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', gap: '10px', padding: '8px 12px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ color: 'var(--text-main)' }}>{d.reason || (isLent ? 'Lent' : 'Borrowed')}</span>
-                      {formattedDate && <span style={{ color: 'var(--text-dim)', marginLeft: '6px' }}>· {formattedDate}</span>}
-                      {d.settledAmount > 0 && <span style={{ color: '#10b981', marginLeft: '6px' }}>· paid {currency}{d.settledAmount.toFixed(0)}</span>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
+                          {d.reason || (isLent ? 'Lent' : 'Borrowed')}
+                        </span>
+                        {formattedDate && (
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.05)', padding: '1px 6px', borderRadius: '6px' }}>
+                            {formattedDate}
+                          </span>
+                        )}
+                        {d.dueDate && (
+                          <span style={{ fontSize: '0.68rem', color: getDaysInfo(d.dueDate) < 0 ? '#f43f5e' : 'var(--text-dim)' }}>
+                            Due {d.dueDate}
+                          </span>
+                        )}
+                      </div>
+                      {d.notes && (
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                          📝 {d.notes}
+                        </div>
+                      )}
+                      {d.settledAmount > 0 && (
+                        <div style={{ fontSize: '0.68rem', color: '#10b981', marginTop: '2px', fontWeight: '600' }}>
+                          ✓ Paid {currency}{d.settledAmount.toLocaleString('en-IN')} ({currency}{rem.toLocaleString('en-IN')} remaining)
+                        </div>
+                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                      <span style={{ fontWeight: '700', color: isLent ? '#10b981' : '#f43f5e' }}>{currency}{rem.toFixed(0)}</span>
-                      <button onClick={() => { setSettlingId(isThisSettling ? null : d.id); setSettlingGroupPerson(null); setSettleInput(''); setSettleAccountId(''); }} className="btn-secondary" style={{ padding: '3px 6px', borderRadius: '6px', color: '#10b981' }} title="Settle">
-                        <Check size={11} />
+                      <span style={{ fontWeight: '700', fontSize: '0.88rem', color: isLent ? '#10b981' : '#f43f5e' }}>
+                        {currency}{rem.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                      </span>
+                      <button onClick={() => { setSettlingId(isThisSettling ? null : d.id); setSettlingGroupPerson(null); setSettleInput(''); setSettleAccountId(''); }} className="btn-secondary" style={{ padding: '4px 7px', borderRadius: '6px', color: '#10b981' }} title="Settle">
+                        <Check size={12} />
                       </button>
-                      <button onClick={() => handleOpenEdit(d)} className="btn-secondary" style={{ padding: '3px 6px', borderRadius: '6px', color: 'var(--text-muted)' }} title="Edit">
-                        <Edit2 size={11} />
+                      <button onClick={() => handleOpenEdit(d)} className="btn-secondary" style={{ padding: '4px 7px', borderRadius: '6px', color: 'var(--text-muted)' }} title="Edit">
+                        <Edit2 size={12} />
                       </button>
-                      <button onClick={() => deleteDebt(d.id)} className="btn-secondary" style={{ padding: '3px 6px', borderRadius: '6px', color: 'var(--text-dim)' }} title="Delete">
-                        <Trash2 size={11} />
+                      <button onClick={() => deleteDebt(d.id)} className="btn-secondary" style={{ padding: '4px 7px', borderRadius: '6px', color: 'var(--text-dim)' }} title="Delete">
+                        <Trash2 size={12} />
                       </button>
                     </div>
                   </div>
-                  
+
                   {/* Micro Settle Panel for individual debt */}
                   {isThisSettling && (
-                    <div style={{ padding: '8px', marginTop: '-4px', marginBottom: '4px', background: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ padding: '10px', marginTop: '-4px', marginBottom: '4px', background: 'rgba(0,0,0,0.3)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <input
                           type="number"
@@ -269,7 +459,7 @@ export function DebtTracker() {
                           value={settleAccountId}
                           onChange={e => setSettleAccountId(e.target.value)}
                         >
-                          <option value="">Select account</option>
+                          <option value="">Select account (optional)</option>
                           {accounts.filter(a => a.type !== 'card').map(a => (
                             <option key={a.id} value={a.id} style={{ background: '#0f172a' }}>{a.name}</option>
                           ))}
@@ -390,18 +580,34 @@ export function DebtTracker() {
 
             {/* Settled */}
             {settledDebts.length > 0 && (
-              <div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginBottom: '6px' }}>✅ Settled ({settledDebts.length})</div>
+              <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.74rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    ✅ Settled History ({settledDebts.length})
+                  </span>
+                  {settledDebts.length > 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllSettled(s => !s)}
+                      style={{ background: 'transparent', border: 'none', color: '#818cf8', fontSize: '0.72rem', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      {showAllSettled ? 'Show Less' : `View All (${settledDebts.length})`}
+                    </button>
+                  )}
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {settledDebts.slice(0, 3).map(d => (
-                    <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-dim)', padding: '6px 10px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px' }}>
-                      <span>{d.personName} · {d.reason || (d.direction === 'lent' ? 'lent' : 'borrowed')}</span>
+                  {(showAllSettled ? settledDebts : settledDebts.slice(0, 3)).map(d => (
+                    <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-dim)', padding: '7px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>{d.personName}</span>
+                        <span style={{ color: 'var(--text-dim)' }}>• {d.reason || (d.direction === 'lent' ? 'Lent' : 'Borrowed')}</span>
+                      </div>
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                        <span style={{ color: '#10b981' }}>{currency}{d.amount.toFixed(0)} ✓</span>
-                        <button onClick={() => handleOpenEdit(d)} className="btn-secondary" style={{ padding: '3px', borderRadius: '6px', color: 'var(--text-muted)' }} title="Edit">
+                        <span style={{ color: '#10b981', fontWeight: '700', fontSize: '0.82rem' }}>{currency}{d.amount.toFixed(0)} ✓</span>
+                        <button onClick={() => handleOpenEdit(d)} className="btn-secondary" style={{ padding: '3px 6px', borderRadius: '6px', color: 'var(--text-muted)' }} title="Edit">
                           <Edit2 size={11} />
                         </button>
-                        <button onClick={() => deleteDebt(d.id)} className="btn-secondary" style={{ padding: '3px', borderRadius: '6px', color: 'var(--text-dim)' }} title="Delete">
+                        <button onClick={() => deleteDebt(d.id)} className="btn-secondary" style={{ padding: '3px 6px', borderRadius: '6px', color: 'var(--text-dim)' }} title="Delete">
                           <Trash2 size={11} />
                         </button>
                       </div>
